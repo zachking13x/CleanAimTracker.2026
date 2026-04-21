@@ -10,19 +10,19 @@ namespace CleanAimTracker.Services
         {
         }
 
-        public void Register()
+        public void Register(IntPtr hwnd)
         {
-            // TODO: Add actual raw input registration later
+            // placeholder for raw input registration
         }
 
         public void Unregister()
         {
-            // TODO: Add raw input unregistration later
+            // placeholder
         }
 
-        public void ProcessRawInput(int deltaX, int deltaY)
+        public void ProcessRawInput(int dx, int dy)
         {
-            MouseMoved?.Invoke(deltaX, deltaY);
+            MouseMoved?.Invoke(dx, dy);
         }
     }
 }

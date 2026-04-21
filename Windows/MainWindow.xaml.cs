@@ -136,10 +136,14 @@ namespace CleanAimTracker
             {
                 IntPtr hwnd = new WindowInteropHelper(this).Handle;
                 _rawInput.Register(hwnd);
-                WindowMessageHook.Initialize(this, WndProc);
-            };
 
-            LogService.Info("MainWindow initialized");
+                HwndSource source = HwndSource.FromHwnd(hwnd);
+                source.AddHook(WndProc);
+            };
+        }
+
+        CleanAimTracker.Services.LogService.Info("MainWindow initialized");
+
         }
 
         // ═════════════════════════════════════════════════════════
@@ -162,14 +166,16 @@ namespace CleanAimTracker
         // ═════════════════════════════════════════════════════════
         //  Window procedure for WM_INPUT
         // ═════════════════════════════════════════════════════════
-        private IntPtr WndProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            const uint WM_INPUT = 0x00FF;
+            const int WM_INPUT = 0x00FF;
+
             if (msg == WM_INPUT)
                 _rawInput.ProcessRawInput(lParam);
 
             return IntPtr.Zero;
         }
+
 
         // ═════════════════════════════════════════════════════════
         //  Raw mouse movement handler  (CORE ANALYTICS ENGINE)

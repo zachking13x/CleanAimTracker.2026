@@ -1,0 +1,95 @@
+<Window x:Class="CleanAimTracker.SummaryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Session Summary" Width="600" Height="750"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackground}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="20">
+        <StackPanel>
+            <!-- Title -->
+            <TextBlock Text="Session Summary"
+                       FontSize="28" FontWeight="Bold"
+                       Foreground="{DynamicResource AccentBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,20"/>
+
+            <!-- Duration Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="SESSION" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="DurationText" Text="Duration: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="TotalSamplesText" Text="Total Samples: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="SensitivityInfoText" Text="DPI: -- | Sens: -- | cm/360: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Velocity Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="VELOCITY" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="AvgVelocityText" Text="Average: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="PeakVelocityText" Text="Peak: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Distance Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="DISTANCE" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="TotalDistanceText" Text="Total: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="AvgDistPerEventText" Text="Avg/Event: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="PeakDistPerEventText" Text="Peak/Event: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Acceleration Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="ACCELERATION" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="PeakAccelText" Text="Peak: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="AvgAccelText" Text="Average: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Flicks Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="FLICKS" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="FlickCountText" Text="Total: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="SmallFlicksText" Text="Small (50-100 cm/s): --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="LargeFlicksText" Text="Large (100+ cm/s): --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="IdleBurstText" Text="Idle Bursts: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Quality Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="AIM QUALITY" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="OverallQualityText" Text="Overall: --" Foreground="{DynamicResource AccentBrush}" FontSize="22" FontWeight="Bold"/>
+                    <TextBlock x:Name="SmoothnessText" Text="Smoothness: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="CorrectionSharpnessText" Text="Correction Sharpness: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="ConsistencyText" Text="Movement Consistency: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Idle and Jitter Card -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="IDLE &amp; JITTER" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="IdlePercentText" Text="Idle %: --" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
+                    <TextBlock x:Name="JitterText" Text="Jitter Events: --" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Close Button -->
+            <Button Content="Close" Click="Close_Click"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource ButtonSecondaryFg}"
+                    FontSize="14" Padding="24,8"
+                    HorizontalAlignment="Center" Margin="0,12,0,0"
+                    BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

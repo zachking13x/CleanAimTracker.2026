@@ -1,0 +1,84 @@
+<Window x:Class="CleanAimTracker.SessionHistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Session History" Width="750" Height="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title -->
+        <TextBlock Text="Session History"
+                   FontSize="28" FontWeight="Bold"
+                   Foreground="{DynamicResource AccentBrush}"
+                   HorizontalAlignment="Center"
+                   Margin="0,0,0,16"/>
+
+        <!-- Session List -->
+        <ListBox x:Name="SessionList" Grid.Row="1"
+                 Background="{DynamicResource CardBackground}"
+                 Foreground="{DynamicResource PrimaryText}"
+                 BorderThickness="0"
+                 SelectionChanged="SessionList_SelectionChanged">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Border Background="{DynamicResource CardBackgroundAlt}" CornerRadius="6" Padding="12" Margin="2,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:MMM dd yyyy  h:mm tt}'}"
+                                           Foreground="{DynamicResource PrimaryText}" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Foreground="{DynamicResource LabelText}" FontSize="13" Margin="0,4,0,0">
+                                    <TextBlock.Text>
+                                        <MultiBinding StringFormat="Duration: {0:mm\:ss}  |  Samples: {1:N0}  |  Quality: {2:F0}">
+                                            <Binding Path="Duration"/>
+                                            <Binding Path="TotalSamples"/>
+                                            <Binding Path="OverallQualityScore"/>
+                                        </MultiBinding>
+                                    </TextBlock.Text>
+                                </TextBlock>
+                            </StackPanel>
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding OverallQualityScore, StringFormat='{}{0:F0}'}"
+                                       Foreground="{DynamicResource AccentBrush}" FontSize="28" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Buttons -->
+        <WrapPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,12,0,0">
+            <Button Content="View Summary" Click="ViewSession_Click"
+                    Background="{DynamicResource ButtonPrimaryBg}"
+                    Foreground="{DynamicResource ButtonPrimaryFg}"
+                    FontWeight="Bold" FontSize="14"
+                    Padding="20,8" Margin="4" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Export Selected (CSV)" Click="ExportSelected_Click"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource ButtonSecondaryFg}"
+                    FontSize="14" Padding="16,8" Margin="4" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Export All (CSV)" Click="ExportAll_Click"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource ButtonSecondaryFg}"
+                    FontSize="14" Padding="16,8" Margin="4" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Delete" Click="DeleteSession_Click"
+                    Background="{DynamicResource ButtonDangerBg}"
+                    Foreground="{DynamicResource ButtonDangerFg}"
+                    FontSize="14" Padding="16,8" Margin="4" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Close" Click="Close_Click"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource ButtonSecondaryFg}"
+                    FontSize="14" Padding="16,8" Margin="4" BorderThickness="0" Cursor="Hand"/>
+        </WrapPanel>
+    </Grid>
+</Window>

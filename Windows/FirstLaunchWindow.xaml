@@ -1,0 +1,80 @@
+<Window x:Class="CleanAimTracker.FirstLaunchWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Welcome to Clean Aim Tracker" Width="520" Height="520"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource AppBackground}"
+        ResizeMode="NoResize">
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Welcome Header -->
+        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,20">
+            <TextBlock Text="Welcome to"
+                       FontSize="16" Foreground="{DynamicResource MutedText}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock Text="Clean Aim Tracker"
+                       FontSize="32" FontWeight="Bold"
+                       Foreground="{DynamicResource AccentBrush}"
+                       HorizontalAlignment="Center" Margin="0,4,0,0"/>
+            <TextBlock Text="Real-time mouse analytics for FPS improvement"
+                       FontSize="13" Foreground="{DynamicResource MutedText}"
+                       HorizontalAlignment="Center" Margin="0,6,0,0"/>
+        </StackPanel>
+
+        <!-- Setup Form -->
+        <StackPanel Grid.Row="1">
+
+            <!-- Quick Intro -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" FontSize="13" LineHeight="20">
+Clean Aim Tracker captures raw mouse input to measure velocity, flicks, jitter, smoothness, and more. Set your mouse DPI and sensitivity below to get accurate cm/360 calculations.</TextBlock>
+            </Border>
+
+            <!-- DPI -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Your Mouse DPI" Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox x:Name="DpiInput" Text="800"
+                             Background="{DynamicResource InputBackground}"
+                             Foreground="{DynamicResource InputText}"
+                             BorderBrush="{DynamicResource InputBorder}"
+                             Height="32" FontSize="14" Padding="6,4"
+                             TextAlignment="Center"/>
+                    <TextBlock Text="Check your mouse software or manual. Common: 400, 800, 1600"
+                               Foreground="{DynamicResource MutedText}" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Sensitivity -->
+            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+                <StackPanel>
+                    <TextBlock Text="Your In-Game Sensitivity" Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,0,4"/>
+                    <TextBox x:Name="SensInput" Text="1.0"
+                             Background="{DynamicResource InputBackground}"
+                             Foreground="{DynamicResource InputText}"
+                             BorderBrush="{DynamicResource InputBorder}"
+                             Height="32" FontSize="14" Padding="6,4"
+                             TextAlignment="Center"/>
+                    <TextBlock Text="The sensitivity value from your game's settings"
+                               Foreground="{DynamicResource MutedText}" FontSize="11" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Border>
+
+        </StackPanel>
+
+        <!-- Get Started Button -->
+        <Button Grid.Row="2" Content="Get Started" Click="GetStarted_Click"
+                Background="{DynamicResource ButtonPrimaryBg}"
+                Foreground="{DynamicResource ButtonPrimaryFg}"
+                FontWeight="Bold" FontSize="16"
+                Padding="32,10"
+                HorizontalAlignment="Center" Margin="0,10,0,0"
+                BorderThickness="0" Cursor="Hand"/>
+    </Grid>
+</Window>

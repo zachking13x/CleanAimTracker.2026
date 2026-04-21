@@ -125,5 +125,17 @@ namespace CleanAimTracker.Services
             Directory.CreateDirectory(folder);
             return folder;
         }
+
+        /// <summary>
+        /// Simple wrapper used by MainWindow. Exports a session to JSON in the default folder.
+        /// </summary>
+        public static void ExportSummary(SessionSummary session)
+        {
+            string folder = GetDefaultExportFolder();
+            string file = Path.Combine(folder, $"Session_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+
+            ExportToJson(session, file);
+        }
+
     }
 }

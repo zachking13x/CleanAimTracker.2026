@@ -21,5 +21,24 @@
 
         // Consistency score used in multiple lines of the engine
         public double ConsistencyScore { get; set; }
+
+        public double CurrentSensitivity { get; set; }
+        public string GameName { get; set; }
+        public double ProAverageCm360 { get; set; }
+        public double JitterScore { get; set; }
+        public double SmoothnessScore { get; set; }
+        public double FlickControlScore { get; set; }
+        public double OverallDiagnostic { get; set; }
+
+        public int RecommendedDPI { get; set; }
+        public string DpiVerdict { get; set; }
+        public string SensVerdict { get; set; }
+        public string OverallVerdict { get; set; }
+        public List<string> Tips { get; set; }
+        public bool HasTrendData { get; set; }
+        public string TrendSummary { get; set; }
+
+
+
     }
 }

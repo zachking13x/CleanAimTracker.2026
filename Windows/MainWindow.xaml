@@ -1,4 +1,4 @@
-<Window x:Class="CleanAimTracker.MainWindow"
+<Window x:Class="CleanAimTracker.Windows.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Clean Aim Tracker" Width="1200" Height="900"
@@ -38,7 +38,7 @@
 
             <!-- ═══ Toolbar ═══ -->
             <WrapPanel Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,12">
-                <Button Content="Settings" Click="OpenSettings_Click"
+                <Button Content="Settings"
                         Background="{DynamicResource ButtonSecondaryBg}"
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         FontSize="12" Padding="14,6" Margin="4" BorderThickness="0" Cursor="Hand"/>

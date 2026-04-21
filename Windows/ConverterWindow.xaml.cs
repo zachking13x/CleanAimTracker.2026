@@ -5,10 +5,18 @@ namespace CleanAimTracker.Windows
 {
     public partial class ConverterWindow : Window
     {
-        public ConverterWindow()
+        public ConverterWindow(string profileName, double dpi, double sensitivity)
         {
             InitializeComponent();
+
+            // These must match your XAML element names
+            ProfileNameText.Text = profileName;
+            DpiInput.Text = dpi.ToString("F0");
+            SensInput.Text = sensitivity.ToString("F4");
         }
+
+
+
 
         private void CopyResult_Click(object sender, RoutedEventArgs e)
         {

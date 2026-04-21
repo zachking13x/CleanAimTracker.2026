@@ -32,28 +32,8 @@
         public double OverallQualityScore { get; set; }
         public double IdlePercentage { get; set; }
         public double JitterAmount { get; set; }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        public string ProfileName { get; set; }
+        public double SessionSeconds { get; set; }
 
 
 

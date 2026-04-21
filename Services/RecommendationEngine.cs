@@ -47,8 +47,10 @@ namespace CleanAimTracker.Services
             double targetCm360 = DetermineTargetCm360(session, profile, rec);
 
             // ── 3. Pick recommended DPI ───────────────────────────
-            rec.RecommendedDPI = PickBestDpi(session.DPI, targetCm360,
-                                              session.Sensitivity, profile);
+            rec.RecommendedDPI = (int)Math.Round(
+                PickBestDpi(session.DPI, targetCm360, session.Sensitivity, profile)
+            );
+
 
             // ── 4. Compute matching sensitivity ───────────────────
             rec.RecommendedSensitivity = CmPer360ToSensitivity(

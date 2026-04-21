@@ -1,6 +1,7 @@
 using CleanAimTracker.Helpers;
 using CleanAimTracker.Models;
 using CleanAimTracker.Services;
+using CleanAimTracker.Windows;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 
-namespace CleanAimTracker
+namespace CleanAimTracker.Windows
 {
     public sealed partial class MainWindow : Window
     {
@@ -31,7 +32,7 @@ namespace CleanAimTracker
         private GameProfile _selectedProfile;
 
         // ─────────────────────────────────────────────────────────
-        //  Aim analytics fields  (ALL 40+ preserved)
+        //  Aim analytics fields
         // ─────────────────────────────────────────────────────────
         private double _totalDistance = 0;
         private double _currentVelocity = 0;
@@ -83,7 +84,7 @@ namespace CleanAimTracker
         // ─────────────────────────────────────────────────────────
         private bool _isTracking = false;
         private DateTime _sessionStart;
-        private readonly DispatcherTimer _timer = new DispatcherTimer();
+        private readonly DispatcherTimer _timer = new();
 
         // ─────────────────────────────────────────────────────────
         //  DPI + sensitivity
@@ -97,41 +98,38 @@ namespace CleanAimTracker
         public MainWindow()
         {
             InitializeComponent();
+            LogService.Info("MainWindow initialized");
 
-            // ── Load saved settings ───────────────────────────────
+            // Load saved settings
             var settings = SettingsService.Load();
             _dpi = settings.DPI;
             _sensitivity = settings.Sensitivity;
             DpiInput.Text = _dpi.ToString("F0");
             SensitivityInput.Text = _sensitivity.ToString("F4");
 
-            // ── Load game profiles (built-in + custom) ────────────
+            // Load game profiles
             var profiles = ProfileStorage.LoadProfiles();
             _gameProfiles = GameProfile.GetAllProfiles(profiles);
-
-
-
 
             foreach (var p in _gameProfiles)
                 GameProfileCombo.Items.Add(p.DisplayName);
 
-            // Select saved profile or default to first
             int savedIndex = _gameProfiles.FindIndex(p => p.Name == settings.SelectedProfile);
             GameProfileCombo.SelectedIndex = savedIndex >= 0 ? savedIndex : 0;
             _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
 
-            // ── Trial banner ──────────────────────────────────────
+            // Trial banner
             UpdateTrialBanner();
 
-            // ── Raw input service ─────────────────────────────────
+            // Raw input service
             _rawInput = new RawInputService();
             _rawInput.MouseMoved += OnMouseMoved;
 
-            // ── Timer for per-second updates ──────────────────────
+            // Timer
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
 
-            // ── Hook into the WPF message loop ────────────────────
+            // WPF message loop hook
             this.SourceInitialized += (_, _) =>
             {
                 IntPtr hwnd = new WindowInteropHelper(this).Handle;
@@ -140,10 +138,6 @@ namespace CleanAimTracker
                 HwndSource source = HwndSource.FromHwnd(hwnd);
                 source.AddHook(WndProc);
             };
-        }
-
-        CleanAimTracker.Services.LogService.Info("MainWindow initialized");
-
         }
 
         // ═════════════════════════════════════════════════════════
@@ -171,14 +165,18 @@ namespace CleanAimTracker
             const int WM_INPUT = 0x00FF;
 
             if (msg == WM_INPUT)
-                _rawInput.ProcessRawInput(lParam);
+            {
+                var (dx, dy) = _rawInput.ProcessRawInput(lParam);
+                if (dx != 0 || dy != 0)
+                    OnMouseMoved(dx, dy);
+            }
 
             return IntPtr.Zero;
         }
 
 
         // ═════════════════════════════════════════════════════════
-        //  Raw mouse movement handler  (CORE ANALYTICS ENGINE)
+        //  Raw mouse movement handler
         // ═════════════════════════════════════════════════════════
         private void OnMouseMoved(int dx, int dy)
         {
@@ -198,17 +196,15 @@ namespace CleanAimTracker
                 _distancePerEventTotal += eventDistance;
                 DistancePerEventText.Text = $"Dist/Event: {_distancePerEventTotal:F0}";
 
-                // Movement consistency (0-100)
+                // Movement consistency
                 double distanceDeviation = Math.Abs(eventDistance - _averageDistancePerEvent);
                 _movementConsistency = 100 - (distanceDeviation * 10);
-                if (_movementConsistency < 0) _movementConsistency = 0;
-                else if (_movementConsistency > 100) _movementConsistency = 100;
+                _movementConsistency = Math.Clamp(_movementConsistency, 0, 100);
                 MovementConsistencyText.Text = $"Movement Consistency: {_movementConsistency:F0}";
 
-                // Overall aim quality (0-100)
+                // Overall aim quality
                 _overallQualityScore = (_smoothnessScore + _correctionSharpness + _movementConsistency) / 3;
-                if (_overallQualityScore < 0) _overallQualityScore = 0;
-                else if (_overallQualityScore > 100) _overallQualityScore = 100;
+                _overallQualityScore = Math.Clamp(_overallQualityScore, 0, 100);
                 OverallQualityText.Text = $"Overall Quality: {_overallQualityScore:F0}";
 
                 // Peak distance per event
@@ -227,10 +223,9 @@ namespace CleanAimTracker
                 _trueAngleDelta = angleDifference;
                 TrueAngleDeltaText.Text = $"True Delta: {_trueAngleDelta:F2} deg";
 
-                // Smoothness (0-100)
+                // Smoothness
                 _smoothnessScore = 100 - (Math.Abs(_trueAngleDelta) * 2);
-                if (_smoothnessScore < 0) _smoothnessScore = 0;
-                else if (_smoothnessScore > 100) _smoothnessScore = 100;
+                _smoothnessScore = Math.Clamp(_smoothnessScore, 0, 100);
                 SmoothnessText.Text = $"Smoothness: {_smoothnessScore:F0}";
 
                 // Raw angle delta
@@ -262,7 +257,7 @@ namespace CleanAimTracker
                 _totalDistanceInches += cmMoved / 2.54;
                 DistanceText.Text = $"Total Distance: {_totalDistance:F2} cm";
 
-                // Velocity (cm/s)
+                // Velocity
                 DateTime now = DateTime.Now;
                 double deltaTime = (now - _lastMoveTime).TotalSeconds;
                 _lastMoveTime = now;
@@ -329,8 +324,7 @@ namespace CleanAimTracker
 
                     // Velocity change
                     double velocityChange = Math.Abs(_currentVelocity - _previousVelocity);
-                    _correctionSharpness = velocityChange * 2;
-                    if (_correctionSharpness > 100) _correctionSharpness = 100;
+                    _correctionSharpness = Math.Min(velocityChange * 2, 100);
                     CorrectionSharpnessText.Text = $"Correction Sharpness: {_correctionSharpness:F0}";
 
                     if (velocityChange > _peakVelocityChange)
@@ -342,13 +336,12 @@ namespace CleanAimTracker
                     _previousVelocity = _currentVelocity;
                 }
 
-                // Notify listeners
                 StatsUpdated?.Invoke();
             });
         }
 
         // ═════════════════════════════════════════════════════════
-        //  Timer tick (per second)
+        //  Timer tick
         // ═════════════════════════════════════════════════════════
         private void Timer_Tick(object? sender, EventArgs e)
         {
@@ -473,31 +466,68 @@ namespace CleanAimTracker
             _angleChangeTotal = 0; AngleChangeText.Text = "Angle Change: 0";
             _rawAngleDelta = 0; RawAngleDeltaText.Text = "Raw Delta: 0";
             _trueAngleDelta = 0; TrueAngleDeltaText.Text = "True Delta: 0";
-            _previousAngle = 0; PreviousAngleText.Text = "Prev Angle: 0 deg";
-            _distancePerEventTotal = 0; DistancePerEventText.Text = "Dist/Event: 0";
-            _averageDistancePerEvent = 0; AverageDistancePerEventText.Text = "Avg Dist/Event: 0";
-            _peakDistancePerEvent = 0; PeakDistancePerEventText.Text = "Peak Dist/Event: 0";
-            _peakVelocityChange = 0; PeakVelocityChangeText.Text = "Peak Vel Change: 0";
-            _previousVelocity = 0;
-            _movementCountThisSecond = 0; MovementCountPerSecondText.Text = "MPS: 0";
-            _lastMovementCount = 0;
-            _rollingDensity = 0; RollingDensityText.Text = "Rolling Density: 0 eps";
-            _idleBurstCount = 0; IdleBurstText.Text = "Idle Bursts: 0";
-            _wasIdle = false;
-            _idleTimeSeconds = 0; IdleTimeSinceMoveText.Text = "Idle Time: 0.0 s";
-            _idlePercentage = 0; IdlePercentageText.Text = "Idle %: 0%";
-            _currentAcceleration = 0; AccelerationText.Text = "Accel: 0 cm/s2";
-            _peakAcceleration = 0; PeakAccelerationText.Text = "Peak Accel: 0 cm/s2";
-            _totalAcceleration = 0;
-            _averageAcceleration = 0; AverageAccelerationText.Text = "Avg Accel: 0 cm/s2";
-            _smoothnessScore = 100; SmoothnessText.Text = "Smoothness: 100";
-            _correctionSharpness = 0; CorrectionSharpnessText.Text = "Correction Sharpness: 0";
-            _movementConsistency = 100; MovementConsistencyText.Text = "Movement Consistency: 100";
-            _overallQualityScore = 100; OverallQualityText.Text = "Overall Quality: 100";
+        }
 
-            VelocityText.Text = "Speed: 0 cm/s";
+            // ═════════════════════════════════════════════════════════
+            //  Toolbar: Settings
+            // ═════════════════════════════════════════════════════════
 
-            LogService.Info("Session reset");
+
+        // ═════════════════════════════════════════════════════════
+        //  Toolbar: Help
+        // ═════════════════════════════════════════════════════════
+        private void OpenHelp_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Help documentation coming soon.", "Help");
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  Toolbar: About
+        // ═════════════════════════════════════════════════════════
+        private void OpenAbout_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new AboutWindow();
+            win.ShowDialog();
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  Toolbar: Export
+        // ═════════════════════════════════════════════════════════
+        private void OpenExport_Click(object sender, RoutedEventArgs e)
+        {
+            var summary = BuildSessionSummary();
+            ExportService.ExportSummary(summary);
+            MessageBox.Show("Session exported successfully.", "Export");
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  Converter
+        // ═════════════════════════════════════════════════════════
+        private void OpenConverter_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new ConverterWindow(_selectedProfile.Name, _dpi, _sensitivity);
+            win.Show();
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  Session History
+        // ═════════════════════════════════════════════════════════
+        private void OpenSessionHistory_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new SessionHistoryWindow();
+            win.Show();
+        }
+
+        // ═════════════════════════════════════════════════════════
+        //  Game Profile Selection
+        // ═════════════════════════════════════════════════════════
+        private void GameProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (GameProfileCombo.SelectedIndex < 0)
+                return;
+
+            _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
+            LogService.Info($"Profile changed to {_selectedProfile.Name}");
         }
 
         // ═════════════════════════════════════════════════════════
@@ -528,24 +558,6 @@ namespace CleanAimTracker
         }
 
         // ═════════════════════════════════════════════════════════
-        //  Converter
-        // ═════════════════════════════════════════════════════════
-        private void OpenConverter_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new ConverterWindow(_selectedProfile.Name, _dpi, _sensitivity);
-            win.Show();
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Session History
-        // ═════════════════════════════════════════════════════════
-        private void OpenSessionHistory_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new SessionHistoryWindow();
-            win.Show();
-        }
-
-        // ═════════════════════════════════════════════════════════
         //  Add Profile
         // ═════════════════════════════════════════════════════════
         private void OpenAddProfile_Click(object sender, RoutedEventArgs e)
@@ -557,167 +569,52 @@ namespace CleanAimTracker
                 RefreshProfiles();
         }
 
-        // ═════════════════════════════════════════════════════════
-        //  Toolbar: Settings
-        // ═════════════════════════════════════════════════════════
-        private void OpenSettings_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new SettingsWindow();
-            win.ShowDialog();
-
-            if (win.SettingsChanged)
-            {
-                var s = SettingsService.Load();
-                _dpi = s.DPI;
-                _sensitivity = s.Sensitivity;
-                DpiInput.Text = _dpi.ToString("F0");
-                SensitivityInput.Text = _sensitivity.ToString("F4");
-
-                // Re-select saved profile
-                int idx = _gameProfiles.FindIndex(p => p.Name == s.SelectedProfile);
-                if (idx >= 0) GameProfileCombo.SelectedIndex = idx;
-
-                LogService.Info("Settings reloaded from SettingsWindow");
-            }
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Toolbar: Help
-        // ═════════════════════════════════════════════════════════
-        private void OpenHelp_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new HelpWindow();
-            win.Show();
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Toolbar: About
-        // ═════════════════════════════════════════════════════════
-        private void OpenAbout_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new AboutWindow();
-            win.Show();
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Toolbar: Export
-        // ═════════════════════════════════════════════════════════
-        private void OpenExport_Click(object sender, RoutedEventArgs e)
-        {
-            if (_movementEvents == 0)
-            {
-                MessageBox.Show("No session data to export. Start tracking first.",
-                    "Nothing to Export", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            var summary = BuildSessionSummary();
-            string folder = ExportService.GetDefaultExportFolder();
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HHmmss");
-
-            try
-            {
-                string csvPath = Path.Combine(folder, $"session_{timestamp}.csv");
-                ExportService.ExportToCsv(summary, csvPath);
-
-                string jsonPath = Path.Combine(folder, $"session_{timestamp}.json");
-                ExportService.ExportToJson(summary, jsonPath);
-
-                MessageBox.Show($"Session exported to:\n{folder}",
-                    "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                LogService.Error("Export failed", ex);
-                MessageBox.Show($"Export failed: {ex.Message}",
-                    "Export Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Game profile combo
-        // ═════════════════════════════════════════════════════════
-        private void GameProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (GameProfileCombo.SelectedIndex < 0 || GameProfileCombo.SelectedIndex >= _gameProfiles.Count)
-                return;
-
-            _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
-
-            // Recalculate cm/360 with new profile yaw
-            if (_isTracking || _movementEvents > 0)
-            {
-                double cm360 = CalculateCmPer360();
-                Cm360Text.Text = $"cm/360: {cm360:F2}";
-            }
-
-            // Save selected profile
-            var s = SettingsService.Load();
-            s.SelectedProfile = _selectedProfile.Name;
-            SettingsService.Save(s);
-        }
-
-        // ═════════════════════════════════════════════════════════
-        //  Helpers
-        // ═════════════════════════════════════════════════════════
-
-        /// <summary>
-        /// cm/360 = 914.4 / (DPI x Sensitivity x YawPerCount)
-        /// Uses the selected profile's yaw constant.
-        /// </summary>
         private double CalculateCmPer360()
         {
-            double yaw = _selectedProfile?.YawPerCount ?? 0.022;
-            if (_dpi <= 0 || _sensitivity <= 0 || yaw <= 0) return 0;
-            return 914.4 / (_dpi * _sensitivity * yaw);
+            return (360.0 / (_dpi * _sensitivity)) * 2.54;
         }
 
-        /// <summary>Builds a SessionSummary from the current analytics fields.</summary>
         private SessionSummary BuildSessionSummary()
         {
             return new SessionSummary
             {
-                Duration = TimeSpan.FromSeconds(_sessionSeconds),
-                TotalSamples = _movementEvents,
-                MicroAdjustmentCount = 0,
-                OvershootCount = 0,
-                UndershootCount = 0,
-                FlickCount = _flickCount,
-                SmallFlickCount = _smallFlicks,
-                LargeFlickCount = _largeFlicks,
-                IdleBurstCount = _idleBurstCount,
-                AverageVelocity = _averageVelocity,
-                PeakVelocity = _peakVelocity,
+                DPI = (int)Math.Round(_dpi),
+
+                Sensitivity = _sensitivity,
+                ProfileName = _selectedProfile.Name,
                 TotalDistanceCm = _totalDistance,
-                AvgDistPerEvent = _averageDistancePerEvent,
-                PeakDistPerEvent = _peakDistancePerEvent,
-                PeakAcceleration = _peakAcceleration,
-                AvgAcceleration = _averageAcceleration,
+                PeakVelocity = _peakVelocity,
+                AverageVelocity = _averageVelocity,
+                FlickCount = _flickCount,
                 SmoothnessScore = _smoothnessScore,
                 CorrectionSharpness = _correctionSharpness,
                 MovementConsistency = _movementConsistency,
                 OverallQualityScore = _overallQualityScore,
-                IdlePercentage = _idlePercentage,
-                JitterAmount = _jitterAmount,
-                DPI = _dpi,
-                Sensitivity = _sensitivity,
-                CmPer360 = CalculateCmPer360()
+                SessionSeconds = _sessionSeconds
             };
         }
 
-        /// <summary>Refreshes the profile combo box after adding a new custom profile.</summary>
         private void RefreshProfiles()
         {
-            string currentName = _selectedProfile?.Name ?? "";
-            var customProfiles = ProfileStorage.LoadAll();
-            _gameProfiles = GameProfile.GetAllProfiles(customProfiles);
+            var profiles = ProfileStorage.LoadProfiles();
+            _gameProfiles = GameProfile.GetAllProfiles(profiles);
 
             GameProfileCombo.Items.Clear();
+
             foreach (var p in _gameProfiles)
                 GameProfileCombo.Items.Add(p.DisplayName);
 
-            int idx = _gameProfiles.FindIndex(p => p.Name == currentName);
-            GameProfileCombo.SelectedIndex = idx >= 0 ? idx : 0;
+            if (_gameProfiles.Count > 0)
+            {
+                GameProfileCombo.SelectedIndex = 0;
+                _selectedProfile = _gameProfiles[0];
+            }
         }
+
+
+
     }
+
 }
+
+

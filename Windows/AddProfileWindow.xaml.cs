@@ -4,6 +4,9 @@ namespace CleanAimTracker.Windows
 {
     public partial class AddProfileWindow : Window
     {
+        // ⭐ REQUIRED by MainWindow
+        public bool ProfileSaved { get; private set; }
+
         public AddProfileWindow()
         {
             InitializeComponent();
@@ -16,7 +19,11 @@ namespace CleanAimTracker.Windows
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            // Temporary logic so the app compiles
+            // TODO: Add your real save logic here later
+
+            // ⭐ REQUIRED by MainWindow
+            ProfileSaved = true;
+
             this.Close();
         }
     }

@@ -485,6 +485,24 @@ namespace CleanAimTracker.Windows
             win.Show();
         }
 
+        private void NavAbout_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new AboutWindow();
+            win.Owner = this;
+            win.Show();
+        }
+
+        private void NavHome_Click(object sender, RoutedEventArgs e)
+        {
+            // Bring the main window to the front
+            this.Activate();
+
+            // Optional: scroll to top or reset focus
+            this.Focus();
+        }
+
+
+
 
 
         // ═════════════════════════════════════════════════════════

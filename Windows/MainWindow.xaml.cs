@@ -468,9 +468,23 @@ namespace CleanAimTracker.Windows
             _trueAngleDelta = 0; TrueAngleDeltaText.Text = "True Delta: 0";
         }
 
-            // ═════════════════════════════════════════════════════════
-            //  Toolbar: Settings
-            // ═════════════════════════════════════════════════════════
+        // ═════════════════════════════════════════════════════════
+        //  Toolbar: Settings
+        // ═════════════════════════════════════════════════════════
+        private void NavSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new SettingsWindow();
+            win.Owner = this;
+            win.Show();
+        }
+
+        private void NavHistory_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new SessionHistoryWindow();
+            win.Owner = this;
+            win.Show();
+        }
+
 
 
         // ═════════════════════════════════════════════════════════

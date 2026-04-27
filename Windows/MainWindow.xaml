@@ -42,7 +42,7 @@
                         </StackPanel.Resources>
 
                         <Button Content="Home" Style="{StaticResource NavButtonStyle}"/>
-                        <Button Content="Settings" Style="{StaticResource NavButtonStyle}"/>
+                        <Button Content="Settings" Style="{StaticResource NavButtonStyle}" Click="NavSettings_Click"/>
                         <Button Content="History" Style="{StaticResource NavButtonStyle}"/>
                         <Button Content="About" Style="{StaticResource NavButtonStyle}"/>
                     </StackPanel>

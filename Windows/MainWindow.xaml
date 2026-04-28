@@ -179,7 +179,7 @@
                             <TextBlock x:Name="TrueAngleDeltaText" Text="True Delta: 0" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
                             <TextBlock x:Name="PreviousAngleText" Text="Prev Angle: 0 deg" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
                         </StackPanel>
-                    </Border>
+                    </Grid>
 
                     <!-- ═══ Distance Per Event Card ═══ -->
                     <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="8" Width="340">
@@ -191,94 +191,42 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- ═══ Acceleration Card ═══ -->
-                    <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="8" Width="340">
+            <!-- ANGLES -->
+            <Border Style="{StaticResource StatCardStyle}">
                         <StackPanel>
-                            <TextBlock Text="ACCELERATION" Foreground="{DynamicResource MutedText}" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="AccelerationText" Text="Accel: 0 cm/s2" Foreground="{DynamicResource PrimaryText}" FontSize="18"/>
-                            <TextBlock x:Name="PeakAccelerationText" Text="Peak Accel: 0 cm/s2" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
-                            <TextBlock x:Name="AverageAccelerationText" Text="Avg Accel: 0 cm/s2" Foreground="{DynamicResource SecondaryText}" FontSize="15" Margin="0,4,0,0"/>
+                    <TextBlock Text="Angles" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,6"/>
+
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Angle" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock x:Name="AngleText" Text="0 deg" Style="{StaticResource ValueTextStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock x:Name="StabilityText" Text="100" Style="{StaticResource ValueTextStyle}"/>
+                        </StackPanel>
+                    </Grid>
                         </StackPanel>
                     </Border>
 
-                </WrapPanel>
-            </ScrollViewer>
 
-            <!-- ═══ Bottom Controls ═══ -->
-            <StackPanel Grid.Row="4" Margin="0,16,0,0">
+            </Border>
+            <!-- END ANGLES CARD -->
 
-                <!-- Config Row: DPI + Sensitivity + Game Profile -->
-                <WrapPanel HorizontalAlignment="Center" Margin="0,0,0,12">
-                    <TextBlock Text="DPI:" Foreground="{DynamicResource LabelText}" FontSize="14"
-                               VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBox x:Name="DpiInput" Width="80" Height="32" Text="800"
-                             TextAlignment="Center"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputText}"
-                             BorderBrush="{DynamicResource InputBorder}" BorderThickness="1"
-                             Margin="0,0,16,0"/>
+        </UniformGrid>
+        <!-- END STATS GRID -->
 
-                    <TextBlock Text="Sensitivity:" Foreground="{DynamicResource LabelText}" FontSize="14"
-                               VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <TextBox x:Name="SensitivityInput" Width="80" Height="32" Text="1.0"
-                             TextAlignment="Center"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputText}"
-                             BorderBrush="{DynamicResource InputBorder}" BorderThickness="1"
-                             Margin="0,0,16,0"/>
-
-                    <TextBlock Text="Profile:" Foreground="{DynamicResource LabelText}" FontSize="14"
-                               VerticalAlignment="Center" Margin="0,0,6,0"/>
-                    <ComboBox x:Name="GameProfileCombo" Width="220" Height="32"
-                              Background="{DynamicResource InputBackground}"
-                              Foreground="{DynamicResource InputText}"
-                              BorderBrush="{DynamicResource InputBorder}"
-                              FontSize="13"
-                              SelectionChanged="GameProfileCombo_SelectionChanged"/>
-                </WrapPanel>
-
-                <!-- Action Buttons -->
-                <WrapPanel HorizontalAlignment="Center">
-                    <Button x:Name="StartButton" Content="Start Tracking"
-                            Width="160" Height="40" Margin="4"
-                            Background="{DynamicResource ButtonPrimaryBg}"
-                            Foreground="{DynamicResource ButtonPrimaryFg}"
-                            FontWeight="Bold" FontSize="14" BorderThickness="0" Cursor="Hand"
-                            Click="StartButton_Click"/>
-                    <Button x:Name="StopButton" Content="Stop"
-                            Width="100" Height="40" Margin="4"
-                            Background="{DynamicResource WarningBrush}"
-                            Foreground="{DynamicResource PrimaryText}"
-                            FontWeight="Bold" FontSize="14" BorderThickness="0" Cursor="Hand"
-                            Click="StopButton_Click"/>
-                    <Button x:Name="ResetButton" Content="Reset"
-                            Width="100" Height="40" Margin="4"
-                            Background="{DynamicResource ButtonSecondaryBg}"
-                            Foreground="{DynamicResource ButtonSecondaryFg}"
-                            FontWeight="Bold" FontSize="14" BorderThickness="0" Cursor="Hand"
-                            Click="ResetButton_Click"/>
-                    <Button x:Name="SummaryButton" Content="Summary"
-                            Width="120" Height="40" Margin="4"
-                            Background="{DynamicResource CardBackground}"
-                            Foreground="{DynamicResource AccentBrush}"
-                            FontWeight="Bold" FontSize="14"
-                            BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
-                            Cursor="Hand" Click="OpenSummary_Click"/>
-                    <Button Content="Recommend"
-                            Width="120" Height="40" Margin="4"
-                            Background="{DynamicResource CardBackground}"
-                            Foreground="{DynamicResource AccentBrush}"
-                            FontWeight="Bold" FontSize="14"
-                            BorderThickness="1" BorderBrush="{DynamicResource AccentBrush}"
-                            Cursor="Hand" Click="OpenRecommendation_Click"/>
-                    <Button Content="Add Profile"
-                            Width="120" Height="40" Margin="4"
-                            Background="{DynamicResource CardBackground}"
-                            Foreground="{DynamicResource SuccessBrush}"
-                            FontWeight="Bold" FontSize="14"
-                            BorderThickness="1" BorderBrush="{DynamicResource SuccessBrush}"
-                            Cursor="Hand" Click="OpenAddProfile_Click"/>
-                </WrapPanel>
+        <!-- BOTTOM SPACER / FOOTER (OPTIONAL) -->
+        <StackPanel Grid.Row="4" Margin="0,12,0,0" HorizontalAlignment="Center">
+            <TextBlock Text="Clean Aim Tracker © 2026"
+                       Foreground="{DynamicResource SecondaryText}"
+                       FontSize="11"/>
             </StackPanel>
 
         </Grid>

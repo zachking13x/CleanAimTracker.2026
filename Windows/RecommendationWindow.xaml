@@ -1,26 +1,123 @@
 <Window x:Class="CleanAimTracker.Windows.RecommendationWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Recommendation"
-        Height="400"
-        Width="600"
-        WindowStartupLocation="CenterScreen">
+        Title="Aim Recommendation"
+        Height="600"
+        Width="700"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#0D0D0F">
 
-    <Grid Margin="20">
-        <StackPanel>
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="20">
+            <StackPanel Orientation="Vertical" VerticalAlignment="Top">
 
-            <TextBlock Text="Sensitivity Recommendation"
-                       FontSize="20"
-                       FontWeight="Bold"
-                       Margin="0 0 0 20"/>
+                <!-- Header -->
+                <TextBlock Text="AIM RECOMMENDATION"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="#66CCFF"
+                           Margin="0 0 0 20"/>
 
-            <TextBlock Text="Your recommendation will appear here."
-                       Margin="0 0 0 20"/>
+                <!-- Recommended Values -->
+                <StackPanel Margin="0 0 0 20">
+                    <TextBlock Text="Recommended DPI:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <TextBlock x:Name="DpiText" 
+                               Foreground="White"
+                               Margin="0 0 0 10"/>
 
-            <Button Content="Close"
-                    Width="150"
-                    Click="Close_Click"/>
+                    <TextBlock Text="Recommended Sensitivity:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <TextBlock x:Name="SensText" 
+                               Foreground="White"
+                               Margin="0 0 0 10"/>
 
-        </StackPanel>
-    </Grid>
+                    <TextBlock Text="Recommended cm/360:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <TextBlock x:Name="Cm360Text" 
+                               Foreground="White"
+                               Margin="0 0 0 10"/>
+                </StackPanel>
+
+                <!-- Verdicts -->
+                <StackPanel Margin="0 0 0 20">
+                    <TextBlock Text="Overall Verdict:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 10">
+                        <TextBlock x:Name="VerdictText" 
+                                   TextWrapping="Wrap"
+                                   Foreground="White"/>
+                    </Border>
+
+                    <TextBlock Text="DPI Verdict:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 10">
+                        <TextBlock x:Name="DpiVerdictText" 
+                                   TextWrapping="Wrap"
+                                   Foreground="White"/>
+                    </Border>
+
+                    <TextBlock Text="Sensitivity Verdict:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 10">
+                        <TextBlock x:Name="SensVerdictText" 
+                                   TextWrapping="Wrap"
+                                   Foreground="White"/>
+                    </Border>
+
+                    <TextBlock Text="cm/360 Verdict:" 
+                               FontWeight="Bold"
+                               Foreground="#66CCFF"/>
+                    <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 10">
+                        <TextBlock x:Name="Cm360VerdictText" 
+                                   TextWrapping="Wrap"
+                                   Foreground="White"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Tips -->
+                <TextBlock Text="Tips:" 
+                           FontWeight="Bold"
+                           Foreground="#66CCFF"/>
+                <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 20">
+                    <ListBox x:Name="TipsList"
+                             Background="#1A1A1D"
+                             Foreground="White"
+                             BorderThickness="0"/>
+                </Border>
+
+                <!-- Trend Summary -->
+                <TextBlock Text="Trend Summary:" 
+                           FontWeight="Bold"
+                           Foreground="#66CCFF"/>
+                <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 20">
+                    <TextBlock x:Name="TrendText"
+                               TextWrapping="Wrap"
+                               Foreground="White"/>
+                </Border>
+
+                <!-- Close Button -->
+                <Button Content="Close"
+                        Width="150"
+                        HorizontalAlignment="Left"
+                        Click="Close_Click"
+                        Style="{StaticResource GlowButton}"/>
+
+
+                <Button Content="Glossary"
+                        Width="150"
+                        HorizontalAlignment="Left"
+                        Click="OpenGlossary_Click"
+                        Style="{StaticResource GlowButton}"/>
+
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </Window>

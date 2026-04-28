@@ -1,0 +1,48 @@
+﻿<Window x:Class="CleanAimTracker.Windows.GlossaryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aim Glossary"
+        Height="600"
+        Width="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#0D0D0F">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="20">
+
+            <TextBlock Text="AIM TERMINOLOGY GLOSSARY"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       Foreground="#66CCFF"
+                       Margin="0 0 0 20"/>
+
+            <ItemsControl x:Name="GlossaryList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#1A1A1D" Padding="10" CornerRadius="6" Margin="0 0 0 10">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Term}"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           Foreground="#66CCFF"/>
+                                <TextBlock Text="{Binding Definition}"
+                                           TextWrapping="Wrap"
+                                           Foreground="White"
+                                           Margin="0 5 0 0"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Content="Close"
+                    Width="120"
+                    Margin="0 20 0 0"
+                    HorizontalAlignment="Left"
+                    Click="Close_Click"
+                    Background="#222"
+                    Foreground="White"
+                    BorderBrush="#66CCFF"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

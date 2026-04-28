@@ -7,6 +7,27 @@
         public double RecommendedEDPI { get; set; }
         public double RecommendedCm360 { get; set; }
         public string Reason { get; set; }
+        // Sensitivity range (recommended min/max)
+        public double RecommendedSensitivityMin { get; set; }
+        public double RecommendedSensitivityMax { get; set; }
+
+        // Confidence score (0–100)
+        public int Confidence { get; set; }
+
+        // Explanation paragraph (why these settings were chosen)
+        public string Explanation { get; set; }
+
+        // Additional diagnostic metrics
+        public double CorrectionSharpnessScore { get; set; }
+        public double VelocityStabilityScore { get; set; }
+        public double IdlePenaltyScore { get; set; }
+
+        // Profile-specific overrides (ADS, zoom, etc.)
+        public double RecommendedADS { get; set; }
+        public double RecommendedZoomSensitivity { get; set; }
+
+        // Muscle memory protection (true = keep changes small)
+        public bool MinimalChangeRecommended { get; set; }
 
         // Current user values (engine references these)
         public double CurrentDPI { get; set; }

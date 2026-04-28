@@ -481,7 +481,9 @@ namespace CleanAimTracker.Windows
             var summary = BuildSessionSummary();
             SessionStorage.SaveSession(summary);
 
-            new SummaryWindow(summary).Show();
+            var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
+            new SummaryWindow(summary, rec).Show();
+
         }
 
         private void OpenRecommendation_Click(object sender, RoutedEventArgs e)

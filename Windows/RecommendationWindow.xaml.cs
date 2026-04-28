@@ -14,34 +14,35 @@ namespace CleanAimTracker.Windows
             LoadRecommendation();
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e)
-        {
-            this.Close();
-        }
-
-        // ⭐ ADD THIS HERE ⭐
-        private void OpenGlossary_Click(object sender, RoutedEventArgs e)
-        {
-            new GlossaryWindow().Show();
-        }
-
         private void LoadRecommendation()
         {
-            // These MUST match your XAML element names
-            DpiText.Text = _rec.RecommendedDPI.ToString();
-            SensText.Text = _rec.RecommendedSensitivity.ToString("F3");
-            Cm360Text.Text = _rec.RecommendedCm360.ToString("F1");
+            // Sensitivity
+            SensValue.Text = $"{_rec.RecommendedSensitivity:F4}";
+            SensRange.Text = $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
 
-            VerdictText.Text = _rec.OverallVerdict;
-            DpiVerdictText.Text = _rec.DpiVerdict;
-            SensVerdictText.Text = _rec.SensVerdict;
-            Cm360VerdictText.Text = _rec.Cm360Verdict;
+            // DPI
+            DpiValue.Text = $"{_rec.RecommendedDPI} DPI";
 
+            // cm/360
+            Cm360Value.Text = $"{_rec.RecommendedCm360:F1} cm/360";
+            Cm360Verdict.Text = _rec.Cm360Verdict;
+
+            // Confidence
+            ConfidenceValue.Text = $"{_rec.Confidence}%";
+
+            // Explanation
+            ExplanationText.Text = _rec.Explanation;
+
+            // Tips
             TipsList.ItemsSource = _rec.Tips;
 
-            TrendText.Text = _rec.HasTrendData
-                ? _rec.TrendSummary
-                : "Not enough data for trend analysis.";
+            // Trend
+            TrendText.Text = _rec.TrendSummary;
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
     }
 }

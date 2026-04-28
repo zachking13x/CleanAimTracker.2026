@@ -1,51 +1,48 @@
 using CleanAimTracker.Models;
 using System.Windows;
 
-namespace CleanAimTracker
+namespace CleanAimTracker.Windows
 {
     public partial class SummaryWindow : Window
     {
-        public SummaryWindow(SessionSummary summary)
+        private readonly SessionSummary _s;
+        private readonly SensitivityRecommendation _rec;
+
+        public SummaryWindow(SessionSummary s, SensitivityRecommendation rec)
         {
             InitializeComponent();
-            PopulateSummary(summary);
+            _s = s;
+            _rec = rec;
+            LoadSummary();
         }
 
-        private void PopulateSummary(SessionSummary s)
+        private void LoadSummary()
         {
-            // Session
-            DurationText.Text = $"Duration: {s.Duration:mm\\:ss}";
-            TotalSamplesText.Text = $"Total Samples: {s.TotalSamples:N0}";
-            SensitivityInfoText.Text = $"DPI: {s.DPI}  |  Sens: {s.Sensitivity}  |  cm/360: {s.CmPer360:F2}";
-
-            // Velocity
-            AvgVelocityText.Text = $"Average: {s.AverageVelocity:F2} cm/s";
-            PeakVelocityText.Text = $"Peak: {s.PeakVelocity:F2} cm/s";
-
-            // Distance
-            TotalDistanceText.Text = $"Total: {s.TotalDistanceCm:F2} cm";
-            AvgDistPerEventText.Text = $"Avg/Event: {s.AvgDistPerEvent:F2}";
-            PeakDistPerEventText.Text = $"Peak/Event: {s.PeakDistPerEvent:F2}";
-
-            // Acceleration
-            PeakAccelText.Text = $"Peak: {s.PeakAcceleration:F2} cm/s2";
-            AvgAccelText.Text = $"Average: {s.AvgAcceleration:F2} cm/s2";
+            // Core stats
+            TimeText.Text = $"Time: {_s.SessionSeconds:F1} s";
+            DistanceText.Text = $"Distance: {_s.TotalDistanceCm:F1} cm";
+            AvgSpeedText.Text = $"Avg Speed: {_s.AverageVelocity:F1} cm/s";
+            PeakSpeedText.Text = $"Peak Speed: {_s.PeakVelocity:F1} cm/s";
 
             // Flicks
-            FlickCountText.Text = $"Total: {s.FlickCount}";
-            SmallFlicksText.Text = $"Small (50-100 cm/s): {s.SmallFlickCount}";
-            LargeFlicksText.Text = $"Large (100+ cm/s): {s.LargeFlickCount}";
-            IdleBurstText.Text = $"Idle Bursts: {s.IdleBurstCount}";
+            FlicksText.Text = $"Flicks: {_s.FlickCount}";
+            SmallFlicksText.Text = $"Small Flicks: {_s.SmallFlickCount}";
+            LargeFlicksText.Text = $"Large Flicks: {_s.LargeFlickCount}";
 
-            // Quality
-            OverallQualityText.Text = $"Overall: {s.OverallQualityScore:F0}";
-            SmoothnessText.Text = $"Smoothness: {s.SmoothnessScore:F0}";
-            CorrectionSharpnessText.Text = $"Correction Sharpness: {s.CorrectionSharpness:F0}";
-            ConsistencyText.Text = $"Movement Consistency: {s.MovementConsistency:F0}";
+            // Diagnostics
+            SmoothnessText.Text = $"Smoothness: {_s.SmoothnessScore:F0}";
+            SharpnessText.Text = $"Correction Sharpness: {_s.CorrectionSharpness:F0}";
+            ConsistencyText.Text = $"Consistency: {_s.MovementConsistency:F0}";
+            QualityText.Text = $"Overall Quality: {_s.OverallQualityScore:F0}";
 
-            // Idle & Jitter
-            IdlePercentText.Text = $"Idle %: {s.IdlePercentage:F1}%";
-            JitterText.Text = $"Jitter Events: {s.JitterAmount:F0}";
+            // Advanced diagnostics (from engine)
+            CorrectionSharpnessText.Text = $"Sharpness Score: {_rec.CorrectionSharpnessScore:F0}";
+            VelocityStabilityText.Text = $"Velocity Stability: {_rec.VelocityStabilityScore:F0}";
+            IdlePenaltyText.Text = $"Idle Penalty: {_rec.IdlePenaltyScore:F0}";
+            OverallDiagnosticText.Text = $"Weighted Diagnostic: {_rec.OverallDiagnostic:F0}";
+
+            // Trend
+            TrendText.Text = _rec.TrendSummary;
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)

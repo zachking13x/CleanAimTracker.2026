@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using CleanAimTracker.Windows;
 
 namespace CleanAimTracker
 {
@@ -27,7 +28,7 @@ namespace CleanAimTracker
 
         private void SessionList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Selection only — no auto-action
+            // No auto-action on selection
         }
 
         private void ViewSession_Click(object sender, RoutedEventArgs e)
@@ -39,7 +40,26 @@ namespace CleanAimTracker
                 return;
             }
 
-            var win = new SummaryWindow(selected);
+            // Load all profiles (built-in + custom)
+            var customProfiles = ProfileStorage.LoadProfiles();
+            var allProfiles = GameProfile.GetAllProfiles(customProfiles);
+
+            // Match profile by name saved in the session
+            var profile = allProfiles.Find(p => p.Name == selected.ProfileName)
+                          ?? (allProfiles.Count > 0 ? allProfiles[0] : null);
+
+            if (profile == null)
+            {
+                MessageBox.Show("No game profiles available to analyze this session.",
+                    "No Profiles", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Build recommendation for this historical session
+            var rec = RecommendationEngine.Analyze(selected, profile);
+
+            // Open summary window with both objects
+            var win = new SummaryWindow(selected, rec);
             win.Show();
         }
 
@@ -59,6 +79,7 @@ namespace CleanAimTracker
             if (result == MessageBoxResult.Yes)
             {
                 _sessions.Remove(selected);
+
                 // Re-reverse so the save order is chronological
                 var toSave = new List<SessionSummary>(_sessions);
                 toSave.Reverse();
@@ -71,7 +92,6 @@ namespace CleanAimTracker
             }
         }
 
-        // ── Export Selected Session ────────────────────────────────
         private void ExportSelected_Click(object sender, RoutedEventArgs e)
         {
             if (SessionList.SelectedItem is not SessionSummary selected)
@@ -100,7 +120,6 @@ namespace CleanAimTracker
             }
         }
 
-        // ── Export All Sessions ────────────────────────────────────
         private void ExportAll_Click(object sender, RoutedEventArgs e)
         {
             if (_sessions == null || _sessions.Count == 0)
@@ -120,6 +139,7 @@ namespace CleanAimTracker
 
                 MessageBox.Show($"All {_sessions.Count} sessions exported to:\n{csvPath}",
                     "Export Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+
             }
             catch (Exception ex)
             {

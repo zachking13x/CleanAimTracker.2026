@@ -247,6 +247,18 @@
 
     <Grid>
 
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Nav bar -->
+            <RowDefinition Height="Auto"/>
+            <!-- Trial banner -->
+            <RowDefinition Height="Auto"/>
+            <!-- Header + inputs -->
+            <RowDefinition Height="*"/>
+            <!-- Stats grid -->
+        </Grid.RowDefinitions>
+
+
         <!-- NAV BAR -->
         <Border Grid.Row="0"
                 Background="{DynamicResource AppBackground}"
@@ -366,10 +378,10 @@
             </StackPanel>
 
             <!-- RIGHT: Buttons -->
-            <UniformGrid Grid.Column="2"
-                         Rows="1"
-                         Columns="5"
-                         HorizontalAlignment="Right">
+            <StackPanel Grid.Column="2"
+            Orientation="Horizontal"
+            HorizontalAlignment="Right">
+
                 <Button x:Name="StartButton"
                         Content="Start"
                         Click="StartButton_Click"
@@ -404,7 +416,8 @@
                         Background="{DynamicResource ButtonSecondaryBg}"
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12,4"/>
-            </UniformGrid>
+
+                </StackPanel>
         </Grid>
 
         <!-- STATS GRID -->

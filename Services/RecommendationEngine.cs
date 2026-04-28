@@ -5,69 +5,123 @@ using System.Linq;
 
 namespace CleanAimTracker.Services
 {
-    /// <summary>
-    /// Analyses session metrics against a game profile and produces
-    /// DPI, sensitivity, and cm/360 recommendations with diagnostic verdicts.
-    /// </summary>
     public static class RecommendationEngine
     {
-        // ── Standard DPI steps the engine can recommend ───────────
         private static readonly int[] StandardDpiSteps =
-            { 400, 800, 1200, 1600, 3200 };
+            { 400, 800, 1200, 1600, 3200, 6400, 7200 };
 
         // ══════════════════════════════════════════════════════════
-        //  Main entry point
+        //  MAIN ENTRY
         // ══════════════════════════════════════════════════════════
-        public static SensitivityRecommendation Analyze(
-            SessionSummary session,
-            GameProfile profile)
+        public static SensitivityRecommendation Analyze(SessionSummary s, GameProfile p)
         {
             var rec = new SensitivityRecommendation
             {
-                CurrentDPI = session.DPI,
-                CurrentSensitivity = session.Sensitivity,
-                CurrentCm360 = session.CmPer360,
-                GameName = profile.Name,
-                ProAverageCm360 = profile.ProAverageCm360,
-                Cm360RangeMin = profile.RecommendedCm360Min,
-                Cm360RangeMax = profile.RecommendedCm360Max
+                CurrentDPI = s.DPI,
+                CurrentSensitivity = s.Sensitivity,
+                CurrentCm360 = s.CmPer360,
+                GameName = p.Name,
+                ProAverageCm360 = p.ProAverageCm360,
+                Cm360RangeMin = p.RecommendedCm360Min,
+                Cm360RangeMax = p.RecommendedCm360Max
             };
 
-            // ── 1. Diagnostic scores (0–100, higher = better) ─────
-            rec.JitterScore = ScoreJitter(session);
-            rec.SmoothnessScore = session.SmoothnessScore;
-            rec.ConsistencyScore = session.MovementConsistency;
-            rec.FlickControlScore = ScoreFlickControl(session);
-            rec.OverallDiagnostic = (rec.JitterScore
-                                   + rec.SmoothnessScore
-                                   + rec.ConsistencyScore
-                                   + rec.FlickControlScore) / 4.0;
+            // ══════════════════════════════════════════════════════
+            // 1. DIAGNOSTIC SCORING (weighted)
+            // ══════════════════════════════════════════════════════
 
-            // ── 2. Determine ideal cm/360 from diagnostics ────────
-            double targetCm360 = DetermineTargetCm360(session, profile, rec);
+            rec.JitterScore = ScoreJitter(s);
+            rec.SmoothnessScore = s.SmoothnessScore;
+            rec.ConsistencyScore = s.MovementConsistency;
+            rec.FlickControlScore = ScoreFlickControl(s);
 
-            // ── 3. Pick recommended DPI ───────────────────────────
-            rec.RecommendedDPI = (int)Math.Round(
-                PickBestDpi(session.DPI, targetCm360, session.Sensitivity, profile)
-            );
+            rec.CorrectionSharpnessScore = ScoreCorrectionSharpness(s);
+            rec.VelocityStabilityScore = ScoreVelocityStability(s);
+            rec.IdlePenaltyScore = ScoreIdlePenalty(s);
 
+            rec.OverallDiagnostic =
+                (rec.SmoothnessScore * 0.35) +
+                (rec.ConsistencyScore * 0.30) +
+                (rec.FlickControlScore * 0.20) +
+                (rec.JitterScore * 0.15);
 
-            // ── 4. Compute matching sensitivity ───────────────────
-            rec.RecommendedSensitivity = CmPer360ToSensitivity(
-                targetCm360, rec.RecommendedDPI, profile.YawPerCount);
+            // ══════════════════════════════════════════════════════
+            // 2. TARGET CM/360
+            // ══════════════════════════════════════════════════════
 
+            double targetCm360 = DetermineTargetCm360(s, p, rec);
             rec.RecommendedCm360 = targetCm360;
 
-            // ── 5. Generate verdicts ──────────────────────────────
-            rec.DpiVerdict = BuildDpiVerdict(session.DPI, rec.RecommendedDPI);
-            rec.SensVerdict = BuildSensVerdict(session.Sensitivity, rec.RecommendedSensitivity);
-            rec.Cm360Verdict = BuildCm360Verdict(session.CmPer360, targetCm360, profile);
+            // ══════════════════════════════════════════════════════
+            // 3. DPI SELECTION
+            // ══════════════════════════════════════════════════════
+
+            rec.RecommendedDPI = (int)Math.Round(
+                PickBestDpi(s.DPI, targetCm360, s.Sensitivity, p)
+            );
+
+            // ══════════════════════════════════════════════════════
+            // 4. SENSITIVITY CALCULATION
+            // ══════════════════════════════════════════════════════
+
+            double sens = CmPer360ToSensitivity(targetCm360, rec.RecommendedDPI, p.YawPerCount);
+
+            // Clamp to profile limits
+            sens = Math.Clamp(sens, p.TypicalSensMin, p.TypicalSensMax);
+
+            // Round to 4 decimals
+            sens = Math.Round(sens, 4);
+
+            rec.RecommendedSensitivity = sens;
+
+            // Sensitivity range (±3%)
+            rec.RecommendedSensitivityMin = Math.Round(sens * 0.97, 4);
+            rec.RecommendedSensitivityMax = Math.Round(sens * 1.03, 4);
+
+            // ══════════════════════════════════════════════════════
+            // 5. MUSCLE MEMORY PROTECTION
+            // ══════════════════════════════════════════════════════
+
+            double pctChange = Math.Abs(sens - s.Sensitivity) / s.Sensitivity * 100;
+            rec.MinimalChangeRecommended = pctChange < 5;
+
+            // ══════════════════════════════════════════════════════
+            // 6. CONFIDENCE SCORE
+            // ══════════════════════════════════════════════════════
+
+            int confidence = 100;
+
+            confidence -= (int)(100 - rec.OverallDiagnostic) / 2;
+            if (s.SessionSeconds < 45) confidence -= 20;
+            if (s.FlickCount < 3) confidence -= 10;
+
+            rec.Confidence = Math.Clamp(confidence, 30, 100);
+
+            // ══════════════════════════════════════════════════════
+            // 7. VERDICTS
+            // ══════════════════════════════════════════════════════
+
+            rec.DpiVerdict = BuildDpiVerdict(s.DPI, rec.RecommendedDPI);
+            rec.SensVerdict = BuildSensVerdict(s.Sensitivity, sens);
+            rec.Cm360Verdict = BuildCm360Verdict(s.CmPer360, targetCm360, p);
             rec.OverallVerdict = BuildOverallVerdict(rec);
 
-            // ── 6. Generate tips ──────────────────────────────────
-            rec.Tips = GenerateTips(session, profile, rec);
+            // ══════════════════════════════════════════════════════
+            // 8. EXPLANATION PARAGRAPH
+            // ══════════════════════════════════════════════════════
 
-            // ── 7. Trend analysis ─────────────────────────────────
+            rec.Explanation = BuildExplanation(rec);
+
+            // ══════════════════════════════════════════════════════
+            // 9. TIPS
+            // ══════════════════════════════════════════════════════
+
+            rec.Tips = GenerateTips(s, p, rec);
+
+            // ══════════════════════════════════════════════════════
+            // 10. TREND ANALYSIS
+            // ══════════════════════════════════════════════════════
+
             var history = SessionStorage.LoadAll();
             if (history.Count >= 3)
             {
@@ -84,102 +138,88 @@ namespace CleanAimTracker.Services
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Diagnostic scoring
+        //  DIAGNOSTIC SCORING
         // ══════════════════════════════════════════════════════════
 
         private static double ScoreJitter(SessionSummary s)
         {
             if (s.TotalSamples == 0) return 100;
             double jitterRatio = s.JitterAmount / s.TotalSamples;
-            double score = 100 - (jitterRatio * 500);
-            return Math.Max(0, Math.Min(100, score));
+            return Math.Clamp(100 - (jitterRatio * 500), 0, 100);
         }
 
         private static double ScoreFlickControl(SessionSummary s)
         {
-            if (s.FlickCount == 0) return 80; // no flicks = decent but untested
+            if (s.FlickCount == 0) return 80;
 
-            // Ratio of small (controlled) flicks to total
             double controlledRatio = (double)s.SmallFlickCount / s.FlickCount;
             double score = controlledRatio * 100;
 
-            // Penalize excessive large flicks
             if (s.LargeFlickCount > s.SmallFlickCount)
                 score -= 20;
 
-            return Math.Max(0, Math.Min(100, score));
+            return Math.Clamp(score, 0, 100);
+        }
+
+        private static double ScoreCorrectionSharpness(SessionSummary s)
+        {
+            if (s.CorrectionSharpness <= 0) return 80;
+            return Math.Clamp(100 - s.CorrectionSharpness, 0, 100);
+        }
+
+        private static double ScoreVelocityStability(SessionSummary s)
+        {
+            if (s.PeakVelocity <= 0) return 80;
+            double ratio = s.AverageVelocity / s.PeakVelocity;
+            return Math.Clamp(ratio * 100, 0, 100);
+        }
+
+        private static double ScoreIdlePenalty(SessionSummary s)
+        {
+            return Math.Clamp(100 - (s.IdlePercentage * 1.5), 0, 100);
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Target cm/360 determination
+        //  TARGET CM/360
         // ══════════════════════════════════════════════════════════
 
-        private static double DetermineTargetCm360(
-            SessionSummary s, GameProfile p, SensitivityRecommendation rec)
+        private static double DetermineTargetCm360(SessionSummary s, GameProfile p, SensitivityRecommendation rec)
         {
-            double current = s.CmPer360;
-            double proAvg = p.ProAverageCm360;
-            double rangeMin = p.RecommendedCm360Min;
-            double rangeMax = p.RecommendedCm360Max;
+            double target = p.ProAverageCm360;
 
-            // Start from pro average
-            double target = proAvg;
-
-            // Adjust based on diagnostics
-            if (rec.JitterScore < 50)
-            {
-                // High jitter → sensitivity too high → increase cm/360
-                target = Math.Min(rangeMax, target + 5);
-            }
-
-            if (rec.SmoothnessScore < 40)
-            {
-                // Low smoothness → may need higher cm/360 (lower sens)
-                target = Math.Min(rangeMax, target + 3);
-            }
-
-            if (rec.FlickControlScore < 40 && s.LargeFlickCount > s.SmallFlickCount)
-            {
-                // Poor flick control with many large flicks → raise cm/360
-                target = Math.Min(rangeMax, target + 4);
-            }
+            if (rec.JitterScore < 50) target += 5;
+            if (rec.SmoothnessScore < 40) target += 3;
+            if (rec.FlickControlScore < 40 && s.LargeFlickCount > s.SmallFlickCount) target += 4;
 
             if (rec.ConsistencyScore > 80 && rec.SmoothnessScore > 70)
             {
-                // Good consistency and smoothness → stay near current if in range
-                if (current >= rangeMin && current <= rangeMax)
-                    target = current;
+                if (s.CmPer360 >= p.RecommendedCm360Min && s.CmPer360 <= p.RecommendedCm360Max)
+                    target = s.CmPer360;
             }
 
-            // Clamp to recommended range
-            target = Math.Max(rangeMin, Math.Min(rangeMax, target));
-
-            return Math.Round(target, 1);
+            return Math.Clamp(Math.Round(target, 1), p.RecommendedCm360Min, p.RecommendedCm360Max);
         }
 
         // ══════════════════════════════════════════════════════════
-        //  DPI selection
+        //  DPI SELECTION
         // ══════════════════════════════════════════════════════════
 
-        private static double PickBestDpi(double currentDpi, double targetCm360,
-                                           double currentSens, GameProfile profile)
+        private static double PickBestDpi(double currentDpi, double targetCm360, double currentSens, GameProfile p)
         {
-            // If current DPI is a standard step and produces reasonable sens, keep it
             if (StandardDpiSteps.Contains((int)currentDpi))
             {
-                double testSens = CmPer360ToSensitivity(targetCm360, currentDpi, profile.YawPerCount);
-                if (testSens >= profile.TypicalSensMin && testSens <= profile.TypicalSensMax)
+                double testSens = CmPer360ToSensitivity(targetCm360, currentDpi, p.YawPerCount);
+                if (testSens >= p.TypicalSensMin && testSens <= p.TypicalSensMax)
                     return currentDpi;
             }
 
-            // Otherwise find the DPI step that yields sensitivity closest to typical range midpoint
-            double typicalMid = (profile.TypicalSensMin + profile.TypicalSensMax) / 2.0;
+            double typicalMid = (p.TypicalSensMin + p.TypicalSensMax) / 2.0;
             double bestDpi = 800;
             double bestDiff = double.MaxValue;
 
             foreach (int dpi in StandardDpiSteps)
             {
-                double sens = CmPer360ToSensitivity(targetCm360, dpi, profile.YawPerCount);
+                double sens = CmPer360ToSensitivity(targetCm360, dpi, p.YawPerCount);
                 double diff = Math.Abs(sens - typicalMid);
                 if (diff < bestDiff)
                 {
@@ -192,93 +232,113 @@ namespace CleanAimTracker.Services
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Verdict builders
+        //  VERDICTS
         // ══════════════════════════════════════════════════════════
 
         private static string BuildDpiVerdict(double current, double recommended)
         {
             if (Math.Abs(current - recommended) < 1)
-                return "Your DPI is already at the recommended value.";
+                return "Your DPI is already optimal.";
 
             return current < recommended
-                ? $"Consider increasing DPI from {current:F0} to {recommended:F0} for finer control."
-                : $"Consider decreasing DPI from {current:F0} to {recommended:F0} for more precision.";
+                ? $"Increase DPI from {current:F0} to {recommended:F0} for finer control."
+                : $"Decrease DPI from {current:F0} to {recommended:F0} for more precision.";
         }
 
         private static string BuildSensVerdict(double current, double recommended)
         {
-            double pctChange = Math.Abs(recommended - current) / current * 100;
-            if (pctChange < 5)
-                return "Your sensitivity is close to the recommended value.";
+            double pct = Math.Abs(recommended - current) / current * 100;
+
+            if (pct < 5)
+                return "Your sensitivity is already close to optimal.";
 
             return current > recommended
-                ? $"Lower your sensitivity from {current:F3} to {recommended:F3} ({pctChange:F0}% decrease)."
-                : $"Raise your sensitivity from {current:F3} to {recommended:F3} ({pctChange:F0}% increase).";
+                ? $"Lower sensitivity from {current:F3} to {recommended:F3} ({pct:F0}% decrease)."
+                : $"Raise sensitivity from {current:F3} to {recommended:F3} ({pct:F0}% increase).";
         }
 
-        private static string BuildCm360Verdict(double current, double target, GameProfile profile)
+        private static string BuildCm360Verdict(double current, double target, GameProfile p)
         {
-            if (current < profile.RecommendedCm360Min)
-                return $"Your cm/360 ({current:F1}) is BELOW the recommended range ({profile.RecommendedCm360Min:F0}–{profile.RecommendedCm360Max:F0}). You may be overshooting targets.";
+            if (current < p.RecommendedCm360Min)
+                return $"Your cm/360 ({current:F1}) is below the recommended range ({p.RecommendedCm360Min:F0}–{p.RecommendedCm360Max:F0}).";
 
-            if (current > profile.RecommendedCm360Max)
-                return $"Your cm/360 ({current:F1}) is ABOVE the recommended range ({profile.RecommendedCm360Min:F0}–{profile.RecommendedCm360Max:F0}). You may lack speed for fast reactions.";
+            if (current > p.RecommendedCm360Max)
+                return $"Your cm/360 ({current:F1}) is above the recommended range ({p.RecommendedCm360Min:F0}–{p.RecommendedCm360Max:F0}).";
 
-            return $"Your cm/360 ({current:F1}) is within the recommended range ({profile.RecommendedCm360Min:F0}–{profile.RecommendedCm360Max:F0}).";
+            return $"Your cm/360 ({current:F1}) is within the recommended range.";
         }
 
         private static string BuildOverallVerdict(SensitivityRecommendation rec)
         {
             if (rec.OverallDiagnostic >= 80)
-                return "Excellent aim mechanics. Your settings are well-tuned. Minor adjustments may help optimization.";
+                return "Excellent aim fundamentals. Only minor adjustments are suggested.";
+
             if (rec.OverallDiagnostic >= 60)
-                return "Good fundamentals with room for improvement. Review the recommendations below to fine-tune your setup.";
+                return "Good fundamentals with room for refinement.";
+
             if (rec.OverallDiagnostic >= 40)
-                return "Your aim mechanics need attention. The sensitivity adjustments below should help improve consistency.";
-            return "Significant aim issues detected. A sensitivity change is strongly recommended to improve your control.";
+                return "Aim mechanics need improvement. Sensitivity adjustments will help.";
+
+            return "Significant aim issues detected. A sensitivity change is strongly recommended.";
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Tips generation
+        //  EXPLANATION PARAGRAPH
         // ══════════════════════════════════════════════════════════
 
-        private static List<string> GenerateTips(
-            SessionSummary s, GameProfile p, SensitivityRecommendation rec)
+        private static string BuildExplanation(SensitivityRecommendation r)
+        {
+            List<string> parts = new();
+
+            if (r.JitterScore < 50)
+                parts.Add("High jitter suggests your sensitivity may be too high.");
+
+            if (r.SmoothnessScore < 50)
+                parts.Add("Low smoothness indicates difficulty maintaining stable tracking.");
+
+            if (r.FlickControlScore < 50)
+                parts.Add("Flick control issues suggest overshooting or inconsistent corrections.");
+
+            if (r.ConsistencyScore < 50)
+                parts.Add("Low consistency indicates uneven movement patterns.");
+
+            if (parts.Count == 0)
+                return "Your aim profile is well‑balanced. The recommended settings fine‑tune your control without disrupting muscle memory.";
+
+            return string.Join(" ", parts);
+        }
+
+        // ══════════════════════════════════════════════════════════
+        //  TIPS
+        // ══════════════════════════════════════════════════════════
+
+        private static List<string> GenerateTips(SessionSummary s, GameProfile p, SensitivityRecommendation rec)
         {
             var tips = new List<string>();
 
             if (rec.JitterScore < 50)
-                tips.Add("High jitter detected. Try lowering your sensitivity or DPI to reduce micro-corrections.");
+                tips.Add("Try lowering sensitivity slightly to reduce jitter.");
 
             if (rec.SmoothnessScore < 50)
-                tips.Add("Low smoothness score. Focus on making fluid, deliberate mouse movements rather than quick corrections.");
+                tips.Add("Focus on smooth, continuous tracking movements.");
 
             if (rec.FlickControlScore < 50)
-                tips.Add("Flick control needs work. Practice flick-shot drills at your current sensitivity before changing settings.");
+                tips.Add("Practice flick‑shot drills to improve control.");
 
             if (rec.ConsistencyScore < 50)
-                tips.Add("Movement consistency is low. Try to maintain even speed during tracking — avoid sudden stops and starts.");
+                tips.Add("Work on maintaining consistent movement speed.");
 
             if (s.IdlePercentage > 30)
-                tips.Add("High idle time detected. If tracking during gameplay, this may indicate hesitation or over-aiming.");
-
-            if (s.CmPer360 < p.RecommendedCm360Min)
-                tips.Add($"Your cm/360 ({s.CmPer360:F1}) is below the recommended minimum ({p.RecommendedCm360Min:F0}). You may be overshooting targets.");
-
-            if (s.CmPer360 > p.RecommendedCm360Max)
-                tips.Add($"Your cm/360 ({s.CmPer360:F1}) is above the recommended maximum ({p.RecommendedCm360Max:F0}). Consider lowering cm/360 for faster reactions.");
-
-            if (s.LargeFlickCount > s.SmallFlickCount && s.FlickCount > 5)
-                tips.Add("You have more large flicks than small ones. This suggests over-correction — try reducing sensitivity slightly.");
+                tips.Add("High idle time suggests hesitation — try to stay active during tracking.");
 
             if (tips.Count == 0)
-                tips.Add("Your aim profile looks solid. Keep practicing with your current setup to build muscle memory.");
+                tips.Add("Your aim fundamentals look solid. Keep practicing to reinforce muscle memory.");
 
             return tips;
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Trend analysis
+        //  TREND ANALYSIS
         // ══════════════════════════════════════════════════════════
 
         private static string BuildTrendSummary(List<SessionSummary> history)
@@ -286,36 +346,29 @@ namespace CleanAimTracker.Services
             if (history.Count < 3)
                 return "Not enough data for trends.";
 
-            // Take last 5 sessions
             var recent = history.OrderByDescending(h => h.Timestamp).Take(5).ToList();
 
             double avgQuality = recent.Average(s => s.OverallQualityScore);
             double avgSmoothness = recent.Average(s => s.SmoothnessScore);
 
-            // Compare first half vs second half for trend direction
             var older = recent.Skip(recent.Count / 2).ToList();
             var newer = recent.Take(recent.Count / 2).ToList();
 
             double olderAvg = older.Average(s => s.OverallQualityScore);
             double newerAvg = newer.Average(s => s.OverallQualityScore);
 
-            string direction;
-            if (newerAvg > olderAvg + 5)
-                direction = "improving";
-            else if (newerAvg < olderAvg - 5)
-                direction = "declining";
-            else
-                direction = "stable";
+            string direction =
+                newerAvg > olderAvg + 5 ? "improving" :
+                newerAvg < olderAvg - 5 ? "declining" :
+                "stable";
 
-            return $"Across your last {recent.Count} sessions: Average quality {avgQuality:F0}/100, " +
-                   $"smoothness {avgSmoothness:F0}/100. Trend: {direction}.";
+            return $"Across your last {recent.Count} sessions: Average quality {avgQuality:F0}/100, smoothness {avgSmoothness:F0}/100. Trend: {direction}.";
         }
 
         // ══════════════════════════════════════════════════════════
-        //  Math helpers
+        //  MATH HELPERS
         // ══════════════════════════════════════════════════════════
 
-        /// <summary>cm/360 → in-game sensitivity</summary>
         private static double CmPer360ToSensitivity(double cm360, double dpi, double yaw)
         {
             if (cm360 <= 0 || dpi <= 0 || yaw <= 0) return 1.0;

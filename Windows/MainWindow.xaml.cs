@@ -108,21 +108,17 @@ namespace CleanAimTracker.Windows
             DpiInput.Text = _dpi.ToString("F0");
             SensitivityInput.Text = _sensitivity.ToString("F4");
 
-            // Load profiles
-            var profiles = ProfileStorage.LoadProfiles();
-            _gameProfiles = GameProfile.GetAllProfiles(profiles);
-
-            foreach (var p in _gameProfiles)
-                GameProfileCombo.Items.Add(p.DisplayName);
-
-            int savedIndex = _gameProfiles.FindIndex(p => p.Name == settings.SelectedProfile);
-            GameProfileCombo.SelectedIndex = savedIndex >= 0 ? savedIndex : 0;
-            _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
+            // NEW — Load game profiles
+            LoadGameProfiles();
 
             UpdateTrialBanner();
+            
+            
+}
 
-            // Raw input
-            _rawInput = new RawInputService();
+
+        // Raw input
+        _rawInput = new RawInputService();
             _rawInput.MouseMoved += OnMouseMoved;
 
             // Timer
@@ -488,14 +484,40 @@ namespace CleanAimTracker.Windows
 
         private void OpenRecommendation_Click(object sender, RoutedEventArgs e)
         {
-            _isTracking = false;
-            _timer.Stop();
+            // 1. Load the most recent session
+            var summary = SessionStorage.LoadLast();
+            if (summary == null)
+            {
+                MessageBox.Show("No session data available. Start a session first.");
+                return;
+            }
 
-            var summary = BuildSessionSummary();
-            var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
+            // 2. Get selected game profile
+            var selectedItem = GameProfileCombo.SelectedItem as ComboBoxItem;
+            if (selectedItem == null)
+            {
+                MessageBox.Show("Please select a game profile.");
+                return;
+            }
 
-            new RecommendationWindow(rec).Show();
+            string profileName = selectedItem.Content.ToString();
+            GameProfile profile = GameProfileStorage.LoadByName(profileName);
+
+            if (profile == null)
+            {
+                MessageBox.Show($"Profile '{profileName}' not found.");
+                return;
+            }
+
+            // 3. Run the recommendation engine
+            var rec = RecommendationEngine.Analyze(summary, profile);
+
+            // 4. Open the recommendation window
+            var win = new RecommendationWindow(rec);
+            win.Owner = this;
+            win.ShowDialog();
         }
+
 
         private void OpenAddProfile_Click(object sender, RoutedEventArgs e)
         {

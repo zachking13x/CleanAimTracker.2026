@@ -112,7 +112,10 @@
                                           ClickMode="Press"
                                           Background="{TemplateBinding Background}"
                                           BorderBrush="{TemplateBinding BorderBrush}"
-                                          BorderThickness="{TemplateBinding BorderThickness}">
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                          
+
                                 <Path Data="M 0 0 L 4 4 L 8 0"
                                       Stroke="{DynamicResource PrimaryText}"
                                       StrokeThickness="2"
@@ -369,9 +372,6 @@
                               Padding="8,4"
                               Style="{StaticResource ModernComboBox}"
                               SelectionChanged="GameProfileCombo_SelectionChanged">
-                        <ComboBoxItem>Valorant</ComboBoxItem>
-                        <ComboBoxItem>Apex</ComboBoxItem>
-                        <ComboBoxItem>CS2</ComboBoxItem>
                     </ComboBox>
                 </StackPanel>
 

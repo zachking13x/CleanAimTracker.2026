@@ -155,7 +155,7 @@
                                            Foreground="{DynamicResource SecondaryText}"
                                            Margin="0,4,0,0">
                                     <Run Text="• " />
-                                    <Run Text="{Binding}" />
+                                    <Run Text="{Binding ., Mode=OneWay}" />
                                 </TextBlock>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

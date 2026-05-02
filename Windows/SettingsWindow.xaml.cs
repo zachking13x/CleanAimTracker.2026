@@ -1,27 +1,55 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using CleanAimTracker.Services;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
+using CleanAimTracker.Models;
+
 
 namespace CleanAimTracker.Windows
 {
-    /// <summary>
-    /// Interaction logic for SettingsWindow.xaml
-    /// </summary>
     public partial class SettingsWindow : Window
     {
         public SettingsWindow()
         {
             InitializeComponent();
+            LoadSettings();
+        }
+
+        private void LoadSettings()
+        {
+            var s = SettingsService.Load();
+
+            DpiInput.Text = s.DPI.ToString();
+            SensitivityInput.Text = s.Sensitivity.ToString("F4");
+
+            ThemeSelector.SelectedIndex = s.Theme == "Light" ? 1 : 0;
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!int.TryParse(DpiInput.Text, out int dpi))
+            {
+                MessageBox.Show("Invalid DPI value.");
+                return;
+            }
+
+            if (!double.TryParse(SensitivityInput.Text, out double sens))
+            {
+                MessageBox.Show("Invalid sensitivity value.");
+                return;
+            }
+
+            string theme = ((ComboBoxItem)ThemeSelector.SelectedItem).Content.ToString();
+
+            SettingsService.Save(new UserSettings
+
+            {
+                DPI = dpi,
+                Sensitivity = sens,
+                Theme = theme
+            });
+
+            MessageBox.Show("Settings saved!", "Success");
+            Close();
         }
     }
 }

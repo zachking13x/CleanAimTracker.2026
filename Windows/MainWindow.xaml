@@ -85,7 +85,7 @@
         <Style x:Key="ModernComboBox" TargetType="ComboBox">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
             <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Height" Value="30"/>
@@ -100,12 +100,10 @@
                                 <ColumnDefinition Width="30"/>
                             </Grid.ColumnDefinitions>
 
-                            <!-- Selected item -->
                             <ContentPresenter Margin="6,0,0,0"
                                               VerticalAlignment="Center"
                                               Content="{TemplateBinding SelectionBoxItem}"/>
 
-                            <!-- Dropdown toggle -->
                             <ToggleButton x:Name="PART_DropDownToggle"
                                           Grid.Column="1"
                                           Focusable="False"
@@ -113,9 +111,7 @@
                                           Background="{TemplateBinding Background}"
                                           BorderBrush="{TemplateBinding BorderBrush}"
                                           BorderThickness="{TemplateBinding BorderThickness}"
-                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                                          
-
+                                          IsChecked="{Binding Path=IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
                                 <Path Data="M 0 0 L 4 4 L 8 0"
                                       Stroke="{DynamicResource PrimaryText}"
                                       StrokeThickness="2"
@@ -123,14 +119,13 @@
                                       VerticalAlignment="Center"/>
                             </ToggleButton>
 
-                            <!-- Popup -->
                             <Popup x:Name="PART_Popup"
                                    Placement="Bottom"
                                    AllowsTransparency="True"
                                    Focusable="False"
                                    IsOpen="{TemplateBinding IsDropDownOpen}">
                                 <Border Background="{DynamicResource CardBackground}"
-                                        BorderBrush="{DynamicResource AccentColor}"
+                                        BorderBrush="{DynamicResource AccentBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6"
                                         Padding="4">
@@ -145,7 +140,7 @@
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="PART_DropDownToggle"
                                         Property="BorderBrush"
-                                        Value="{DynamicResource AccentColor}"/>
+                                        Value="{DynamicResource AccentBrush}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -155,7 +150,6 @@
                 </Setter.Value>
             </Setter>
 
-            <!-- Item style -->
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
                     <Style TargetType="ComboBoxItem">
@@ -175,7 +169,7 @@
                                         <Trigger Property="IsHighlighted" Value="True">
                                             <Setter TargetName="Bd"
                                                     Property="Background"
-                                                    Value="{DynamicResource AccentColor}"/>
+                                                    Value="{DynamicResource AccentBrush}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -190,7 +184,7 @@
         <Style x:Key="ModernTextBox" TargetType="TextBox">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
             <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,3"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
@@ -200,13 +194,12 @@
         <Style x:Key="GlowButton" TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
             <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,4"/>
             <Setter Property="Margin" Value="4"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
-
             <Setter Property="Effect">
                 <Setter.Value>
                     <DropShadowEffect Color="Black"
@@ -215,14 +208,12 @@
                                       Opacity="0.35"/>
                 </Setter.Value>
             </Setter>
-
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
             <Setter Property="RenderTransform">
                 <Setter.Value>
                     <ScaleTransform ScaleX="1.0" ScaleY="1.0"/>
                 </Setter.Value>
             </Setter>
-
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Effect">
@@ -239,7 +230,6 @@
                         </Setter.Value>
                     </Setter>
                 </Trigger>
-
                 <Trigger Property="IsEnabled" Value="False">
                     <Setter Property="Opacity" Value="0.5"/>
                 </Trigger>
@@ -248,19 +238,15 @@
 
     </Window.Resources>
 
+    <!-- MAIN LAYOUT -->
     <Grid>
 
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <!-- Nav bar -->
             <RowDefinition Height="Auto"/>
-            <!-- Trial banner -->
             <RowDefinition Height="Auto"/>
-            <!-- Header + inputs -->
             <RowDefinition Height="*"/>
-            <!-- Stats grid -->
         </Grid.RowDefinitions>
-
 
         <!-- NAV BAR -->
         <Border Grid.Row="0"
@@ -318,7 +304,7 @@
             </DockPanel>
         </Border>
 
-        <!-- HEADER + INPUTS + TOOLBAR -->
+        <!-- HEADER + INPUTS -->
         <Grid Grid.Row="2" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2.7*"/>
@@ -326,7 +312,7 @@
                 <ColumnDefinition Width="2.7*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT: Session Info -->
+            <!-- LEFT -->
             <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <TextBlock Text="Live Aim Session"
                            Style="{StaticResource SectionHeaderText}"/>
@@ -336,7 +322,7 @@
                            Margin="0,2,0,0"/>
             </StackPanel>
 
-            <!-- CENTER: DPI / Sensitivity / Profile -->
+            <!-- CENTER -->
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
@@ -362,7 +348,7 @@
                              Style="{StaticResource ModernTextBox}"/>
                 </StackPanel>
 
-                <!-- Game Profile -->
+                <!-- Profile -->
                 <StackPanel Margin="0,0,20,0">
                     <TextBlock Text="Profile"
                                Style="{StaticResource LabelTextStyle}"/>
@@ -371,16 +357,15 @@
                               Height="30"
                               Padding="8,4"
                               Style="{StaticResource ModernComboBox}"
-                              SelectionChanged="GameProfileCombo_SelectionChanged">
-                    </ComboBox>
+                              SelectionChanged="GameProfileCombo_SelectionChanged"/>
                 </StackPanel>
 
             </StackPanel>
 
-            <!-- RIGHT: Buttons -->
+            <!-- RIGHT -->
             <StackPanel Grid.Column="2"
-            Orientation="Horizontal"
-            HorizontalAlignment="Right">
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
 
                 <Button x:Name="StartButton"
                         Content="Start"
@@ -389,6 +374,7 @@
                         Foreground="{DynamicResource ButtonPrimaryFg}"
                         Padding="12,4"
                         Margin="0,0,8,0"/>
+
                 <Button x:Name="StopButton"
                         Content="Stop"
                         Click="StopButton_Click"
@@ -396,6 +382,7 @@
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12,4"
                         Margin="0,0,8,0"/>
+
                 <Button x:Name="ResetButton"
                         Content="Reset"
                         Click="ResetButton_Click"
@@ -403,6 +390,7 @@
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12,4"
                         Margin="0,0,8,0"/>
+
                 <Button x:Name="SummaryButton"
                         Content="Summary"
                         Click="OpenSummary_Click"
@@ -410,6 +398,7 @@
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12,4"
                         Margin="0,0,8,0"/>
+
                 <Button x:Name="RecommendButton"
                         Content="Recommend"
                         Click="OpenRecommendation_Click"
@@ -417,9 +406,8 @@
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12,4"/>
 
-                </StackPanel>
+            </StackPanel>
         </Grid>
-
         <!-- STATS GRID -->
         <UniformGrid Grid.Row="3"
                      Style="{StaticResource ResponsiveGridStyle}"
@@ -431,11 +419,13 @@
                     <TextBlock Text="Movement"
                                Style="{StaticResource SectionHeaderText}"
                                Margin="0,0,0,6"/>
+
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="dX / dY"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -443,6 +433,7 @@
                                        Text="dX: 0   dY: 0"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Total Distance"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -451,11 +442,13 @@
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </Grid>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Session Time"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -463,6 +456,7 @@
                                        Text="00:00"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="cm/360"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -478,55 +472,91 @@
             <Border Style="{StaticResource StatCardStyle}">
                 <StackPanel>
                     <TextBlock Text="Velocity"
-                               Style="{StaticResource SectionHeaderText}"
-                               Margin="0,0,0,6"/>
+                   Style="{StaticResource SectionHeaderText}"
+                   Margin="0,0,0,6"/>
+
+                    <!-- Speed + Current -->
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Speed"
-                                       Style="{StaticResource LabelTextStyle}"/>
+                           Style="{StaticResource LabelTextStyle}"/>
                             <TextBlock x:Name="SpeedText"
-                                       Text="0 cm/s"
-                                       Style="{StaticResource ValueTextStyle}"/>
+                           Text="0 cm/s"
+                           Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Current"
-                                       Style="{StaticResource LabelTextStyle}"/>
+                           Style="{StaticResource LabelTextStyle}"/>
                             <TextBlock x:Name="CurrentSpeedText"
-                                       Text="0 cm/s"
-                                       Style="{StaticResource ValueTextStyle}"/>
+                           Text="0 cm/s"
+                           Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </Grid>
+
+                    <!-- Peak + Average -->
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Peak"
-                                       Style="{StaticResource LabelTextStyle}"/>
+                           Style="{StaticResource LabelTextStyle}"/>
                             <TextBlock x:Name="PeakSpeedText"
-                                       Text="0 cm/s"
-                                       Style="{StaticResource ValueTextStyle}"/>
+                           Text="0 cm/s"
+                           Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Average"
-                                       Style="{StaticResource LabelTextStyle}"/>
+                           Style="{StaticResource LabelTextStyle}"/>
                             <TextBlock x:Name="AverageSpeedText"
-                                       Text="0 cm/s"
-                                       Style="{StaticResource ValueTextStyle}"/>
+                           Text="0 cm/s"
+                           Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </Grid>
+
+                    <!-- MPS + Rolling Density -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="MPS"
+                   Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock x:Name="MpsText"
+                   Text="0"
+                   Style="{StaticResource ValueTextStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Rolling Density"
+                   Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock x:Name="RollingDensityText"
+                   Text="0"
+                   Style="{StaticResource ValueTextStyle}"/>
+                        </StackPanel>
+                    </Grid>
+
+
+                    <!-- Peak Vel Change -->
                     <StackPanel>
                         <TextBlock Text="Peak Vel Change"
-                                   Style="{StaticResource LabelTextStyle}"/>
+                       Style="{StaticResource LabelTextStyle}"/>
                         <TextBlock x:Name="PeakVelocityChangeText"
-                                   Text="0"
-                                   Style="{StaticResource ValueTextStyle}"/>
+                       Text="0"
+                       Style="{StaticResource ValueTextStyle}"/>
                     </StackPanel>
+
                 </StackPanel>
             </Border>
 
@@ -536,11 +566,13 @@
                     <TextBlock Text="Flicks"
                                Style="{StaticResource SectionHeaderText}"
                                Margin="0,0,0,6"/>
+
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Flicks"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -548,6 +580,7 @@
                                        Text="0"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Small Flicks"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -556,11 +589,13 @@
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </Grid>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Large Flicks"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -568,6 +603,7 @@
                                        Text="0"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Idle Bursts"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -585,11 +621,13 @@
                     <TextBlock Text="Aim Quality"
                                Style="{StaticResource SectionHeaderText}"
                                Margin="0,0,0,6"/>
+
                     <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Overall Quality"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -597,6 +635,7 @@
                                        Text="100"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Smoothness"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -605,11 +644,13 @@
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </Grid>
+
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
+
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Correction Sharpness"
                                        Style="{StaticResource LabelTextStyle}"/>
@@ -617,59 +658,11 @@
                                        Text="0"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="Movement Consistency"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="MovementConsistencyText"
-                                       Text="100"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
-                    </Grid>
-                </StackPanel>
-            </Border>
 
-            <!-- Jitter & Density -->
-            <Border Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Jitter &amp; Density"
-                               Style="{StaticResource SectionHeaderText}"
-                               Margin="0,0,0,6"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Jitter"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="JitterText"
-                                       Text="0"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
                         <StackPanel Grid.Column="1">
-                            <TextBlock Text="Density"
+                            <TextBlock Text="Stability"
                                        Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="DensityText"
-                                       Text="0 eps"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
-                    </Grid>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Rolling Density"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="RollingDensityText"
-                                       Text="0 eps"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="MPS"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="MpsText"
+                            <TextBlock x:Name="StabilityText"
                                        Text="0"
                                        Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
@@ -677,84 +670,42 @@
                 </StackPanel>
             </Border>
 
-            <!-- Idle -->
+            <!-- Advanced Metrics -->
             <Border Style="{StaticResource StatCardStyle}">
                 <StackPanel>
-                    <TextBlock Text="Idle"
-                               Style="{StaticResource SectionHeaderText}"
-                               Margin="0,0,0,6"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
-                            <TextBlock Text="Idle"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="IdleSecondsText"
-                                       Text="0 s"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1">
-                            <TextBlock Text="Idle Time"
-                                       Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="IdleTimeText"
-                                       Text="0.0 s"
-                                       Style="{StaticResource ValueTextStyle}"/>
-                        </StackPanel>
-                    </Grid>
-                    <StackPanel>
-                        <TextBlock Text="Idle %"
-                                   Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="IdlePercentText"
-                                   Text="0%"
-                                   Style="{StaticResource ValueTextStyle}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- Angles -->
-            <Border Style="{StaticResource StatCardStyle}">
-                <StackPanel>
-                    <TextBlock Text="Angles"
+                    <TextBlock Text="Advanced Metrics"
                                Style="{StaticResource SectionHeaderText}"
                                Margin="0,0,0,6"/>
 
-                    <StackPanel Margin="0,6,0,0">
-                        <TextBlock Text="Angle"
-                                   Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="AngleText"
-                                   Text="0°"
-                                   Style="{StaticResource ValueTextStyle}"/>
-                    </StackPanel>
+                    <TextBlock Text="Angle Change"
+                               Style="{StaticResource LabelTextStyle}"/>
+                    <TextBlock x:Name="AngleChangeText"
+                               Text="0"
+                               Style="{StaticResource ValueTextStyle}"/>
 
-                    <StackPanel Margin="0,6,0,0">
-                        <TextBlock Text="Stability"
-                                   Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="StabilityText"
-                                   Text="100"
-                                   Style="{StaticResource ValueTextStyle}"/>
-                    </StackPanel>
+                    <TextBlock Text="Jitter"
+                               Style="{StaticResource LabelTextStyle}"
+                               Margin="0,6,0,0"/>
+                    <TextBlock x:Name="JitterText"
+                               Text="0"
+                               Style="{StaticResource ValueTextStyle}"/>
 
-                    <StackPanel Margin="0,6,0,0">
-                        <TextBlock Text="Angle Change Total"
-                                   Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="AngleChangeText"
-                                   Text="0"
-                                   Style="{StaticResource ValueTextStyle}"/>
-                    </StackPanel>
+                    <TextBlock Text="Movement Density"
+                               Style="{StaticResource LabelTextStyle}"
+                               Margin="0,6,0,0"/>
+                    <TextBlock x:Name="DensityText"
+                               Text="0"
+                               Style="{StaticResource ValueTextStyle}"/>
 
-                    <StackPanel Margin="0,6,0,0">
-                        <TextBlock Text="Previous Angle"
-                                   Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="PreviousAngleText"
-                                   Text="0°"
-                                   Style="{StaticResource ValueTextStyle}"/>
-                    </StackPanel>
+                   
                 </StackPanel>
             </Border>
 
         </UniformGrid>
-
+        <!-- END OF STATS GRID -->
     </Grid>
+
 </Window>
+
+
+

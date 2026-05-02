@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sensitivity Recommendation"
         Width="520"
-        Height="760"
+        Height="840"
         Background="{DynamicResource AppBackground}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
@@ -31,13 +31,13 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="SensValue"
+                    <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
                                Foreground="{DynamicResource PrimaryText}"
                                FontSize="18"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
 
-                    <TextBlock x:Name="SensRange"
+                    <TextBlock Text="{Binding SensitivityRangeText}"
                                Foreground="{DynamicResource SecondaryText}"
                                FontSize="12"
                                Margin="0,2,0,0"/>
@@ -55,7 +55,7 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="DpiValue"
+                    <TextBlock Text="{Binding RecommendedDPI}"
                                Foreground="{DynamicResource PrimaryText}"
                                FontSize="18"
                                FontWeight="Bold"
@@ -74,18 +74,17 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="Cm360Value"
+                    <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F2}}"
                                Foreground="{DynamicResource PrimaryText}"
                                FontSize="18"
                                FontWeight="Bold"
                                Margin="0,6,0,0"/>
 
-                    <TextBlock x:Name="Cm360Verdict"
+                    <TextBlock Text="{Binding Cm360Verdict}"
                                Foreground="{DynamicResource SecondaryText}"
                                FontSize="12"
                                Margin="0,2,0,0"/>
 
-                    <!-- Explanation block -->
                     <TextBlock Text="What is cm/360?"
                                Foreground="{DynamicResource PrimaryText}"
                                FontWeight="Bold"
@@ -110,7 +109,7 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="ConfidenceValue"
+                    <TextBlock Text="{Binding Confidence, StringFormat={}{0}%}"
                                Foreground="{DynamicResource PrimaryText}"
                                FontSize="18"
                                FontWeight="Bold"
@@ -129,7 +128,7 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="ExplanationText"
+                    <TextBlock Text="{Binding Explanation}"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource SecondaryText}"
                                FontSize="13"
@@ -148,14 +147,16 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <ItemsControl x:Name="TipsList"
+                    <ItemsControl ItemsSource="{Binding Tips}"
                                   Margin="0,6,0,0">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="•  {Binding}"
-                                           TextWrapping="Wrap"
+                                <TextBlock TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryText}"
-                                           Margin="0,4,0,0"/>
+                                           Margin="0,4,0,0">
+                                    <Run Text="• " />
+                                    <Run Text="{Binding}" />
+                                </TextBlock>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -173,7 +174,7 @@
                                FontSize="16"
                                FontWeight="SemiBold"/>
 
-                    <TextBlock x:Name="TrendText"
+                    <TextBlock Text="{Binding TrendSummary}"
                                TextWrapping="Wrap"
                                Foreground="{DynamicResource SecondaryText}"
                                FontSize="13"
@@ -181,13 +182,89 @@
                 </StackPanel>
             </Border>
 
-            <!-- Close -->
-            <Button Content="Close"
-                    Click="Close_Click"
-                    Style="{StaticResource GlowButton}"
-                    HorizontalAlignment="Center"
-                    Width="140"
-                    Margin="0,16,0,0"/>
+            <!-- Comparison -->
+            <Border Background="{DynamicResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="14"
+                    Margin="0,0,0,14">
+                <StackPanel>
+                    <TextBlock Text="Current vs Recommended"
+                               Foreground="{DynamicResource PrimaryText}"
+                               FontSize="16"
+                               FontWeight="SemiBold"/>
+
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Current -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Current"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,6"/>
+
+                            <TextBlock Text="{Binding CurrentDPI, StringFormat=DPI: {0}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+
+                            <TextBlock Text="{Binding CurrentSensitivity, StringFormat=Sens: {0:F4}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+
+                            <TextBlock Text="{Binding CurrentCm360, StringFormat=cm/360: {0:F2}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <!-- Recommended -->
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Recommended"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       FontWeight="Bold"
+                                       Margin="0,0,0,6"/>
+
+                            <TextBlock Text="{Binding RecommendedDPI, StringFormat=DPI: {0}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+
+                            <TextBlock Text="{Binding RecommendedSensitivity, StringFormat=Sens: {0:F4}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+
+                            <TextBlock Text="{Binding RecommendedCm360, StringFormat=cm/360: {0:F2}}"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Buttons Row -->
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Margin="0,20,0,0">
+
+                <Button Content="Copy Settings"
+                        Width="150"
+                        Margin="0,0,12,0"
+                        Style="{StaticResource GlowButton}"
+                        Click="CopySettings_Click"/>
+
+                <Button Content="Copy Comparison"
+                        Width="150"
+                        Margin="0,0,12,0"
+                        Style="{StaticResource GlowButton}"
+                        Click="CopyComparison_Click"/>
+
+                <Button Content="Close"
+                        Width="150"
+                        Style="{StaticResource GlowButton}"
+                        Click="Close_Click"/>
+            </StackPanel>
+
         </StackPanel>
     </ScrollViewer>
 </Window>

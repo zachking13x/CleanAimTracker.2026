@@ -32,7 +32,6 @@ namespace CleanAimTracker.Windows
         private double _previousVelocity = 0;
         private DateTime _lastMoveTime = DateTime.Now;
 
-
         // -----------------------------
         // ANGLES + QUALITY
         // -----------------------------
@@ -61,7 +60,6 @@ namespace CleanAimTracker.Windows
         // -----------------------------
         private bool _wasIdle = false;
         private double _idleTimeSeconds = 0;
-        private double _idlePercentage = 0;
         private int _idleBurstCount = 0;
         private double _idleTime = 0;
 
@@ -86,7 +84,7 @@ namespace CleanAimTracker.Windows
         private bool _isTracking = false;
         private DateTime _sessionStart;
         private readonly DispatcherTimer _timer = new();
-        public double _sessionSeconds = 0;
+        private double _sessionSeconds = 0;
 
         // -----------------------------
         // DPI + SENSITIVITY
@@ -105,20 +103,28 @@ namespace CleanAimTracker.Windows
             var settings = SettingsService.Load();
             _dpi = settings.DPI;
             _sensitivity = settings.Sensitivity;
+
             DpiInput.Text = _dpi.ToString("F0");
             SensitivityInput.Text = _sensitivity.ToString("F4");
 
-            // NEW — Load game profiles
-            LoadGameProfiles();
+            // Load profiles
+            var profiles = ProfileStorage.LoadProfiles();
+            _gameProfiles = GameProfile.GetAllProfiles(profiles);
+
+            GameProfileCombo.Items.Clear();
+            foreach (var p in _gameProfiles)
+                GameProfileCombo.Items.Add(p.DisplayName);
+
+            int savedIndex = _gameProfiles.FindIndex(p => p.Name == settings.SelectedProfile);
+            GameProfileCombo.SelectedIndex = savedIndex >= 0 ? savedIndex : 0;
+
+            if (_gameProfiles.Count > 0)
+                _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
 
             UpdateTrialBanner();
-            
-            
-}
 
-
-        // Raw input
-        _rawInput = new RawInputService();
+            // Raw input
+            _rawInput = new RawInputService();
             _rawInput.MouseMoved += OnMouseMoved;
 
             // Timer
@@ -143,11 +149,10 @@ namespace CleanAimTracker.Windows
         {
             string status = TrialService.GetStatusText();
             TrialBannerText.Text = status;
-            TrialBannerText.Visibility = status == "Full Version"
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-        }
 
+            TrialBannerText.Visibility =
+                status == "Full Version" ? Visibility.Collapsed : Visibility.Visible;
+        }
         // -----------------------------
         // RAW INPUT HOOK
         // -----------------------------
@@ -182,12 +187,11 @@ namespace CleanAimTracker.Windows
                 double eventDistance = Math.Sqrt(dx * dx + dy * dy);
                 _distancePerEventTotal += eventDistance;
 
-                // Movement consistency
+                // Movement consistency (calculated but no longer displayed)
                 double deviation = Math.Abs(eventDistance - _averageDistancePerEvent);
                 _movementConsistency = Math.Clamp(100 - deviation * 10, 0, 100);
-                MovementConsistencyText.Text = $"{_movementConsistency:F0}";
 
-                // Overall quality
+                // Overall quality (still displayed)
                 _overallQualityScore = Math.Clamp(
                     (_smoothnessScore + _correctionSharpness + _movementConsistency) / 3,
                     0, 100);
@@ -197,24 +201,23 @@ namespace CleanAimTracker.Windows
                 if (eventDistance > _peakDistancePerEvent)
                     _peakDistancePerEvent = eventDistance;
 
-                // Angle
+                // Angle (calculated but no longer displayed)
                 _lastAngle = Math.Atan2(dy, dx) * (180 / Math.PI);
-                AngleText.Text = $"{_lastAngle:F0}°";
 
                 double angleDiff = Math.Abs(_lastAngle - _previousAngle);
 
-                // Smoothness
+                // Smoothness (still displayed)
                 _smoothnessScore = Math.Clamp(100 - Math.Abs(angleDiff) * 2, 0, 100);
                 SmoothnessText.Text = $"{_smoothnessScore:F0}";
 
-                // Angle totals
+                // Angle totals (still displayed)
                 _angleChangeTotal += angleDiff;
                 AngleChangeText.Text = $"{_angleChangeTotal:F2}";
 
                 _angleStability = angleDiff;
                 StabilityText.Text = $"{_angleStability:F2}";
 
-                // Jitter
+                // Jitter (still displayed)
                 if (Math.Abs(dx) + Math.Abs(dy) < 3)
                 {
                     _jitterAmount++;
@@ -222,9 +225,8 @@ namespace CleanAimTracker.Windows
                 }
 
                 _previousAngle = _lastAngle;
-                PreviousAngleText.Text = $"{_previousAngle:F0}°";
 
-                // Distance
+                // Distance (still displayed)
                 double counts = Math.Abs(dx) + Math.Abs(dy);
                 double cmMoved = counts / _dpi * 2.54;
                 _totalDistance += cmMoved;
@@ -241,7 +243,7 @@ namespace CleanAimTracker.Windows
                     SpeedText.Text = $"{_currentVelocity:F2} cm/s";
                     CurrentSpeedText.Text = $"{_currentVelocity:F1} cm/s";
 
-                    // Idle bursts
+                    // Idle bursts (still displayed)
                     if (_wasIdle && _currentVelocity > 20)
                     {
                         _idleBurstCount++;
@@ -249,14 +251,14 @@ namespace CleanAimTracker.Windows
                     }
                     _wasIdle = (_currentVelocity < 1);
 
-                    // Peak velocity
+                    // Peak velocity (still displayed)
                     if (_currentVelocity > _peakVelocity)
                     {
                         _peakVelocity = _currentVelocity;
                         PeakSpeedText.Text = $"{_peakVelocity:F2}";
                     }
 
-                    // Flick detection
+                    // Flick detection (still displayed)
                     if (_currentVelocity > 50)
                     {
                         if ((now - _lastFlickTime).TotalMilliseconds > 150)
@@ -279,7 +281,7 @@ namespace CleanAimTracker.Windows
                         }
                     }
 
-                    // Correction sharpness
+                    // Correction sharpness (still displayed)
                     double velocityChange = Math.Abs(_currentVelocity - _previousVelocity);
                     _correctionSharpness = Math.Min(velocityChange * 2, 100);
                     CorrectionSharpnessText.Text = $"{_correctionSharpness:F0}";
@@ -290,7 +292,6 @@ namespace CleanAimTracker.Windows
                 StatsUpdated?.Invoke();
             });
         }
-
         // -----------------------------
         // TIMER TICK (1s)
         // -----------------------------
@@ -302,23 +303,19 @@ namespace CleanAimTracker.Windows
             SessionTimeText.Text = $"{elapsed:mm\\:ss}";
             _sessionSeconds = elapsed.TotalSeconds;
 
-            // Idle %
-            if (_sessionSeconds > 0)
-            {
-                _idlePercentage = (_idleTimeSeconds / _sessionSeconds) * 100.0;
-                IdlePercentText.Text = $"{_idlePercentage:F1}%";
-            }
+            // Idle time tracking (no longer displayed)
+            if (_wasIdle)
+                _idleTimeSeconds += 1.0;
+            else
+                _idleTimeSeconds = 0;
 
-            // Movements per second
+            // Movements per second (still displayed)
             int eventsThisTick = _movementEvents - _lastMovementCount;
             _movementCountThisSecond = eventsThisTick;
             MpsText.Text = $"{_movementCountThisSecond}";
             _lastMovementCount = _movementEvents;
 
-            if (_wasIdle) _idleTimeSeconds += 1.0;
-            else _idleTimeSeconds = 0;
-
-            // Rolling density
+            // Rolling density (still displayed)
             _rollingDensity = _movementCountThisSecond;
             RollingDensityText.Text = $"{_rollingDensity:F2}";
 
@@ -326,27 +323,22 @@ namespace CleanAimTracker.Windows
             if (_movementEvents > 0)
                 _averageDistancePerEvent = _distancePerEventTotal / _movementEvents;
 
-            // Idle time
+            // Idle time (calculated but no longer displayed)
             if (_movementEvents == _lastMovementEvents)
-            {
                 _idleTime++;
-                IdleTimeText.Text = $"{_idleTime:F0} s";
-            }
             else
-            {
                 _idleTime = 0;
-                IdleTimeText.Text = "0 s";
-            }
+
             _lastMovementEvents = _movementEvents;
 
-            // Density
+            // Density (still displayed)
             if (_sessionSeconds > 0)
             {
                 _movementDensity = _movementEvents / _sessionSeconds;
                 DensityText.Text = $"{_movementDensity:F2}";
             }
 
-            // Average velocity
+            // Average velocity (still displayed)
             if (_sessionSeconds > 0)
             {
                 _averageVelocity = _totalDistance / _sessionSeconds;
@@ -365,6 +357,7 @@ namespace CleanAimTracker.Windows
             _isTracking = true;
             _sessionStart = DateTime.Now;
             _totalDistance = 0;
+
             TotalDistanceText.Text = "0";
             DxDyText.Text = "dX: 0  dY: 0";
 
@@ -372,7 +365,7 @@ namespace CleanAimTracker.Windows
             CmPer360Text.Text = $"{cm360:F2}";
 
             _timer.Start();
-            LogService.Info($"Tracking started — DPI:{_dpi} Sens:{_sensitivity} Profile:{_selectedProfile.Name}");
+            LogService.Info($"Tracking started — DPI:{_dpi} Sens:{_sensitivity} Profile:{_selectedProfile?.Name}");
         }
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -408,19 +401,18 @@ namespace CleanAimTracker.Windows
             _jitterAmount = 0; JitterText.Text = "0";
             _movementDensity = 0; DensityText.Text = "0";
 
-            _idleTime = 0; IdleTimeText.Text = "0 s";
+            _idleTime = 0;
             _idleBurstCount = 0; IdleBurstsText.Text = "0";
 
-            _lastAngle = 0; AngleText.Text = "0°";
+            _lastAngle = 0;
             _angleStability = 0; StabilityText.Text = "0";
             _angleChangeTotal = 0; AngleChangeText.Text = "0";
 
-            _movementConsistency = 100; MovementConsistencyText.Text = "100";
+            _movementConsistency = 100;
             _smoothnessScore = 100; SmoothnessText.Text = "100";
             _correctionSharpness = 0; CorrectionSharpnessText.Text = "0";
             _overallQualityScore = 100; OverallQualityText.Text = "100";
         }
-
         // -----------------------------
         // NAVIGATION
         // -----------------------------
@@ -456,14 +448,15 @@ namespace CleanAimTracker.Windows
         }
 
         private void OpenConverter_Click(object sender, RoutedEventArgs e)
-            => new ConverterWindow(_selectedProfile.Name, _dpi, _sensitivity).Show();
+            => new ConverterWindow(_selectedProfile?.Name ?? "Unknown", _dpi, _sensitivity).Show();
 
         private void OpenSessionHistory_Click(object sender, RoutedEventArgs e)
-            => new SessionHistoryWindow().Show();
+            => new SessionHistoryWindow { Owner = this }.Show();
 
         private void GameProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (GameProfileCombo.SelectedIndex < 0) return;
+            if (GameProfileCombo.SelectedIndex < 0 || GameProfileCombo.SelectedIndex >= _gameProfiles.Count)
+                return;
 
             _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
             LogService.Info($"Profile changed to {_selectedProfile.Name}");
@@ -478,8 +471,7 @@ namespace CleanAimTracker.Windows
             SessionStorage.SaveSession(summary);
 
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
-            new SummaryWindow(summary, rec).Show();
-
+            new SummaryWindow(summary, rec) { Owner = this }.Show();
         }
 
         private void OpenRecommendation_Click(object sender, RoutedEventArgs e)
@@ -492,32 +484,23 @@ namespace CleanAimTracker.Windows
                 return;
             }
 
-            // 2. Get selected game profile
-            var selectedItem = GameProfileCombo.SelectedItem as ComboBoxItem;
-            if (selectedItem == null)
+            // 2. Ensure a profile is selected
+            if (_selectedProfile == null)
             {
                 MessageBox.Show("Please select a game profile.");
                 return;
             }
 
-            string profileName = selectedItem.Content.ToString();
-            GameProfile profile = GameProfileStorage.LoadByName(profileName);
-
-            if (profile == null)
-            {
-                MessageBox.Show($"Profile '{profileName}' not found.");
-                return;
-            }
-
             // 3. Run the recommendation engine
-            var rec = RecommendationEngine.Analyze(summary, profile);
+            var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
 
             // 4. Open the recommendation window
-            var win = new RecommendationWindow(rec);
-            win.Owner = this;
+            var win = new RecommendationWindow(rec)
+            {
+                Owner = this
+            };
             win.ShowDialog();
         }
-
 
         private void OpenAddProfile_Click(object sender, RoutedEventArgs e)
         {
@@ -540,7 +523,7 @@ namespace CleanAimTracker.Windows
             {
                 DPI = (int)Math.Round(_dpi),
                 Sensitivity = _sensitivity,
-                ProfileName = _selectedProfile.Name,
+                ProfileName = _selectedProfile?.Name ?? "Unknown",
                 TotalDistanceCm = _totalDistance,
                 PeakVelocity = _peakVelocity,
                 AverageVelocity = _averageVelocity,
@@ -552,6 +535,7 @@ namespace CleanAimTracker.Windows
                 SessionSeconds = _sessionSeconds
             };
         }
+
         private void RefreshProfiles()
         {
             var profiles = ProfileStorage.LoadProfiles();
@@ -568,9 +552,8 @@ namespace CleanAimTracker.Windows
                 _selectedProfile = _gameProfiles[0];
             }
         }
-
     }
-
 }
+
 
 

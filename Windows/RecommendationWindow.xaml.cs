@@ -1,4 +1,5 @@
 ﻿using CleanAimTracker.Models;
+using System.Text;
 using System.Windows;
 
 namespace CleanAimTracker.Windows
@@ -11,61 +12,67 @@ namespace CleanAimTracker.Windows
         {
             InitializeComponent();
             _rec = rec;
-            LoadRecommendation();
+
+            // Bind the entire window to the recommendation object
+            DataContext = rec;
         }
 
-        private void LoadRecommendation()
+        // ════════════════════════════════════════════════════════════
+        //  COPY SETTINGS
+        // ════════════════════════════════════════════════════════════
+        private void CopySettings_Click(object sender, RoutedEventArgs e)
         {
-            // ─────────────────────────────────────────────
-            // Sensitivity
-            // ─────────────────────────────────────────────
-            SensValue.Text = $"{_rec.RecommendedSensitivity:F4}";
-            SensRange.Text =
-                $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
+            var sb = new StringBuilder();
 
-            // ─────────────────────────────────────────────
-            // DPI
-            // ─────────────────────────────────────────────
-            DpiValue.Text = $"{_rec.RecommendedDPI} DPI";
+            sb.AppendLine("🎯 Recommended Settings");
+            sb.AppendLine($"• DPI: {_rec.RecommendedDPI}");
+            sb.AppendLine($"• Sensitivity: {_rec.RecommendedSensitivity:F4}");
+            sb.AppendLine($"• Sensitivity Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}");
+            sb.AppendLine($"• cm/360: {_rec.RecommendedCm360:F2}");
+            sb.AppendLine();
+            sb.AppendLine("Confidence: " + _rec.Confidence + "%");
+            sb.AppendLine();
+            sb.AppendLine("Explanation:");
+            sb.AppendLine(_rec.Explanation);
 
-            // ─────────────────────────────────────────────
-            // cm/360
-            // ─────────────────────────────────────────────
-            Cm360Value.Text = $"{_rec.RecommendedCm360:F1} cm/360";
-
-            // If your engine already generates a verdict, use it
-            if (!string.IsNullOrWhiteSpace(_rec.Cm360Verdict))
-            {
-                Cm360Verdict.Text = _rec.Cm360Verdict;
-            }
-            else
-            {
-                // Otherwise generate a clean fallback verdict
-                Cm360Verdict.Text =
-                    $"Recommended range: {_rec.Cm360RangeMin:F1} – {_rec.Cm360RangeMax:F1} cm/360";
-            }
-
-            // ─────────────────────────────────────────────
-            // Confidence
-            // ─────────────────────────────────────────────
-            ConfidenceValue.Text = $"{_rec.Confidence}%";
-
-            // ─────────────────────────────────────────────
-            // Explanation
-            // ─────────────────────────────────────────────
-            ExplanationText.Text = _rec.Explanation;
-
-            // ─────────────────────────────────────────────
-            // Tips
-            // ─────────────────────────────────────────────
-            TipsList.ItemsSource = _rec.Tips;
-
-            // ─────────────────────────────────────────────
-            // Trend
-            // ─────────────────────────────────────────────
-            TrendText.Text = _rec.TrendSummary;
+            Clipboard.SetText(sb.ToString());
+            MessageBox.Show("Settings copied to clipboard.", "Copied", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        // ════════════════════════════════════════════════════════════
+        //  COPY COMPARISON
+        // ════════════════════════════════════════════════════════════
+        private void CopyComparison_Click(object sender, RoutedEventArgs e)
+        {
+            var sb = new StringBuilder();
+
+            sb.AppendLine("📊 Current vs Recommended");
+            sb.AppendLine();
+            sb.AppendLine("Current:");
+            sb.AppendLine($"• DPI: {_rec.CurrentDPI}");
+            sb.AppendLine($"• Sensitivity: {_rec.CurrentSensitivity:F4}");
+            sb.AppendLine($"• cm/360: {_rec.CurrentCm360:F2}");
+            sb.AppendLine();
+            sb.AppendLine("Recommended:");
+            sb.AppendLine($"• DPI: {_rec.RecommendedDPI}");
+            sb.AppendLine($"• Sensitivity: {_rec.RecommendedSensitivity:F4}");
+            sb.AppendLine($"• cm/360: {_rec.RecommendedCm360:F2}");
+            sb.AppendLine();
+            sb.AppendLine("Verdicts:");
+            sb.AppendLine($"• DPI: {_rec.DpiVerdict}");
+            sb.AppendLine($"• Sensitivity: {_rec.SensVerdict}");
+            sb.AppendLine($"• cm/360: {_rec.Cm360Verdict}");
+            sb.AppendLine();
+            sb.AppendLine("Overall:");
+            sb.AppendLine(_rec.OverallVerdict);
+
+            Clipboard.SetText(sb.ToString());
+            MessageBox.Show("Comparison copied to clipboard.", "Copied", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // ════════════════════════════════════════════════════════════
+        //  CLOSE WINDOW
+        // ════════════════════════════════════════════════════════════
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             Close();

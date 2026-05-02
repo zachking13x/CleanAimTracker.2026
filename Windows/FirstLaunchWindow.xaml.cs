@@ -20,7 +20,8 @@ namespace CleanAimTracker
             var s = SettingsService.Load();
 
             if (double.TryParse(DpiInput.Text, out double dpi) && dpi > 0)
-                s.DPI = dpi;
+                s.DPI = (int)dpi;
+
             if (double.TryParse(SensInput.Text, out double sens) && sens > 0)
                 s.Sensitivity = sens;
 

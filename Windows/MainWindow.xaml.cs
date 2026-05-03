@@ -374,7 +374,7 @@ namespace CleanAimTracker.Windows
         // -----------------------------
         // BUTTONS
         // -----------------------------
-        private void StartButton_Click(object sender, RoutedEventArgs e)
+        public void StartButton_Click(object sender, RoutedEventArgs e)
         {
             if (double.TryParse(DpiInput.Text, out double dpi)) _dpi = dpi;
             if (double.TryParse(SensitivityInput.Text, out double sens)) _sensitivity = sens;
@@ -393,11 +393,29 @@ namespace CleanAimTracker.Windows
             LogService.Info($"Tracking started — DPI:{_dpi} Sens:{_sensitivity} Profile:{_selectedProfile?.Name}");
         }
 
-        private void StopButton_Click(object sender, RoutedEventArgs e)
+
+        public void StopButton_Click(object sender, RoutedEventArgs e)
         {
             _isTracking = false;
             _timer.Stop();
             LogService.Info("Tracking stopped");
+        }
+        private OverlayWindow _overlay;
+
+        private void ToggleOverlay_Click(object sender, RoutedEventArgs e)
+        {
+            if (_overlay == null)
+            {
+                _overlay = new OverlayWindow();
+                _overlay.Show();
+                ToggleOverlayButton.Content = "Hide Overlay";
+            }
+            else
+            {
+                _overlay.Close();
+                _overlay = null;
+                ToggleOverlayButton.Content = "Show Overlay";
+            }
         }
 
         private void ResetButton_Click(object sender, RoutedEventArgs e)
@@ -499,9 +517,8 @@ namespace CleanAimTracker.Windows
             new SummaryWindow(summary, rec) { Owner = this }.Show();
         }
 
-        private void OpenRecommendation_Click(object sender, RoutedEventArgs e)
+        public void OpenRecommendation_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Load the most recent session
             var summary = SessionStorage.LoadLast();
             if (summary == null)
             {
@@ -509,23 +526,21 @@ namespace CleanAimTracker.Windows
                 return;
             }
 
-            // 2. Ensure a profile is selected
             if (_selectedProfile == null)
             {
                 MessageBox.Show("Please select a game profile.");
                 return;
             }
 
-            // 3. Run the recommendation engine
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
 
-            // 4. Open the recommendation window
             var win = new RecommendationWindow(rec)
             {
                 Owner = this
             };
             win.ShowDialog();
         }
+
 
         private void OpenAddProfile_Click(object sender, RoutedEventArgs e)
         {

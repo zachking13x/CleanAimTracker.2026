@@ -11,6 +11,7 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType"
         RenderOptions.ClearTypeHint="Enabled"
+        Icon="{StaticResource AppLogo}"
         RenderOptions.BitmapScalingMode="HighQuality">
 
     <!-- RESOURCES (unchanged) -->
@@ -106,8 +107,8 @@
                             </Grid.ColumnDefinitions>
 
                             <ContentPresenter Margin="6,0,0,0"
-                                          VerticalAlignment="Center"
-                                          Content="{TemplateBinding SelectionBoxItem}"/>
+                                              VerticalAlignment="Center"
+                                              Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource TemplatedParent}}"/>
 
                             <ToggleButton x:Name="PART_DropDownToggle"
                                       Grid.Column="1"
@@ -261,12 +262,23 @@
                 SnapsToDevicePixels="True">
             <DockPanel LastChildFill="False">
 
-                <TextBlock Text="Clean Aim Tracker"
-                           Foreground="{DynamicResource PrimaryText}"
-                           FontSize="20"
-                           FontWeight="Bold"
-                           VerticalAlignment="Center"
-                           Margin="0 0 20 0"/>
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="0 0 20 0">
+
+                    <Image Source="{StaticResource AppLogo}"
+                            Width="24"
+                            Height="24"
+                            Margin="0 0 8 0"
+                            Stretch="Uniform"/>
+
+                    <TextBlock Text="Clean Aim Tracker"
+                                Foreground="{DynamicResource PrimaryText}"
+                                FontSize="20"
+                                FontWeight="Bold"
+                                VerticalAlignment="Center"/>
+                </StackPanel>
+
 
                 <StackPanel Orientation="Horizontal"
                             DockPanel.Dock="Right"
@@ -381,10 +393,14 @@
 
 
             <!-- RIGHT BUTTONS -->
-            <StackPanel Grid.Column="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center">
+            <WrapPanel Grid.Column="2"
+                       Orientation="Horizontal"
+                       HorizontalAlignment="Right"
+                       VerticalAlignment="Center"
+                       ItemHeight="32"
+                       ItemWidth="Auto"
+                       Margin="0">
+
 
 
                 <Button x:Name="StartButton"
@@ -421,9 +437,19 @@
                         Background="{DynamicResource ButtonSecondaryBg}"
                         Foreground="{DynamicResource ButtonSecondaryFg}"
                         Padding="12 4"/>
+                <Button x:Name="ToggleOverlayButton"
+                        Content="Show Overlay"
+                        Click="ToggleOverlay_Click"
+                        Background="{DynamicResource ButtonSecondaryBg}"
+                        Foreground="{DynamicResource ButtonSecondaryFg}"
+                        Padding="12 4"/>
 
-            </StackPanel>
+
+
+            </WrapPanel>
+
         </Grid>
+        
 
         <!-- STATS GRID -->
         <UniformGrid Grid.Row="3"

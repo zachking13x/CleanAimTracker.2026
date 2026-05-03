@@ -8,6 +8,7 @@
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         SnapsToDevicePixels="True"
+        Icon="{StaticResource AppLogo}"
         UseLayoutRounding="True">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">

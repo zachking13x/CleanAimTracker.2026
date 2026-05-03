@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace CleanAimTracker.Windows
@@ -13,11 +14,9 @@ namespace CleanAimTracker.Windows
     {
         private readonly SensitivityRecommendation _rec;
 
-        // List of all game translators
-        public ObservableCollection<IGameSensitivityTranslator> GameOptions { get; } =
-            new ObservableCollection<IGameSensitivityTranslator>();
+        public ObservableCollection<IGameSensitivityTranslator> GameOptions { get; }
+            = new ObservableCollection<IGameSensitivityTranslator>();
 
-        // Selected game in dropdown
         private IGameSensitivityTranslator _selectedGame;
         public IGameSensitivityTranslator SelectedGame
         {
@@ -33,49 +32,32 @@ namespace CleanAimTracker.Windows
             }
         }
 
-        // Right-column UI data
         private List<string> _gameSettingsLines = new();
         public List<string> GameSettingsLines
         {
             get => _gameSettingsLines;
-            private set
-            {
-                _gameSettingsLines = value;
-                OnPropertyChanged(nameof(GameSettingsLines));
-            }
+            private set { _gameSettingsLines = value; OnPropertyChanged(nameof(GameSettingsLines)); }
         }
 
         private List<string> _adsScopeLines = new();
         public List<string> AdsScopeLines
         {
             get => _adsScopeLines;
-            private set
-            {
-                _adsScopeLines = value;
-                OnPropertyChanged(nameof(AdsScopeLines));
-            }
+            private set { _adsScopeLines = value; OnPropertyChanged(nameof(AdsScopeLines)); }
         }
 
         private List<string> _advancedLines = new();
         public List<string> AdvancedLines
         {
             get => _advancedLines;
-            private set
-            {
-                _advancedLines = value;
-                OnPropertyChanged(nameof(AdvancedLines));
-            }
+            private set { _advancedLines = value; OnPropertyChanged(nameof(AdvancedLines)); }
         }
 
         private List<string> _gameTipsLines = new();
         public List<string> GameTipsLines
         {
             get => _gameTipsLines;
-            private set
-            {
-                _gameTipsLines = value;
-                OnPropertyChanged(nameof(GameTipsLines));
-            }
+            private set { _gameTipsLines = value; OnPropertyChanged(nameof(GameTipsLines)); }
         }
 
         public bool HasAdsScopeSection => AdsScopeLines.Count > 0;
@@ -87,10 +69,8 @@ namespace CleanAimTracker.Windows
             InitializeComponent();
             _rec = rec ?? throw new ArgumentNullException(nameof(rec));
 
-            // Bind existing left-column UI to the recommendation object
             DataContext = rec;
 
-            // Register all game translators
             GameOptions.Add(new FortniteTranslator());
             GameOptions.Add(new ValorantTranslator());
             GameOptions.Add(new ApexTranslator());
@@ -102,8 +82,14 @@ namespace CleanAimTracker.Windows
             GameOptions.Add(new HaloTranslator());
             GameOptions.Add(new TarkovTranslator());
 
-            // Default selection
+            GameCombo.SelectedIndex = 0;
             SelectedGame = GameOptions[0];
+        }
+
+        private void GameCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (GameCombo.SelectedItem is IGameSensitivityTranslator translator)
+                SelectedGame = translator;
         }
 
         private void UpdateGameView()
@@ -128,33 +114,23 @@ namespace CleanAimTracker.Windows
             OnPropertyChanged(nameof(HasAdsScopeSection));
         }
 
-        protected void OnPropertyChanged(string name) =>
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        protected void OnPropertyChanged(string name)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-        // ─────────────────────────────────────────────
-        //  TITLE BAR DRAG + MINIMIZE
-        // ─────────────────────────────────────────────
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
-                return; // ignore double-click maximize
+                return;
 
             DragMove();
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
+            => WindowState = WindowState.Minimized;
 
         private void Close_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
+            => Close();
 
-        // ─────────────────────────────────────────────
-        //  COPY SETTINGS
-        // ─────────────────────────────────────────────
         private void CopySettings_Click(object sender, RoutedEventArgs e)
         {
             var sb = new StringBuilder();
@@ -170,23 +146,10 @@ namespace CleanAimTracker.Windows
             sb.AppendLine("Explanation:");
             sb.AppendLine(_rec.Explanation);
 
-            if (SelectedGame != null)
-            {
-                sb.AppendLine();
-                sb.AppendLine($"Game: {SelectedGame.GameName}");
-                sb.AppendLine("Apply these settings:");
-
-                foreach (var line in GameSettingsLines)
-                    sb.AppendLine("• " + line);
-            }
-
             Clipboard.SetText(sb.ToString());
             MessageBox.Show("Settings copied to clipboard.", "Copied", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        // ─────────────────────────────────────────────
-        //  COPY COMPARISON
-        // ─────────────────────────────────────────────
         private void CopyComparison_Click(object sender, RoutedEventArgs e)
         {
             var sb = new StringBuilder();
@@ -210,16 +173,6 @@ namespace CleanAimTracker.Windows
             sb.AppendLine();
             sb.AppendLine("Overall:");
             sb.AppendLine(_rec.OverallVerdict);
-
-            if (SelectedGame != null)
-            {
-                sb.AppendLine();
-                sb.AppendLine($"Game: {SelectedGame.GameName}");
-                sb.AppendLine("Apply these settings:");
-
-                foreach (var line in GameSettingsLines)
-                    sb.AppendLine("• " + line);
-            }
 
             Clipboard.SetText(sb.ToString());
             MessageBox.Show("Comparison copied to clipboard.", "Copied", MessageBoxButton.OK, MessageBoxImage.Information);

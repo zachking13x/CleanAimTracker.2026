@@ -10,6 +10,31 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Assets\BCO.21dff569-623b-4839-b0ad-1cce7c533742.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\BCO.21dff569-623b-4839-b0ad-1cce7c533742.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <Page Update="Windows\MainWindow.xaml">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Page>

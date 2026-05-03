@@ -8,8 +8,9 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/DarkTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
-            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <BitmapImage x:Key="AppLogo" UriSource="Assets/BCO.21dff569-623b-4839-b0ad-1cce7c533742.png"/>
 
+            <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
             <!-- Glow button style -->
             <Style x:Key="GlowButton" TargetType="Button">
@@ -33,6 +34,38 @@
                         </Setter>
                     </Trigger>
                 </Style.Triggers>
+            </Style>
+
+
+            <!-- ⭐ DARK COMBOBOX + COMBOBOXITEM STYLES (fixes white dropdown) ⭐ -->
+
+            <!-- ComboBoxItem (items inside the dropdown) -->
+            <Style TargetType="ComboBoxItem">
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+                <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+                <Setter Property="Padding" Value="6,3" />
+                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                <Setter Property="VerticalContentAlignment" Value="Center" />
+
+                <Style.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Background" Value="#33373D" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Trigger>
+
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Background" Value="#0078D4" />
+                        <Setter Property="Foreground" Value="White" />
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+
+            <!-- ComboBox (the control itself + popup background) -->
+            <Style TargetType="ComboBox">
+                <Setter Property="Background" Value="{DynamicResource CardBackground}" />
+                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+                <Setter Property="BorderBrush" Value="#444" />
+                <Setter Property="Padding" Value="4,2" />
             </Style>
 
         </ResourceDictionary>

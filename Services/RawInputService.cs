@@ -7,9 +7,9 @@ namespace CleanAimTracker.Services
     {
         public event Action<int, int>? MouseMoved;
 
-        // ─────────────────────────────────────────────────────────
-        //  RAWINPUT structures
-        // ─────────────────────────────────────────────────────────
+        // -----------------------------
+        // RAWINPUT STRUCTS
+        // -----------------------------
         [StructLayout(LayoutKind.Sequential)]
         private struct RAWINPUTHEADER
         {
@@ -32,16 +32,9 @@ namespace CleanAimTracker.Services
             public uint ulExtraInformation;
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RAWINPUT
-        {
-            public RAWINPUTHEADER header;
-            public RAWMOUSE mouse;
-        }
-
-        // ─────────────────────────────────────────────────────────
-        //  RAWINPUTDEVICE registration
-        // ─────────────────────────────────────────────────────────
+        // -----------------------------
+        // RAWINPUTDEVICE STRUCT
+        // -----------------------------
         [StructLayout(LayoutKind.Sequential)]
         private struct RAWINPUTDEVICE
         {
@@ -51,10 +44,16 @@ namespace CleanAimTracker.Services
             public IntPtr hwndTarget;
         }
 
+        // -----------------------------
+        // CONSTANTS
+        // -----------------------------
         private const int RIM_TYPEMOUSE = 0;
         private const int RID_INPUT = 0x10000003;
         private const int RIDEV_INPUTSINK = 0x00000100;
 
+        // -----------------------------
+        // P/INVOKE
+        // -----------------------------
         [DllImport("User32.dll", SetLastError = true)]
         private static extern bool RegisterRawInputDevices(
             RAWINPUTDEVICE[] pRawInputDevices,
@@ -69,17 +68,12 @@ namespace CleanAimTracker.Services
             ref uint pcbSize,
             uint cbSizeHeader);
 
-        // ─────────────────────────────────────────────────────────
-        //  Constructor
-        // ─────────────────────────────────────────────────────────
-        public RawInputService() { }
-
-        // ─────────────────────────────────────────────────────────
-        //  Register for raw mouse input
-        // ─────────────────────────────────────────────────────────
+        // -----------------------------
+        // REGISTER
+        // -----------------------------
         public void Register(IntPtr hwnd)
         {
-            RAWINPUTDEVICE[] rid = new RAWINPUTDEVICE[]
+            RAWINPUTDEVICE[] rid =
             {
                 new RAWINPUTDEVICE
                 {
@@ -93,56 +87,67 @@ namespace CleanAimTracker.Services
             RegisterRawInputDevices(
                 rid,
                 (uint)rid.Length,
-                (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE))
-            );
+                (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
         }
 
-        public void Unregister() { }
-
-        // ─────────────────────────────────────────────────────────
-        //  Parse WM_INPUT → return dx/dy
-        // ─────────────────────────────────────────────────────────
+        // -----------------------------
+        // PROCESS RAW INPUT (SAFE)
+        // -----------------------------
         public (int dx, int dy) ProcessRawInput(IntPtr lParam)
         {
             uint dwSize = 0;
+            uint headerSize = (uint)Marshal.SizeOf<RAWINPUTHEADER>();
 
-            // First call: get size
-            GetRawInputData(
+            // 1) Ask Windows how big the RAWINPUT packet is
+            uint res = GetRawInputData(
                 lParam,
                 RID_INPUT,
                 IntPtr.Zero,
                 ref dwSize,
-                (uint)Marshal.SizeOf<RAWINPUTHEADER>()
-            );
+                headerSize);
+
+            if (dwSize < headerSize)
+                return (0, 0);
 
             IntPtr buffer = Marshal.AllocHGlobal((int)dwSize);
 
             try
             {
-                // Second call: get actual data
-                if (GetRawInputData(
-                        lParam,
-                        RID_INPUT,
-                        buffer,
-                        ref dwSize,
-                        (uint)Marshal.SizeOf<RAWINPUTHEADER>()
-                    ) != dwSize)
-                {
+                // 2) Read the actual data
+                res = GetRawInputData(
+                    lParam,
+                    RID_INPUT,
+                    buffer,
+                    ref dwSize,
+                    headerSize);
+
+                if (dwSize < headerSize)
                     return (0, 0);
-                }
 
-                RAWINPUT raw = Marshal.PtrToStructure<RAWINPUT>(buffer);
+                // 3) Read header
+                RAWINPUTHEADER header = Marshal.PtrToStructure<RAWINPUTHEADER>(buffer);
 
-                if (raw.header.dwType == RIM_TYPEMOUSE)
-                {
-                    int dx = raw.mouse.lLastX;
-                    int dy = raw.mouse.lLastY;
+                if (header.dwType != RIM_TYPEMOUSE)
+                    return (0, 0);
 
-                    MouseMoved?.Invoke(dx, dy);
-                    return (dx, dy);
-                }
+                // 4) Compute pointer to mouse data
+                IntPtr mousePtr = IntPtr.Add(buffer, (int)headerSize);
 
-                return (0, 0);
+                // 5) SAFELY read only lLastX and lLastY
+                // RAWMOUSE layout:
+                // offset 0:  usFlags (2 bytes)
+                // offset 2:  padding (2 bytes)
+                // offset 4:  ulButtons (4 bytes)
+                // offset 8:  usButtonFlags (2 bytes)
+                // offset 10: usButtonData (2 bytes)
+                // offset 12: lLastX (4 bytes)
+                // offset 16: lLastY (4 bytes)
+
+                int lLastX = Marshal.ReadInt32(mousePtr, 12);
+                int lLastY = Marshal.ReadInt32(mousePtr, 16);
+
+                MouseMoved?.Invoke(lLastX, lLastY);
+                return (lLastX, lLastY);
             }
             finally
             {

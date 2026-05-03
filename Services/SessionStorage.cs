@@ -1,4 +1,5 @@
 ﻿using CleanAimTracker.Models;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -7,12 +8,20 @@ namespace CleanAimTracker.Services
 {
     public static class SessionStorage
     {
-        private static readonly string FilePath = "session_history.json";
+        private static readonly string Folder =
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                         "CleanAimTracker");
+
+        private static readonly string FilePath =
+            Path.Combine(Folder, "session_history.json");
 
         public static void Save(SessionSummary summary)
         {
+            Directory.CreateDirectory(Folder);
+
             List<SessionSummary> history = LoadAll();
             history.Add(summary);
+
             File.WriteAllText(FilePath, JsonSerializer.Serialize(history));
         }
 
@@ -23,6 +32,8 @@ namespace CleanAimTracker.Services
 
         public static List<SessionSummary> LoadAll()
         {
+            Directory.CreateDirectory(Folder);
+
             if (!File.Exists(FilePath))
                 return new List<SessionSummary>();
 
@@ -40,8 +51,9 @@ namespace CleanAimTracker.Services
 
         public static void ClearAll()
         {
-            if (File.Exists(FilePath))
-                File.WriteAllText(FilePath, "[]");
+            Directory.CreateDirectory(Folder);
+
+            File.WriteAllText(FilePath, "[]");
         }
     }
 }

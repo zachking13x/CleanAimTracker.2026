@@ -21,6 +21,10 @@ namespace CleanAimTracker.Windows
         private readonly RawInputService _rawInput;
         private List<GameProfile> _gameProfiles = new();
         private GameProfile _selectedProfile;
+        private HwndSource? _source;
+        private HwndSourceHook? _hookDelegate;
+        
+
 
         // -----------------------------
         // MOVEMENT + VELOCITY
@@ -135,11 +139,18 @@ namespace CleanAimTracker.Windows
             this.SourceInitialized += (_, _) =>
             {
                 IntPtr hwnd = new WindowInteropHelper(this).Handle;
+
+                // Register raw input
                 _rawInput.Register(hwnd);
 
-                HwndSource source = HwndSource.FromHwnd(hwnd);
-                source.AddHook(WndProc);
+                // Create and pin the hook delegate
+                _hookDelegate = new HwndSourceHook(WndProc);
+
+                // Attach hook safely
+                _source = HwndSource.FromHwnd(hwnd);
+                _source.AddHook(_hookDelegate);
             };
+
         }
 
         // -----------------------------
@@ -147,6 +158,7 @@ namespace CleanAimTracker.Windows
         // -----------------------------
         private void UpdateTrialBanner()
         {
+           
             string status = TrialService.GetStatusText();
             TrialBannerText.Text = status;
 
@@ -170,11 +182,24 @@ namespace CleanAimTracker.Windows
             return IntPtr.Zero;
         }
 
+
         // -----------------------------
         // MOUSE MOVEMENT HANDLER
         // -----------------------------
+        private const int MAX_DELTA = 50;       // clamp insane Fortnite bursts
+        private const int MIN_DELTA = -50;
+        private const int JITTER_THRESHOLD = 2; // ignore micro jitter
+
         private void OnMouseMoved(int dx, int dy)
         {
+            // 1) Ignore Fortnite micro‑jitter (±1, ±2)
+            if (Math.Abs(dx) <= JITTER_THRESHOLD && Math.Abs(dy) <= JITTER_THRESHOLD)
+                return;
+
+            // 2) Clamp Fortnite burst packets (sometimes ±200+)
+            dx = Math.Clamp(dx, MIN_DELTA, MAX_DELTA);
+            dy = Math.Clamp(dy, MIN_DELTA, MAX_DELTA);
+
             Dispatcher.Invoke(() =>
             {
                 LastDeltaText.Text = $"Last Delta: {dx}, {dy}";
@@ -187,11 +212,11 @@ namespace CleanAimTracker.Windows
                 double eventDistance = Math.Sqrt(dx * dx + dy * dy);
                 _distancePerEventTotal += eventDistance;
 
-                // Movement consistency (calculated but no longer displayed)
+                // Movement consistency
                 double deviation = Math.Abs(eventDistance - _averageDistancePerEvent);
                 _movementConsistency = Math.Clamp(100 - deviation * 10, 0, 100);
 
-                // Overall quality (still displayed)
+                // Overall quality
                 _overallQualityScore = Math.Clamp(
                     (_smoothnessScore + _correctionSharpness + _movementConsistency) / 3,
                     0, 100);
@@ -201,23 +226,22 @@ namespace CleanAimTracker.Windows
                 if (eventDistance > _peakDistancePerEvent)
                     _peakDistancePerEvent = eventDistance;
 
-                // Angle (calculated but no longer displayed)
+                // Angle
                 _lastAngle = Math.Atan2(dy, dx) * (180 / Math.PI);
-
                 double angleDiff = Math.Abs(_lastAngle - _previousAngle);
 
-                // Smoothness (still displayed)
+                // Smoothness
                 _smoothnessScore = Math.Clamp(100 - Math.Abs(angleDiff) * 2, 0, 100);
                 SmoothnessText.Text = $"{_smoothnessScore:F0}";
 
-                // Angle totals (still displayed)
+                // Angle totals
                 _angleChangeTotal += angleDiff;
                 AngleChangeText.Text = $"{_angleChangeTotal:F2}";
 
                 _angleStability = angleDiff;
                 StabilityText.Text = $"{_angleStability:F2}";
 
-                // Jitter (still displayed)
+                // Jitter
                 if (Math.Abs(dx) + Math.Abs(dy) < 3)
                 {
                     _jitterAmount++;
@@ -226,7 +250,7 @@ namespace CleanAimTracker.Windows
 
                 _previousAngle = _lastAngle;
 
-                // Distance (still displayed)
+                // Distance (cm)
                 double counts = Math.Abs(dx) + Math.Abs(dy);
                 double cmMoved = counts / _dpi * 2.54;
                 _totalDistance += cmMoved;
@@ -243,7 +267,7 @@ namespace CleanAimTracker.Windows
                     SpeedText.Text = $"{_currentVelocity:F2} cm/s";
                     CurrentSpeedText.Text = $"{_currentVelocity:F1} cm/s";
 
-                    // Idle bursts (still displayed)
+                    // Idle bursts
                     if (_wasIdle && _currentVelocity > 20)
                     {
                         _idleBurstCount++;
@@ -251,14 +275,14 @@ namespace CleanAimTracker.Windows
                     }
                     _wasIdle = (_currentVelocity < 1);
 
-                    // Peak velocity (still displayed)
+                    // Peak velocity
                     if (_currentVelocity > _peakVelocity)
                     {
                         _peakVelocity = _currentVelocity;
                         PeakSpeedText.Text = $"{_peakVelocity:F2}";
                     }
 
-                    // Flick detection (still displayed)
+                    // Flick detection
                     if (_currentVelocity > 50)
                     {
                         if ((now - _lastFlickTime).TotalMilliseconds > 150)
@@ -281,7 +305,7 @@ namespace CleanAimTracker.Windows
                         }
                     }
 
-                    // Correction sharpness (still displayed)
+                    // Correction sharpness
                     double velocityChange = Math.Abs(_currentVelocity - _previousVelocity);
                     _correctionSharpness = Math.Min(velocityChange * 2, 100);
                     CorrectionSharpnessText.Text = $"{_correctionSharpness:F0}";
@@ -292,6 +316,7 @@ namespace CleanAimTracker.Windows
                 StatsUpdated?.Invoke();
             });
         }
+
         // -----------------------------
         // TIMER TICK (1s)
         // -----------------------------
@@ -532,7 +557,9 @@ namespace CleanAimTracker.Windows
                 CorrectionSharpness = _correctionSharpness,
                 MovementConsistency = _movementConsistency,
                 OverallQualityScore = _overallQualityScore,
-                SessionSeconds = _sessionSeconds
+                SessionSeconds = _sessionSeconds,
+                Timestamp = DateTime.Now,
+
             };
         }
 
@@ -552,6 +579,14 @@ namespace CleanAimTracker.Windows
                 _selectedProfile = _gameProfiles[0];
             }
         }
+        protected override void OnClosed(EventArgs e)
+        {
+            if (_source != null && _hookDelegate != null)
+                _source.RemoveHook(_hookDelegate);
+
+            base.OnClosed(e);
+        }
+
     }
 }
 

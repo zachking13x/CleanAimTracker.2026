@@ -198,6 +198,13 @@
                             BorderBrush="#333"
                             Cursor="Hand"/>
 
+                    <Button x:Name="RecommendedDrillsBtn"
+                            Content="Recommended Drills"
+                            Margin="6"
+                            Padding="10,4"
+                            Click="RecommendedDrillsBtn_Click"/>
+
+
                 </StackPanel>
             </ScrollViewer>
         </Border>

@@ -1,5 +1,7 @@
 ﻿using CleanAimTracker.Models;
 using CleanAimTracker.Services;
+using CleanAimTracker.Trainer;
+using CleanAimTracker.Trainer.Scenarios;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +9,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
@@ -15,33 +16,33 @@ namespace CleanAimTracker.Windows
 {
     public partial class AimTrainerWindow : Window
     {
-        // ── Scenario / difficulty ────────────────────────────────────
-        private string _scenario = "Tracking";
-        private string _difficulty = "Medium";
-        private int _durationSeconds = 30;
+        // ─────────────────────────────────────────────────────────────
+        // STATE
+        // ─────────────────────────────────────────────────────────────
+        private IAimScenario? _scenarioInstance;
+        private readonly Random _rng = new();
+
+        private bool _isRunning = false;
         private bool _uiReady = false;
 
-
-        // ── Session state ────────────────────────────────────────────
-        private bool _isRunning = false;
         private readonly DispatcherTimer _gameTimer = new();
-        private readonly DispatcherTimer _targetMoveTimer = new();
+        private readonly DispatcherTimer _updateTimer = new();
+
         private int _secondsLeft;
-        private int _hits;
-        private int _misses;
-        private int _streak;
+        private int _durationSeconds = 30;
+
+        // Score (kept at window level)
         private int _score;
-        private readonly List<double> _reactionTimes = new();
-        private DateTime _targetSpawnTime;
 
-        // ── Target rendering ─────────────────────────────────────────
-        private Ellipse? _activeTarget;
-        private Ellipse? _trackingTarget;
-        private readonly List<Ellipse> _switchTargets = new();
-        private double _trackDx = 2.5;
-        private double _trackDy = 1.8;
+        // UI flash timer
+        private readonly DispatcherTimer _flashTimer = new();
 
-        // ── Difficulty config ────────────────────────────────────────
+        // Scenario selection
+        private string _scenario = "Tracking";
+        private string _difficulty = "Medium";
+        private string _adaptiveWeakSpot = "Flicking";
+
+        // Difficulty config
         private record DifficultyConfig(double TargetSize, double MoveSpeed, double SpawnDelayMs);
         private static readonly Dictionary<string, DifficultyConfig> DiffConfigs = new()
         {
@@ -52,25 +53,21 @@ namespace CleanAimTracker.Windows
         };
 
         private DifficultyConfig _config = DiffConfigs["Medium"];
-        private readonly Random _rng = new();
 
-        // ── Hit flash timer ──────────────────────────────────────────
-        private readonly DispatcherTimer _flashTimer = new();
-
+        // ─────────────────────────────────────────────────────────────
+        // CONSTRUCTOR
+        // ─────────────────────────────────────────────────────────────
         public AimTrainerWindow()
         {
             InitializeComponent();
 
-            Loaded += (_, _) =>
-            {
-                _uiReady = true;
-            };
+            Loaded += (_, _) => _uiReady = true;
 
             _gameTimer.Interval = TimeSpan.FromSeconds(1);
             _gameTimer.Tick += GameTimer_Tick;
 
-            _targetMoveTimer.Interval = TimeSpan.FromMilliseconds(16);
-            _targetMoveTimer.Tick += TargetMove_Tick;
+            _updateTimer.Interval = TimeSpan.FromMilliseconds(16);
+            _updateTimer.Tick += UpdateScenario_Tick;
 
             _flashTimer.Interval = TimeSpan.FromMilliseconds(80);
             _flashTimer.Tick += (_, _) =>
@@ -84,19 +81,14 @@ namespace CleanAimTracker.Windows
             LoadAdaptiveWeakSpot();
         }
 
-
-
         // ─────────────────────────────────────────────────────────────
-        // ADAPTIVE — pull weak spot from last tracking session
+        // ADAPTIVE LOGIC
         // ─────────────────────────────────────────────────────────────
-        private string _adaptiveWeakSpot = "Flicking";
-
         private void LoadAdaptiveWeakSpot()
         {
             var last = SessionStorage.LoadLast();
             if (last == null) return;
 
-            // Find the lowest scoring metric and map to a scenario
             var scores = new Dictionary<string, double>
             {
                 ["Flicking"] = last.SmoothnessScore,
@@ -114,32 +106,30 @@ namespace CleanAimTracker.Windows
         private void ScenarioBtn_Click(object sender, MouseButtonEventArgs e)
         {
             if (sender is not Border btn) return;
-            _scenario = btn.Tag?.ToString() ?? "Tracking";
-            ScenarioLabel.Text = _scenario == "Adaptive" ? $"Adaptive → {_adaptiveWeakSpot}" : _scenario;
 
-            // Highlight selected
+            _scenario = btn.Tag?.ToString() ?? "Tracking";
+            ScenarioLabel.Text = _scenario == "Adaptive"
+                ? $"Adaptive → {_adaptiveWeakSpot}"
+                : _scenario;
+
             foreach (var child in ((StackPanel)btn.Parent).Children.OfType<Border>())
                 child.Background = Brushes.Transparent;
+
             btn.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0xE5, 0xFF));
         }
 
         private void DifficultyCombo_Changed(object sender, SelectionChangedEventArgs e)
         {
-            if (!_uiReady)
-                return;
+            if (!_uiReady) return;
 
             if (DifficultyCombo.SelectedItem is not ComboBoxItem item)
                 return;
 
-            string tag = item.Tag?.ToString();
-            if (string.IsNullOrWhiteSpace(tag))
-                tag = "Medium";
-
+            string tag = item.Tag?.ToString() ?? "Medium";
             _difficulty = tag;
             _config = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
             DifficultyLabel.Text = _difficulty;
         }
-
 
         private void DurationCombo_Changed(object sender, SelectionChangedEventArgs e)
         {
@@ -149,7 +139,6 @@ namespace CleanAimTracker.Windows
                 _durationSeconds = secs;
                 if (_uiReady && !_isRunning)
                     UpdateTimerDisplay();
-
             }
         }
 
@@ -173,65 +162,70 @@ namespace CleanAimTracker.Windows
         private void StartDrill()
         {
             _isRunning = true;
-            _hits = 0; _misses = 0; _streak = 0; _score = 0;
-            _reactionTimes.Clear();
+
+            _score = 0;
             _secondsLeft = _durationSeconds;
-
-            string activeScenario = _scenario == "Adaptive" ? _adaptiveWeakSpot : _scenario;
-            ScenarioLabel.Text = _scenario == "Adaptive" ? $"Adaptive → {activeScenario}" : _scenario;
-
-            UpdateLiveStats();
-            UpdateTimerDisplay();
 
             IdleMessage.Visibility = Visibility.Collapsed;
             StartStopBtn.Content = "■  Stop Drill";
             StartStopBtn.Background = new SolidColorBrush(Color.FromRgb(180, 40, 40));
 
             ClearTargets();
+            UpdateLiveStats();
+            UpdateTimerDisplay();
 
-            _config = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
+            string activeScenario = _scenario == "Adaptive" ? _adaptiveWeakSpot : _scenario;
 
-            switch (activeScenario)
+            _scenarioInstance = activeScenario switch
             {
-                case "Tracking":
-                    SpawnTrackingTarget();
-                    _targetMoveTimer.Start();
-                    break;
-                case "Switching":
-                    SpawnSwitchingTargets();
-                    break;
-                default:
-                    SpawnStaticTarget();
-                    break;
-            }
+                "Tracking" => new TrackingScenario(),
+                "Switching" => new SwitchingScenario(),
+                "Adaptive" => new AdaptiveScenario(_adaptiveWeakSpot),
+                _ => new StaticScenario(),
+            };
+
+            _scenarioInstance.Start(TargetCanvas, _config.TargetSize, _config.MoveSpeed, _rng);
 
             _gameTimer.Start();
+            _updateTimer.Start();
         }
 
         private void StopDrill(bool showResults)
         {
             _isRunning = false;
+
             _gameTimer.Stop();
-            _targetMoveTimer.Stop();
+            _updateTimer.Stop();
+
+            _scenarioInstance?.Stop(TargetCanvas);
+
+            // Capture stats before clearing scenario
+            var statsSource = _scenarioInstance;
+
+            _scenarioInstance = null;
+
             ClearTargets();
 
             StartStopBtn.Content = "▶  Start Drill";
-            StartStopBtn.Background =
-                (Brush)Application.Current.Resources["AccentBrush"];
+            StartStopBtn.Background = (Brush)Application.Current.Resources["AccentBrush"];
 
             IdleMessage.Visibility = Visibility.Visible;
             UpdateTimerDisplay();
 
-            if (showResults && (_hits + _misses) > 0)
+            if (showResults && statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
             {
-                var result = BuildResult();
+                var result = BuildResult(statsSource);
                 SaveResult(result);
+
                 new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+
+                var rec = BuildRecommendation(result);
+                new RecommendationWindow(rec) { Owner = this }.ShowDialog();
             }
         }
 
         // ─────────────────────────────────────────────────────────────
-        // GAME TIMER (1-second tick)
+        // GAME LOOP
         // ─────────────────────────────────────────────────────────────
         private void GameTimer_Tick(object? sender, EventArgs e)
         {
@@ -242,6 +236,55 @@ namespace CleanAimTracker.Windows
                 StopDrill(showResults: true);
         }
 
+        private void UpdateScenario_Tick(object? sender, EventArgs e)
+        {
+            if (!_isRunning || _scenarioInstance == null)
+                return;
+
+            _scenarioInstance.Update(TargetCanvas);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // CLICK HANDLING
+        // ─────────────────────────────────────────────────────────────
+        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isRunning || _scenarioInstance == null)
+                return;
+
+            var pos = e.GetPosition(TargetCanvas);
+            bool hit = _scenarioInstance.HandleClick(pos);
+
+            if (hit)
+            {
+                _score += 100;
+                FlashHit();
+            }
+            else
+            {
+                FlashMiss();
+            }
+
+            UpdateLiveStats();
+        }
+
+        private void FlashHit()
+        {
+            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(25, 0, 255, 100));
+            _flashTimer.Stop();
+            _flashTimer.Start();
+        }
+
+        private void FlashMiss()
+        {
+            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(20, 255, 60, 60));
+            _flashTimer.Stop();
+            _flashTimer.Start();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // LIVE STATS
+        // ─────────────────────────────────────────────────────────────
         private void UpdateTimerDisplay()
         {
             if (!_uiReady || TimerText == null)
@@ -256,322 +299,95 @@ namespace CleanAimTracker.Windows
                 TimerText.Foreground = Brushes.White;
         }
 
-
-        // ─────────────────────────────────────────────────────────────
-        // TARGET SPAWNING
-        // ─────────────────────────────────────────────────────────────
-        private void SpawnStaticTarget()
-        {
-            ClearActiveTarget();
-            if (!_isRunning) return;
-
-            double w = TargetCanvas.ActualWidth;
-            double h = TargetCanvas.ActualHeight;
-            if (w <= 0 || h <= 0) return;
-
-            double size = _config.TargetSize;
-            double x = _rng.NextDouble() * (w - size * 2) + size;
-            double y = _rng.NextDouble() * (h - size * 2) + size;
-
-            _activeTarget = CreateTargetEllipse(size, x, y);
-            TargetCanvas.Children.Add(_activeTarget);
-            _targetSpawnTime = DateTime.Now;
-        }
-
-        private void SpawnTrackingTarget()
-        {
-            double w = TargetCanvas.ActualWidth;
-            double h = TargetCanvas.ActualHeight;
-            if (w <= 0 || h <= 0) return;
-
-            double size = _config.TargetSize * 1.4; // tracking targets slightly larger
-            _trackingTarget = CreateTargetEllipse(size, w / 2, h / 2,
-                new SolidColorBrush(Color.FromRgb(255, 165, 0)));
-            TargetCanvas.Children.Add(_trackingTarget);
-
-            _trackDx = (_rng.NextDouble() * 2 - 1) * _config.MoveSpeed;
-            _trackDy = (_rng.NextDouble() * 2 - 1) * _config.MoveSpeed;
-            _targetSpawnTime = DateTime.Now;
-        }
-
-        private void SpawnSwitchingTargets()
-        {
-            ClearSwitchTargets();
-            double w = TargetCanvas.ActualWidth;
-            double h = TargetCanvas.ActualHeight;
-            if (w <= 0 || h <= 0) return;
-
-            int count = _difficulty == "Easy" ? 2 : _difficulty == "Medium" ? 3 : 4;
-            double size = _config.TargetSize;
-
-            for (int i = 0; i < count; i++)
-            {
-                double x = _rng.NextDouble() * (w - size * 2) + size;
-                double y = _rng.NextDouble() * (h - size * 2) + size;
-                bool isActive = i == 0;
-
-                var el = CreateTargetEllipse(size, x, y,
-                    isActive
-                        ? new SolidColorBrush(Color.FromRgb(0, 229, 255))
-                        : new SolidColorBrush(Color.FromArgb(120, 100, 100, 100)));
-
-                el.Tag = isActive ? "active" : "inactive";
-                TargetCanvas.Children.Add(el);
-                _switchTargets.Add(el);
-            }
-
-            _targetSpawnTime = DateTime.Now;
-        }
-
-        private Ellipse CreateTargetEllipse(double size, double cx, double cy,
-            Brush? fill = null)
-        {
-            fill ??= new SolidColorBrush(Color.FromRgb(0, 229, 255));
-
-            var el = new Ellipse
-            {
-                Width = size,
-                Height = size,
-                Fill = fill,
-                Stroke = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)),
-                StrokeThickness = 1.5,
-                Opacity = 0,
-            };
-
-            Canvas.SetLeft(el, cx - size / 2);
-            Canvas.SetTop(el, cy - size / 2);
-
-            // Fade in
-            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(80));
-            el.BeginAnimation(OpacityProperty, fadeIn);
-
-            return el;
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // TRACKING TARGET MOVEMENT (~60fps)
-        // ─────────────────────────────────────────────────────────────
-        private void TargetMove_Tick(object? sender, EventArgs e)
-        {
-            if (_trackingTarget == null) return;
-
-            double w = TargetCanvas.ActualWidth;
-            double h = TargetCanvas.ActualHeight;
-            double size = _trackingTarget.Width;
-
-            double x = Canvas.GetLeft(_trackingTarget) + _trackDx * _config.MoveSpeed;
-            double y = Canvas.GetTop(_trackingTarget) + _trackDy * _config.MoveSpeed;
-
-            if (x <= 0 || x + size >= w) _trackDx *= -1;
-            if (y <= 0 || y + size >= h) _trackDy *= -1;
-
-            x = Math.Clamp(x, 0, w - size);
-            y = Math.Clamp(y, 0, h - size);
-
-            Canvas.SetLeft(_trackingTarget, x);
-            Canvas.SetTop(_trackingTarget, y);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // CLICK / HIT DETECTION
-        // ─────────────────────────────────────────────────────────────
-        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (!_isRunning) return;
-
-            var pos = e.GetPosition(TargetCanvas);
-            string activeScenario = _scenario == "Adaptive" ? _adaptiveWeakSpot : _scenario;
-
-            switch (activeScenario)
-            {
-                case "Tracking":
-                    HandleTrackingClick(pos);
-                    break;
-                case "Switching":
-                    HandleSwitchingClick(pos);
-                    break;
-                default:
-                    HandleStaticClick(pos);
-                    break;
-            }
-
-            UpdateLiveStats();
-        }
-
-        private void HandleStaticClick(Point pos)
-        {
-            if (_activeTarget == null) { RegisterMiss(); return; }
-
-            if (IsHit(pos, _activeTarget))
-            {
-                RegisterHit();
-                SpawnHitEffect(pos);
-                SpawnStaticTarget();
-            }
-            else
-            {
-                RegisterMiss();
-            }
-        }
-
-        private void HandleTrackingClick(Point pos)
-        {
-            if (_trackingTarget == null) { RegisterMiss(); return; }
-
-            if (IsHit(pos, _trackingTarget))
-                RegisterHit();
-            else
-                RegisterMiss();
-        }
-
-        private void HandleSwitchingClick(Point pos)
-        {
-            bool hitActive = false;
-
-            foreach (var t in _switchTargets)
-            {
-                if (IsHit(pos, t) && t.Tag?.ToString() == "active")
-                {
-                    hitActive = true;
-                    RegisterHit();
-                    SpawnHitEffect(pos);
-
-                    // Rotate active to next target
-                    t.Tag = "inactive";
-                    t.Fill = new SolidColorBrush(Color.FromArgb(120, 100, 100, 100));
-
-                    var next = _switchTargets.FirstOrDefault(x => x.Tag?.ToString() == "inactive");
-                    if (next != null)
-                    {
-                        next.Tag = "active";
-                        next.Fill = new SolidColorBrush(Color.FromRgb(0, 229, 255));
-                        _targetSpawnTime = DateTime.Now;
-                    }
-                    break;
-                }
-            }
-
-            if (!hitActive) RegisterMiss();
-        }
-
-        private bool IsHit(Point click, Ellipse target)
-        {
-            double cx = Canvas.GetLeft(target) + target.Width / 2;
-            double cy = Canvas.GetTop(target) + target.Height / 2;
-            double r = target.Width / 2 + 4; // small forgiveness radius
-            double dist = Math.Sqrt(Math.Pow(click.X - cx, 2) + Math.Pow(click.Y - cy, 2));
-            return dist <= r;
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // HIT / MISS REGISTRATION
-        // ─────────────────────────────────────────────────────────────
-        private void RegisterHit()
-        {
-            _hits++;
-            _streak++;
-
-            double reactionMs = (DateTime.Now - _targetSpawnTime).TotalMilliseconds;
-            _reactionTimes.Add(reactionMs);
-
-            // Score: base 100 + streak bonus + reaction bonus
-            int streakBonus = Math.Min(_streak * 5, 50);
-            int reactionBonus = reactionMs < 300 ? 50 : reactionMs < 600 ? 25 : 0;
-            _score += 100 + streakBonus + reactionBonus;
-
-            StreakText.Text = _streak.ToString();
-
-            // Green flash
-            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(25, 0, 255, 100));
-            _flashTimer.Stop();
-            _flashTimer.Start();
-        }
-
-        private void RegisterMiss()
-        {
-            _misses++;
-            _streak = 0;
-            StreakText.Text = "0";
-
-            // Red flash
-            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(20, 255, 60, 60));
-            _flashTimer.Stop();
-            _flashTimer.Start();
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // HIT EFFECT
-        // ─────────────────────────────────────────────────────────────
-        private void SpawnHitEffect(Point pos)
-        {
-            var ring = new Ellipse
-            {
-                Width = 20,
-                Height = 20,
-                Stroke = new SolidColorBrush(Color.FromRgb(0, 229, 255)),
-                StrokeThickness = 2,
-                Fill = Brushes.Transparent,
-                IsHitTestVisible = false
-            };
-
-            Canvas.SetLeft(ring, pos.X - 10);
-            Canvas.SetTop(ring, pos.Y - 10);
-            TargetCanvas.Children.Add(ring);
-
-            var expand = new DoubleAnimation(20, 50, TimeSpan.FromMilliseconds(200));
-            var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200));
-
-            fade.Completed += (_, _) => TargetCanvas.Children.Remove(ring);
-
-            ring.BeginAnimation(WidthProperty, expand);
-            ring.BeginAnimation(HeightProperty,
-                new DoubleAnimation(20, 50, TimeSpan.FromMilliseconds(200)));
-            ring.BeginAnimation(OpacityProperty, fade);
-        }
-
-        // ─────────────────────────────────────────────────────────────
-        // LIVE STATS UPDATE
-        // ─────────────────────────────────────────────────────────────
         private void UpdateLiveStats()
         {
-            LiveHitsText.Text = _hits.ToString();
-            LiveMissesText.Text = _misses.ToString();
+            if (_scenarioInstance == null)
+            {
+                LiveHitsText.Text = "0";
+                LiveMissesText.Text = "0";
+                LiveScoreText.Text = _score.ToString("N0");
+                LiveAccuracyText.Text = "--";
+                LiveReactionText.Text = "--";
+                StreakText.Text = "0";
+                return;
+            }
+
+            int hits = _scenarioInstance.Hits;
+            int misses = _scenarioInstance.Misses;
+            int total = hits + misses;
+
+            LiveHitsText.Text = hits.ToString();
+            LiveMissesText.Text = misses.ToString();
             LiveScoreText.Text = _score.ToString("N0");
 
-            int total = _hits + _misses;
-            LiveAccuracyText.Text = total > 0 ? $"{(_hits * 100.0 / total):F0}%" : "--";
-
-            LiveReactionText.Text = _reactionTimes.Count > 0
-                ? $"{_reactionTimes.Average():F0}ms"
+            LiveAccuracyText.Text = total > 0
+                ? $"{(hits * 100.0 / total):F0}%"
                 : "--";
+
+            LiveReactionText.Text = _scenarioInstance.AvgReactionMs > 0
+                ? $"{_scenarioInstance.AvgReactionMs:F0}ms"
+                : "--";
+
+            StreakText.Text = _scenarioInstance.MaxStreak.ToString();
         }
 
         // ─────────────────────────────────────────────────────────────
-        // RESULT BUILDING + SAVING
+        // RESULT + RECOMMENDATION
         // ─────────────────────────────────────────────────────────────
-        private AimTrainerResult BuildResult()
+        private AimTrainerResult BuildResult(IAimScenario stats)
         {
-            int total = _hits + _misses;
-            double accuracy = total > 0 ? _hits * 100.0 / total : 0;
-            double avgReaction = _reactionTimes.Count > 0 ? _reactionTimes.Average() : 0;
-            double bestReaction = _reactionTimes.Count > 0 ? _reactionTimes.Min() : 0;
-
-            string activeScenario = _scenario == "Adaptive" ? _adaptiveWeakSpot : _scenario;
+            int hits = stats.Hits;
+            int misses = stats.Misses;
+            int total = hits + misses;
+            double accuracy = total > 0 ? hits * 100.0 / total : 0;
 
             return new AimTrainerResult
             {
                 Timestamp = DateTime.Now,
-                Scenario = activeScenario,
+                Scenario = _scenario,
                 Difficulty = _difficulty,
                 DurationSeconds = _durationSeconds,
-                Hits = _hits,
-                Misses = _misses,
+                Hits = hits,
+                Misses = misses,
                 Accuracy = accuracy,
                 Score = _score,
-                AvgReactionMs = avgReaction,
-                BestReactionMs = bestReaction,
-                MaxStreak = _streak,
+                AvgReactionMs = stats.AvgReactionMs,
+                BestReactionMs = stats.BestReactionMs,
+                MaxStreak = stats.MaxStreak,
             };
+        }
+
+        private SensitivityRecommendation BuildRecommendation(AimTrainerResult result)
+        {
+            var settings = SettingsService.Load() ?? new UserSettings();
+
+            var profile = GameProfileStorage.LoadByName(settings.SelectedProfile)
+                ?? GameProfileStorage.Profiles.First();
+
+            double yaw = profile.YawPerCount <= 0 ? 0.022 : profile.YawPerCount;
+            double cm360 = 914.4 / (settings.DPI * settings.Sensitivity * yaw);
+
+            var summary = new SessionSummary
+            {
+                Timestamp = result.Timestamp,
+                DPI = settings.DPI,
+                Sensitivity = settings.Sensitivity,
+                CmPer360 = cm360,
+                SmoothnessScore = result.Accuracy,
+                MovementConsistency = result.Accuracy,
+                JitterAmount = 100 - result.Accuracy,
+                TotalSamples = result.Hits + result.Misses,
+                FlickCount = result.Hits,
+                SmallFlickCount = result.Hits,
+                LargeFlickCount = result.Misses,
+                CorrectionSharpness = 100 - result.Accuracy,
+                PeakVelocity = 1,
+                AverageVelocity = 1,
+                IdlePercentage = 0,
+                SessionSeconds = result.DurationSeconds
+            };
+
+            return RecommendationEngine.Analyze(summary, profile);
         }
 
         private static void SaveResult(AimTrainerResult result)
@@ -585,29 +401,7 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         private void ClearTargets()
         {
-            ClearActiveTarget();
-            if (_trackingTarget != null)
-            {
-                TargetCanvas.Children.Remove(_trackingTarget);
-                _trackingTarget = null;
-            }
-            ClearSwitchTargets();
-        }
-
-        private void ClearActiveTarget()
-        {
-            if (_activeTarget != null)
-            {
-                TargetCanvas.Children.Remove(_activeTarget);
-                _activeTarget = null;
-            }
-        }
-
-        private void ClearSwitchTargets()
-        {
-            foreach (var t in _switchTargets)
-                TargetCanvas.Children.Remove(t);
-            _switchTargets.Clear();
+            TargetCanvas.Children.Clear();
         }
 
         private void PositionCenterDot()
@@ -622,14 +416,31 @@ namespace CleanAimTracker.Windows
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             _gameTimer.Stop();
-            _targetMoveTimer.Stop();
+            _updateTimer.Stop();
             Close();
+        }
+
+        private void RecommendedDrillsBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var last = AimTrainerStorage.LoadLast();
+            if (last == null)
+            {
+                MessageBox.Show("No trainer results found. Run a drill first.",
+                    "No Data", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var rec = BuildRecommendation(last);
+
+            var win = new RecommendedDrillsWindow(rec);
+            win.Owner = this;
+            win.ShowDialog();
         }
 
         protected override void OnClosed(EventArgs e)
         {
             _gameTimer.Stop();
-            _targetMoveTimer.Stop();
+            _updateTimer.Stop();
             base.OnClosed(e);
         }
     }

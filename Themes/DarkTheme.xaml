@@ -39,4 +39,11 @@
     <SolidColorBrush x:Key="BorderBrush"         Color="#444444"/>
     <SolidColorBrush x:Key="SeparatorBrush"      Color="#3A3A3A"/>
 
+    <!-- Required brushes for new windows -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#1E1E1E"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#2A2A2A"/>
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#444444"/>
+    <SolidColorBrush x:Key="ForegroundBrush" Color="White"/>
+
+
 </ResourceDictionary>

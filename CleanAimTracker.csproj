@@ -2,13 +2,16 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+		<SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
 		<UseWPF>true</UseWPF>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Platforms>AnyCPU;x64</Platforms>
 		<EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
-
+		<AssemblyName>CleanAimTracker</AssemblyName>
+		<RootNamespace>CleanAimTracker</RootNamespace>
+		<!-- DO NOT add DisableWinRTDesktopSupport — that breaks StoreContext later -->
 	</PropertyGroup>
 
 	<!-- REQUIRED: Only ONE ApplicationDefinition -->
@@ -30,11 +33,17 @@
 			<AutoGen>True</AutoGen>
 			<DependentUpon>Settings.settings</DependentUpon>
 		</Compile>
-
 		<None Update="Settings.settings">
 			<Generator>SettingsSingleFileGenerator</Generator>
 			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
 		</None>
 	</ItemGroup>
+
+	<!--
+    NOTE: Microsoft.Windows.SDK.Contracts is intentionally REMOVED.
+    On net8.0-windows10.0.19041.0, WinRT APIs (including StoreContext)
+    are already included via the Windows TFM. Adding SDK.Contracts
+    causes 90+ duplicate .winmd reference errors (NETSDK1130).
+  -->
 
 </Project>

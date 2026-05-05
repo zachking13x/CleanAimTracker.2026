@@ -1,0 +1,51 @@
+﻿<Window x:Class="CleanAimTracker.Windows.UpgradeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Upgrade to Pro"
+        Height="420" Width="420"
+        WindowStartupLocation="CenterOwner"
+        Background="#111">
+
+    <Grid Margin="20">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="300">
+
+            <TextBlock Text="Unlock Full Access"
+                       FontSize="24"
+                       Foreground="White"
+                       HorizontalAlignment="Center"
+                       Margin="0 0 0 20"/>
+
+            <Button Content="Pro – $5.99 / month"
+                    Click="Pro_Click"
+                    Height="50"
+                    Background="#00E5FF"
+                    Foreground="Black"
+                    FontWeight="Bold"
+                    Margin="0 0 0 12"/>
+
+            <Button Content="Pro + Trainer – $8.99 / month"
+                    Click="ProTrainer_Click"
+                    Height="50"
+                    Background="#00E5FF"
+                    Foreground="Black"
+                    FontWeight="Bold"
+                    Margin="0 0 0 12"/>
+
+            <Button Content="Lifetime Pro – $39.99"
+                    Click="Lifetime_Click"
+                    Height="50"
+                    Background="#FFD700"
+                    Foreground="Black"
+                    FontWeight="Bold"
+                    Margin="0 0 0 12"/>
+
+            <Button Content="Cancel"
+                    Click="Cancel_Click"
+                    Height="40"
+                    Background="#333"
+                    Foreground="White"/>
+
+        </StackPanel>
+    </Grid>
+</Window>
+

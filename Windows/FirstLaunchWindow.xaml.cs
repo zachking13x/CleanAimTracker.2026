@@ -1,4 +1,5 @@
 using CleanAimTracker.Services;
+using CleanAimTracker.Windows;
 using System.Windows;
 
 namespace CleanAimTracker
@@ -28,7 +29,11 @@ namespace CleanAimTracker
             s.FirstLaunchComplete = true;
             SettingsService.Save(s);
 
+            // ⭐ OPEN MAIN WINDOW ⭐
+            new MainWindow().Show();
+
             Close();
         }
+
     }
 }

@@ -1,21 +1,26 @@
 using System;
+using System.IO;
+using System.Windows;
+using CleanAimTracker.Windows;
+
 
 namespace CleanAimTracker.Services
 {
     /// <summary>
-    /// Manages the 7-day free trial period.
-    /// Records first launch date and checks remaining days.
-    /// When published to the Microsoft Store, replace this with
-    /// Windows.Services.Store.StoreContext for real license checks.
+    /// Handles the 7‑day free trial and Pro feature gating.
     /// </summary>
     public static class TrialService
     {
         private const int TrialDays = 7;
+        private static readonly string LicenseFile = "license.dat";
 
-        /// <summary>Initialize trial tracking on first launch.</summary>
+        /// <summary>
+        /// Called on app startup. Ensures FirstLaunchDate is set.
+        /// </summary>
         public static void Initialize()
         {
             var settings = SettingsService.Load();
+
             if (settings.FirstLaunchDate == DateTime.MinValue)
             {
                 settings.FirstLaunchDate = DateTime.Now;
@@ -24,56 +29,88 @@ namespace CleanAimTracker.Services
             }
         }
 
-        /// <summary>Returns true if the trial is still active.</summary>
-        public static bool IsTrialActive()
+        /// <summary>
+        /// Returns true if the user has purchased the full version.
+        /// </summary>
+        public static bool IsFullVersion()
         {
-            var settings = SettingsService.Load();
-            if (settings.FirstLaunchDate == DateTime.MinValue) return true;
-            return (DateTime.Now - settings.FirstLaunchDate).TotalDays <= TrialDays;
+            // Later replaced with StoreContext license check.
+            return File.Exists(LicenseFile);
         }
 
-        /// <summary>Returns the number of days remaining in the trial.</summary>
+        /// <summary>
+        /// Returns true if the trial is still active OR full version is unlocked.
+        /// </summary>
+        public static bool IsTrialActive()
+        {
+            if (IsFullVersion()) return true;
+
+            var settings = SettingsService.Load();
+            if (settings.FirstLaunchDate == DateTime.MinValue)
+                return true;
+
+            double daysUsed = (DateTime.Now - settings.FirstLaunchDate).TotalDays;
+            return daysUsed < TrialDays;
+        }
+
+        /// <summary>
+        /// Returns how many days remain in the trial.
+        /// </summary>
         public static int DaysRemaining()
         {
+            if (IsFullVersion()) return 0;
+
             var settings = SettingsService.Load();
-            if (settings.FirstLaunchDate == DateTime.MinValue) return TrialDays;
+            if (settings.FirstLaunchDate == DateTime.MinValue)
+                return TrialDays;
+
             int remaining = TrialDays - (int)(DateTime.Now - settings.FirstLaunchDate).TotalDays;
             return Math.Max(0, remaining);
         }
 
-        /// <summary>Returns true if the user has purchased the full version.</summary>
-        public static bool IsFullVersion()
-        {
-            // TODO: Replace with actual Store license check when publishing.
-            // For now, always returns false (trial mode).
-            // When integrating with Microsoft Store:
-            //   var context = StoreContext.GetDefault();
-            //   var license = await context.GetAppLicenseAsync();
-            //   return license.IsActive && !license.IsTrial;
-            return false;
-        }
-
-        /// <summary>Returns the trial status text for the UI banner.</summary>
-        public static string GetStatusText()
+        /// <summary>
+        /// Returns the banner text shown in MainWindow.
+        /// </summary>
+        public static string GetBannerText()
         {
             if (IsFullVersion())
-                return "Full Version";
+                return ""; // Hide banner entirely
 
             int days = DaysRemaining();
+
             if (days <= 0)
-                return "Trial Expired - Upgrade to continue";
+                return "Trial Expired — Upgrade Required";
 
-            return $"Free Trial - {days} day{(days == 1 ? "" : "s")} remaining";
+            return $"Free Trial — {days} day{(days == 1 ? "" : "s")} remaining";
         }
-
-        /// <summary>
-        /// Returns the Microsoft Store link for upgrading.
-        /// Replace with your actual Store product ID after publishing.
-        /// </summary>
         public static string GetStoreLink()
         {
-            // TODO: Replace XXXXX with your actual Store Product ID
-            return "ms-windows-store://pdp/?productid=XXXXX";
+            // Your real Microsoft Store Product ID
+            return "ms-windows-store://pdp/?productid=9MVBDZBQ01DM";
+        }
+
+
+        /// <summary>
+        /// Called before opening any Pro feature window.
+        /// Returns true if access is allowed.
+        /// </summary>
+        public static bool RequestProAccess(string featureName)
+        {
+            // Full version → always allowed
+            if (IsFullVersion()) return true;
+
+            // Trial still active → allowed
+            if (IsTrialActive()) return true;
+
+            // Trial expired → block + show upgrade dialog
+            MessageBox.Show(
+                $"{featureName} is a Pro feature.\nYour trial has expired.",
+                "Upgrade Required",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            UpgradeDialog.Show();
+            return false;
         }
     }
 }

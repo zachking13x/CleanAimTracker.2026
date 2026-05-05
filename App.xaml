@@ -3,11 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="Windows/MainWindow.xaml">
 
+
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/DarkTheme.xaml"/>
             </ResourceDictionary.MergedDictionaries>
+
             <BitmapImage x:Key="AppLogo" UriSource="Assets/BCO.21dff569-623b-4839-b0ad-1cce7c533742.png"/>
 
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
@@ -20,39 +22,28 @@
                 <Setter Property="BorderThickness" Value="1"/>
                 <Setter Property="Padding" Value="8,4"/>
                 <Setter Property="Cursor" Value="Hand"/>
-
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
                         <Setter Property="BorderBrush" Value="#00AFFF"/>
                         <Setter Property="Effect">
                             <Setter.Value>
-                                <DropShadowEffect Color="#00AFFF"
-                                                  BlurRadius="15"
-                                                  ShadowDepth="0"
-                                                  Opacity="0.8"/>
+                                <DropShadowEffect Color="#00AFFF" BlurRadius="15" ShadowDepth="0" Opacity="0.8"/>
                             </Setter.Value>
                         </Setter>
                     </Trigger>
                 </Style.Triggers>
             </Style>
 
-
-            <!-- ⭐ DARK COMBOBOX + COMBOBOXITEM STYLES (fixes white dropdown) ⭐ -->
-
-            <!-- ComboBoxItem (items inside the dropdown) -->
+            <!-- ComboBoxItem -->
             <Style TargetType="ComboBoxItem">
                 <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
                 <Setter Property="Background" Value="{DynamicResource CardBackground}" />
                 <Setter Property="Padding" Value="6,3" />
-                <Setter Property="HorizontalContentAlignment" Value="Left" />
-                <Setter Property="VerticalContentAlignment" Value="Center" />
-
                 <Style.Triggers>
                     <Trigger Property="IsMouseOver" Value="True">
                         <Setter Property="Background" Value="#33373D" />
                         <Setter Property="Foreground" Value="White" />
                     </Trigger>
-
                     <Trigger Property="IsSelected" Value="True">
                         <Setter Property="Background" Value="#0078D4" />
                         <Setter Property="Foreground" Value="White" />
@@ -60,7 +51,7 @@
                 </Style.Triggers>
             </Style>
 
-            <!-- ComboBox (the control itself + popup background) -->
+            <!-- ComboBox -->
             <Style TargetType="ComboBox">
                 <Setter Property="Background" Value="{DynamicResource CardBackground}" />
                 <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CleanAimTracker.Services;
+using System;
 using System.Windows;
 using System.Windows.Input;
 
@@ -9,6 +10,8 @@ namespace CleanAimTracker.Windows
         public OverlayWindow()
         {
             InitializeComponent();
+            Loaded += Overlay_Loaded;
+            LocationChanged += Overlay_LocationChanged;
         }
 
         // Allow dragging the overlay
@@ -21,41 +24,43 @@ namespace CleanAimTracker.Windows
         // Restore saved position when overlay loads
         private void Overlay_Loaded(object sender, RoutedEventArgs e)
         {
-            if (Settings.Default.OverlayLeft >= 0 &&
-                Settings.Default.OverlayTop >= 0)
+            var s = SettingsService.Load();
+
+            if (s.OverlayLeft >= 0 && s.OverlayTop >= 0)
             {
-                Left = Settings.Default.OverlayLeft;
-                Top = Settings.Default.OverlayTop;
+                Left = s.OverlayLeft;
+                Top = s.OverlayTop;
             }
         }
 
+        // Save overlay position when moved
         private void Overlay_LocationChanged(object sender, EventArgs e)
         {
-            Settings.Default.OverlayLeft = Left;
-            Settings.Default.OverlayTop = Top;
-            Settings.Default.Save();
+            var s = SettingsService.Load();
+            s.OverlayLeft = Left;
+            s.OverlayTop = Top;
+            SettingsService.Save(s);
         }
 
-
         // Start button → call MainWindow's Start logic
-        public void Start_Click(object sender, RoutedEventArgs e)
+        private void Start_Click(object sender, RoutedEventArgs e)
         {
-            var main = Application.Current.MainWindow as MainWindow;
-            main?.StartButton_Click(sender, e);
+            if (Application.Current.MainWindow is MainWindow main)
+                main.StartButton_Click(sender, e);
         }
 
         // Stop button → call MainWindow's Stop logic
-        public void Stop_Click(object sender, RoutedEventArgs e)
+        private void Stop_Click(object sender, RoutedEventArgs e)
         {
-            var main = Application.Current.MainWindow as MainWindow;
-            main?.StopButton_Click(sender, e);
+            if (Application.Current.MainWindow is MainWindow main)
+                main.StopButton_Click(sender, e);
         }
 
         // Recommend button → call MainWindow's Recommend logic
-        public void Recommend_Click(object sender, RoutedEventArgs e)
+        private void Recommend_Click(object sender, RoutedEventArgs e)
         {
-            var main = Application.Current.MainWindow as MainWindow;
-            main?.OpenRecommendation_Click(sender, e);
+            if (Application.Current.MainWindow is MainWindow main)
+                main.OpenRecommendation_Click(sender, e);
         }
     }
 }

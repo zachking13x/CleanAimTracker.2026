@@ -20,5 +20,8 @@
         // Trial system
         public bool TrialActive { get; set; } = true;
         public int TrialDaysRemaining { get; set; } = 7;
+        public double OverlayLeft { get; set; } = -1;
+        public double OverlayTop { get; set; } = -1;
+
     }
 }

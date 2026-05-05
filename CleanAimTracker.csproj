@@ -1,44 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <Platforms>AnyCPU;x64</Platforms>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Platforms>AnyCPU;x64</Platforms>
+		<EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
 
-  <ItemGroup>
-    <None Remove="Assets\BCO.21dff569-623b-4839-b0ad-1cce7c533742.png" />
-  </ItemGroup>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\BCO.21dff569-623b-4839-b0ad-1cce7c533742.png">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Resource>
-  </ItemGroup>
+	<!-- REQUIRED: Only ONE ApplicationDefinition -->
+	<ItemGroup>
+		<ApplicationDefinition Include="App.xaml" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Compile Update="Settings.Designer.cs">
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-    </Compile>
-  </ItemGroup>
+	<!-- Resources -->
+	<ItemGroup>
+		<Resource Include="Assets\BCO.21dff569-623b-4839-b0ad-1cce7c533742.png" />
+		<Resource Include="Themes\DarkTheme.xaml" />
+		<Resource Include="Themes\LightTheme.xaml" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Update="Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
+	<!-- Settings designer -->
+	<ItemGroup>
+		<Compile Update="Settings.Designer.cs">
+			<DesignTimeSharedInput>True</DesignTimeSharedInput>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Settings.settings</DependentUpon>
+		</Compile>
 
-  <ItemGroup>
-    <Page Update="Windows\MainWindow.xaml">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Page>
-  </ItemGroup>
+		<None Update="Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+	</ItemGroup>
 
 </Project>
-

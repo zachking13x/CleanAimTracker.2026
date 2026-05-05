@@ -1,0 +1,92 @@
+﻿<Window x:Class="CleanAimTracker.Windows.AimTrainerHistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aim Trainer History"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Background="{DynamicResource CardBackground}"
+        Width="520" Height="600"
+        AllowsTransparency="True">
+
+    <Border Background="{DynamicResource CardBackground}"
+            CornerRadius="12"
+            BorderBrush="{DynamicResource AccentBrush}"
+            BorderThickness="1"
+            Padding="20">
+
+        <DockPanel>
+
+            <!-- Header -->
+            <TextBlock Text="AIM TRAINER HISTORY"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Foreground="{DynamicResource PrimaryText}"
+                       HorizontalAlignment="Center"
+                       DockPanel.Dock="Top"
+                       Margin="0 0 0 20"/>
+
+            <!-- Scrollable list -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="HistoryList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border CornerRadius="8"
+                                    Background="{DynamicResource CardBackground}"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1"
+                                    Padding="12"
+                                    Margin="0 0 0 12">
+                                <StackPanel>
+
+                                    <!-- Timestamp -->
+                                    <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:MMM dd, yyyy • h:mm tt}'}"
+
+                                               Foreground="{DynamicResource MutedText}"
+                                               FontSize="11"/>
+
+                                    <!-- Scenario + Difficulty -->
+                                    <TextBlock Text="{Binding Scenario}"
+                                               FontSize="14"
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource PrimaryText}"
+                                               Margin="0 4 0 0"/>
+
+                                    <TextBlock Text="{Binding Difficulty}"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource MutedText}"/>
+
+                                    <!-- Score -->
+                                    <TextBlock Text="{Binding Score, StringFormat={}{0:N0} pts}"
+                                               FontSize="18"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               Margin="0 6 0 0"/>
+
+                                    <!-- Click to open -->
+                                    <Button Content="View Details"
+                                            HorizontalAlignment="Right"
+                                            Padding="6 2"
+                                            Style="{StaticResource GlowButton}"
+                                            Tag="{Binding}"
+                                            Click="ViewDetails_Click"/>
+
+                                    <Button Content="Close"
+                                            Width="120"
+                                            Height="36"
+                                            HorizontalAlignment="Right"
+                                            Margin="0,10,10,10"
+                                            Background="{DynamicResource AccentBrush}"
+                                            Foreground="White"
+                                            FontWeight="SemiBold"
+                                            Click="Close_Click"/>
+
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+        </DockPanel>
+    </Border>
+</Window>

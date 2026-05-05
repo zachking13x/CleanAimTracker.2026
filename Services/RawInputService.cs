@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Interop;
 
 namespace CleanAimTracker.Services
 {
@@ -7,9 +9,15 @@ namespace CleanAimTracker.Services
     {
         public event Action<int, int>? MouseMoved;
 
-        // -----------------------------
-        // RAWINPUT STRUCTS
-        // -----------------------------
+        private HwndSource? _source;
+        private IntPtr _hwnd;
+        private bool _isRegistered = false;
+
+        private const int WM_INPUT = 0x00FF;
+        private const int RID_INPUT = 0x10000003;
+        private const int RIM_TYPEMOUSE = 0;
+        private const int RIDEV_INPUTSINK = 0x00000100;
+
         [StructLayout(LayoutKind.Sequential)]
         private struct RAWINPUTHEADER
         {
@@ -32,9 +40,6 @@ namespace CleanAimTracker.Services
             public uint ulExtraInformation;
         }
 
-        // -----------------------------
-        // RAWINPUTDEVICE STRUCT
-        // -----------------------------
         [StructLayout(LayoutKind.Sequential)]
         private struct RAWINPUTDEVICE
         {
@@ -44,16 +49,6 @@ namespace CleanAimTracker.Services
             public IntPtr hwndTarget;
         }
 
-        // -----------------------------
-        // CONSTANTS
-        // -----------------------------
-        private const int RIM_TYPEMOUSE = 0;
-        private const int RID_INPUT = 0x10000003;
-        private const int RIDEV_INPUTSINK = 0x00000100;
-
-        // -----------------------------
-        // P/INVOKE
-        // -----------------------------
         [DllImport("User32.dll", SetLastError = true)]
         private static extern bool RegisterRawInputDevices(
             RAWINPUTDEVICE[] pRawInputDevices,
@@ -69,18 +64,31 @@ namespace CleanAimTracker.Services
             uint cbSizeHeader);
 
         // -----------------------------
-        // REGISTER
+        // INITIALIZE WITH WINDOW
         // -----------------------------
-        public void Register(IntPtr hwnd)
+        public void Initialize(Window window)
         {
+            _source = (HwndSource)PresentationSource.FromVisual(window)!;
+            _source.AddHook(WndProc);
+            _hwnd = _source.Handle;
+        }
+
+        // -----------------------------
+        // START RAW INPUT
+        // -----------------------------
+        public void Start()
+        {
+            if (_isRegistered || _hwnd == IntPtr.Zero)
+                return;
+
             RAWINPUTDEVICE[] rid =
             {
                 new RAWINPUTDEVICE
                 {
-                    usUsagePage = 0x01,   // Generic desktop controls
-                    usUsage = 0x02,       // Mouse
+                    usUsagePage = 0x01,
+                    usUsage = 0x02,
                     dwFlags = RIDEV_INPUTSINK,
-                    hwndTarget = hwnd
+                    hwndTarget = _hwnd
                 }
             };
 
@@ -88,66 +96,60 @@ namespace CleanAimTracker.Services
                 rid,
                 (uint)rid.Length,
                 (uint)Marshal.SizeOf(typeof(RAWINPUTDEVICE)));
+
+            _isRegistered = true;
         }
 
         // -----------------------------
-        // PROCESS RAW INPUT (SAFE)
+        // STOP RAW INPUT
         // -----------------------------
-        public (int dx, int dy) ProcessRawInput(IntPtr lParam)
+        public void Stop()
+        {
+            _isRegistered = false;
+        }
+
+        // -----------------------------
+        // WNDPROC HOOK
+        // -----------------------------
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (!_isRegistered)
+                return IntPtr.Zero;
+
+            if (msg == WM_INPUT)
+                ProcessRawInput(lParam);
+
+            return IntPtr.Zero;
+        }
+
+        // -----------------------------
+        // PROCESS RAW INPUT
+        // -----------------------------
+        private void ProcessRawInput(IntPtr lParam)
         {
             uint dwSize = 0;
             uint headerSize = (uint)Marshal.SizeOf<RAWINPUTHEADER>();
 
-            // 1) Ask Windows how big the RAWINPUT packet is
-            uint res = GetRawInputData(
-                lParam,
-                RID_INPUT,
-                IntPtr.Zero,
-                ref dwSize,
-                headerSize);
-
-            if (dwSize < headerSize)
-                return (0, 0);
+            GetRawInputData(lParam, RID_INPUT, IntPtr.Zero, ref dwSize, headerSize);
+            if (dwSize < headerSize) return;
 
             IntPtr buffer = Marshal.AllocHGlobal((int)dwSize);
 
             try
             {
-                // 2) Read the actual data
-                res = GetRawInputData(
-                    lParam,
-                    RID_INPUT,
-                    buffer,
-                    ref dwSize,
-                    headerSize);
+                GetRawInputData(lParam, RID_INPUT, buffer, ref dwSize, headerSize);
+                if (dwSize < headerSize) return;
 
-                if (dwSize < headerSize)
-                    return (0, 0);
-
-                // 3) Read header
                 RAWINPUTHEADER header = Marshal.PtrToStructure<RAWINPUTHEADER>(buffer);
+                if (header.dwType != RIM_TYPEMOUSE) return;
 
-                if (header.dwType != RIM_TYPEMOUSE)
-                    return (0, 0);
-
-                // 4) Compute pointer to mouse data
                 IntPtr mousePtr = IntPtr.Add(buffer, (int)headerSize);
 
-                // 5) SAFELY read only lLastX and lLastY
-                // RAWMOUSE layout:
-                // offset 0:  usFlags (2 bytes)
-                // offset 2:  padding (2 bytes)
-                // offset 4:  ulButtons (4 bytes)
-                // offset 8:  usButtonFlags (2 bytes)
-                // offset 10: usButtonData (2 bytes)
-                // offset 12: lLastX (4 bytes)
-                // offset 16: lLastY (4 bytes)
+                int dx = Marshal.ReadInt32(mousePtr, 12);
+                int dy = Marshal.ReadInt32(mousePtr, 16);
 
-                int lLastX = Marshal.ReadInt32(mousePtr, 12);
-                int lLastY = Marshal.ReadInt32(mousePtr, 16);
-
-                MouseMoved?.Invoke(lLastX, lLastY);
-                return (lLastX, lLastY);
+                if (dx != 0 || dy != 0)
+                    MouseMoved?.Invoke(dx, dy);
             }
             finally
             {

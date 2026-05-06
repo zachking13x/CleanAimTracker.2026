@@ -29,11 +29,11 @@ namespace CleanAimTracker
             s.FirstLaunchComplete = true;
             SettingsService.Save(s);
 
-            // ⭐ OPEN MAIN WINDOW ⭐
-            new MainWindow().Show();
+            // ⭐ Correct: Only open ONE MainWindow
+            var main = new MainWindow();
+            main.Show();
 
             Close();
         }
-
     }
 }

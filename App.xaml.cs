@@ -16,7 +16,6 @@ namespace CleanAimTracker
 
             ThemeService.ApplyTheme(settings.ThemeMode ?? "Dark");
 
-
             if (!settings.FirstLaunchComplete)
             {
                 var onboarding = new FirstLaunchWindow();

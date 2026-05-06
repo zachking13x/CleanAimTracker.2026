@@ -13,13 +13,11 @@ namespace CleanAimTracker.Windows
 
         private void Upgrade_Click(object sender, RoutedEventArgs e)
         {
-            // Open Microsoft Store page
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = TrialService.GetStoreLink(),
-                UseShellExecute = true
-            });
+            var win = new UpgradeWindow();
+            win.Owner = this;
+            win.ShowDialog();
         }
+
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {

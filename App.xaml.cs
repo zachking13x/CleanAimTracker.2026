@@ -11,6 +11,7 @@ namespace CleanAimTracker
             base.OnStartup(e);
 
             TrialService.Initialize();
+            _ = LicenseService.InitializeAsync(); // background — does not block startup
 
             var settings = SettingsService.Load();
 

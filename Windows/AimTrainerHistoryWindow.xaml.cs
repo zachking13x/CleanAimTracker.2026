@@ -20,6 +20,9 @@ namespace CleanAimTracker.Windows
             _results = AimTrainerStorage.LoadAll();
             _results.Reverse(); // newest first
             HistoryList.ItemsSource = _results;
+            SubtitleText.Text = _results.Count == 0
+                ? "No sessions recorded yet"
+                : $"{_results.Count} session{(_results.Count == 1 ? "" : "s")} recorded";
         }
 
         private void ViewDetails_Click(object sender, RoutedEventArgs e)

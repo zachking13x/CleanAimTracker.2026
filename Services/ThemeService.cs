@@ -24,14 +24,24 @@ namespace CleanAimTracker.Services
         /// Apply a theme mode: "dark" or "system".
         /// System mode reads the Windows personalization registry key.
         /// </summary>
+        public static void Apply(string mode) => ApplyTheme(mode);
+
         public static void ApplyTheme(string mode)
         {
             bool useDark;
 
-            if (mode == "system")
-                useDark = !IsWindowsLightTheme();
-            else
-                useDark = true; // default to dark
+            switch (mode?.ToLower())
+            {
+                case "light":
+                    useDark = false;
+                    break;
+                case "system":
+                    useDark = !IsWindowsLightTheme();
+                    break;
+                default: // "dark" and anything else
+                    useDark = true;
+                    break;
+            }
 
             string themePath = useDark ? DarkThemePath : LightThemePath;
 

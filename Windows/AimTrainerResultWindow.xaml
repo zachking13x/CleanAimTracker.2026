@@ -1,104 +1,309 @@
-﻿<Window x:Class="CleanAimTracker.Windows.AimTrainerResultWindow"
+<Window x:Class="CleanAimTracker.Windows.AimTrainerResultWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Aim Trainer Results"
+        Title="Drill Results"
         WindowStyle="None"
         ResizeMode="NoResize"
-        Background="{DynamicResource CardBackground}"
-        Width="420" Height="520"
-        AllowsTransparency="True">
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="680" Height="720"
+        WindowStartupLocation="CenterOwner">
 
-    <Border Background="{DynamicResource CardBackground}"
-            CornerRadius="12"
-            BorderBrush="{DynamicResource AccentBrush}"
-            BorderThickness="1"
-            Padding="20">
+    <Border Background="{DynamicResource AppBackground}"
+            CornerRadius="14"
+            BorderBrush="#22FFFFFF"
+            BorderThickness="1">
 
-        <StackPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <!-- Header -->
-            <TextBlock Text="RESULTS"
-                       FontSize="20"
-                       FontWeight="Bold"
-                       Foreground="{DynamicResource PrimaryText}"
-                       HorizontalAlignment="Center"
-                       Margin="0 0 0 20"/>
+            <!-- ═══ HEADER ═══ -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource CardBackground}"
+                    CornerRadius="14 14 0 0"
+                    Padding="24 18">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock x:Name="HeadlineText"
+                                   Text="Drill Complete"
+                                   FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
+                            <Border x:Name="RatingBadge"
+                                    Background="#1A00D4FF"
+                                    CornerRadius="4"
+                                    Padding="8 3"
+                                    Margin="0 0 10 0">
+                                <TextBlock x:Name="RatingText"
+                                           Text="--"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           FontSize="12" FontWeight="Bold"/>
+                            </Border>
+                            <TextBlock x:Name="ScenarioBadgeText"
+                                       Foreground="{DynamicResource MutedText}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
 
-            <!-- Scenario -->
-            <TextBlock Text="{Binding Scenario}"
-                       FontSize="14"
-                       FontWeight="SemiBold"
-                       Foreground="{DynamicResource AccentBrush}"
-                       HorizontalAlignment="Center"/>
+                    <!-- Score -->
+                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="SCORE"
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="10" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="ScoreText"
+                                   Text="0"
+                                   FontSize="36" FontWeight="Black"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
-            <!-- Difficulty -->
-            <TextBlock Text="{Binding Difficulty}"
-                       FontSize="12"
-                       Foreground="{DynamicResource MutedText}"
-                       HorizontalAlignment="Center"
-                       Margin="0 0 0 20"/>
+            <!-- ═══ BODY ═══ -->
+            <ScrollViewer Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Padding="24 16">
+                <StackPanel>
 
-            <!-- Stats Grid -->
-            <Grid Margin="0 10 0 20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                    <!-- STATS ROW -->
+                    <Grid Margin="0 0 0 20">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                <!-- Hits -->
-                <StackPanel Grid.Column="0" Margin="0 0 10 0">
-                    <TextBlock Text="Hits" Foreground="{DynamicResource MutedText}" />
-                    <TextBlock Text="{Binding Hits}" FontSize="18" FontWeight="Bold"
-                               Foreground="{DynamicResource PrimaryText}" />
+                        <Border Grid.Column="0" Background="{DynamicResource CardBackground}"
+                                CornerRadius="8" Padding="12 10" Margin="0 0 8 0">
+                            <StackPanel>
+                                <TextBlock Text="ACCURACY" Foreground="{DynamicResource MutedText}"
+                                           FontSize="9" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="AccuracyText" Text="--"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryText}"
+                                           Margin="0 4 0 0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="{DynamicResource CardBackground}"
+                                CornerRadius="8" Padding="12 10" Margin="0 0 8 0">
+                            <StackPanel>
+                                <TextBlock Text="AVG REACTION" Foreground="{DynamicResource MutedText}"
+                                           FontSize="9" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="AvgReactionText" Text="--"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryText}"
+                                           Margin="0 4 0 0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
+                                CornerRadius="8" Padding="12 10" Margin="0 0 8 0">
+                            <StackPanel>
+                                <TextBlock Text="BEST REACTION" Foreground="{DynamicResource MutedText}"
+                                           FontSize="9" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="BestReactionText" Text="--"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="LightGreen"
+                                           Margin="0 4 0 0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="3" Background="{DynamicResource CardBackground}"
+                                CornerRadius="8" Padding="12 10">
+                            <StackPanel>
+                                <TextBlock Text="BEST STREAK" Foreground="{DynamicResource MutedText}"
+                                           FontSize="9" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="StreakText" Text="--"
+                                           FontSize="22" FontWeight="Bold"
+                                           Foreground="Gold"
+                                           Margin="0 4 0 0"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Hits / Misses bar -->
+                    <Border Background="{DynamicResource CardBackground}"
+                            CornerRadius="8" Padding="16 12" Margin="0 0 0 20">
+                        <StackPanel>
+                            <Grid Margin="0 0 0 8">
+                                <TextBlock Text="HITS vs MISSES"
+                                           Foreground="{DynamicResource MutedText}"
+                                           FontSize="10" FontWeight="SemiBold"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <TextBlock x:Name="HitsText" Foreground="LightGreen"
+                                               FontSize="13" FontWeight="Bold"/>
+                                    <TextBlock Text=" hits  " Foreground="{DynamicResource MutedText}" FontSize="12"/>
+                                    <TextBlock x:Name="MissesText" Foreground="OrangeRed"
+                                               FontSize="13" FontWeight="Bold"/>
+                                    <TextBlock Text=" misses" Foreground="{DynamicResource MutedText}" FontSize="12"/>
+                                </StackPanel>
+                            </Grid>
+                            <Border Background="#1AFFFFFF" CornerRadius="4" Height="8">
+                                <Border x:Name="AccuracyBar"
+                                        Background="{DynamicResource AccentBrush}"
+                                        CornerRadius="4" Height="8"
+                                        HorizontalAlignment="Left"
+                                        Width="0"/>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ═══ AI COACHING SECTION ═══ -->
+                    <Border x:Name="CoachingPanel"
+                            Background="{DynamicResource CardBackground}"
+                            CornerRadius="10"
+                            BorderBrush="#1A00D4FF"
+                            BorderThickness="1"
+                            Padding="20"
+                            Margin="0 0 0 16">
+                        <StackPanel>
+
+                            <!-- Loading state -->
+                            <StackPanel x:Name="CoachingLoading" Visibility="Visible">
+                                <StackPanel Orientation="Horizontal" Margin="0 0 0 8">
+                                    <TextBlock Text="🤖  " FontSize="16"/>
+                                    <TextBlock Text="AI COACH" FontSize="11" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="Analyzing your drill..."
+                                           Foreground="{DynamicResource MutedText}"
+                                           FontSize="13" FontStyle="Italic"/>
+                            </StackPanel>
+
+                            <!-- Loaded state -->
+                            <StackPanel x:Name="CoachingContent" Visibility="Collapsed">
+
+                                <StackPanel Orientation="Horizontal" Margin="0 0 0 14">
+                                    <TextBlock Text="🤖  " FontSize="16"/>
+                                    <TextBlock Text="AI COACH" FontSize="11" FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- Strengths -->
+                                <TextBlock Text="✅  STRENGTHS"
+                                           Foreground="LightGreen"
+                                           FontSize="11" FontWeight="Bold"
+                                           Margin="0 0 0 6"/>
+                                <ItemsControl x:Name="StrengthsList" Margin="0 0 0 14">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       Foreground="{DynamicResource PrimaryText}"
+                                                       FontSize="13" TextWrapping="Wrap"
+                                                       Margin="0 0 0 6"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Weaknesses -->
+                                <TextBlock Text="⚠️  AREAS TO IMPROVE"
+                                           Foreground="#FFAA44"
+                                           FontSize="11" FontWeight="Bold"
+                                           Margin="0 0 0 6"/>
+                                <ItemsControl x:Name="WeaknessesList" Margin="0 0 0 14">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       Foreground="{DynamicResource PrimaryText}"
+                                                       FontSize="13" TextWrapping="Wrap"
+                                                       Margin="0 0 0 6"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Advice -->
+                                <TextBlock Text="💡  COACHING TIPS"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           FontSize="11" FontWeight="Bold"
+                                           Margin="0 0 0 6"/>
+                                <ItemsControl x:Name="AdviceList" Margin="0 0 0 14">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="#0A00D4FF" CornerRadius="6"
+                                                    Padding="10 8" Margin="0 0 0 6">
+                                                <TextBlock Text="{Binding}"
+                                                           Foreground="{DynamicResource PrimaryText}"
+                                                           FontSize="13" TextWrapping="Wrap"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- Next drill -->
+                                <Border Background="#0A4CAF50" CornerRadius="6" Padding="12 10" Margin="0 0 0 12">
+                                    <StackPanel>
+                                        <TextBlock Text="NEXT DRILL SUGGESTION"
+                                                   Foreground="LightGreen"
+                                                   FontSize="10" FontWeight="Bold"
+                                                   Margin="0 0 0 4"/>
+                                        <TextBlock x:Name="NextDrillText"
+                                                   Foreground="{DynamicResource PrimaryText}"
+                                                   FontSize="13" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Motivational close -->
+                                <TextBlock x:Name="MotivationalText"
+                                           Foreground="{DynamicResource MutedText}"
+                                           FontSize="12" FontStyle="Italic"
+                                           TextWrapping="Wrap"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"/>
+                            </StackPanel>
+
+                            <!-- Error state -->
+                            <TextBlock x:Name="CoachingError"
+                                       Visibility="Collapsed"
+                                       Foreground="{DynamicResource MutedText}"
+                                       FontSize="12" TextWrapping="Wrap"
+                                       Text="AI coaching unavailable. Check your settings if the problem persists."/>
+                        </StackPanel>
+                    </Border>
+
                 </StackPanel>
+            </ScrollViewer>
 
-                <!-- Misses -->
-                <StackPanel Grid.Column="1" Margin="10 0 0 0">
-                    <TextBlock Text="Misses" Foreground="{DynamicResource MutedText}" />
-                    <TextBlock Text="{Binding Misses}" FontSize="18" FontWeight="Bold"
-                               Foreground="{DynamicResource PrimaryText}" />
-                </StackPanel>
-            </Grid>
+            <!-- ═══ FOOTER BUTTONS ═══ -->
+            <Border Grid.Row="2"
+                    Background="{DynamicResource CardBackground}"
+                    CornerRadius="0 0 14 14"
+                    Padding="24 16">
+                <Grid>
+                    <Button Content="▶  Play Again"
+                            Click="PlayAgain_Click"
+                            Width="140" Height="38"
+                            HorizontalAlignment="Left"
+                            Background="{DynamicResource AccentBrush}"
+                            Foreground="Black"
+                            FontWeight="Bold"
+                            FontSize="13"
+                            BorderThickness="0"
+                            Cursor="Hand"/>
 
-            <!-- Accuracy -->
-            <StackPanel Margin="0 0 0 20">
-                <TextBlock Text="Accuracy" Foreground="{DynamicResource MutedText}" />
-                <TextBlock Text="{Binding Accuracy, StringFormat={}{0:F1}%}"
-                           FontSize="18" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryText}" />
-            </StackPanel>
+                    <Button Content="Close"
+                            Click="Close_Click"
+                            Width="100" Height="38"
+                            HorizontalAlignment="Right"
+                            Background="Transparent"
+                            Foreground="{DynamicResource MutedText}"
+                            FontSize="13"
+                            BorderThickness="1"
+                            BorderBrush="#333"
+                            Cursor="Hand"/>
+                </Grid>
+            </Border>
 
-            <!-- Reaction Times -->
-            <StackPanel Margin="0 0 0 20">
-                <TextBlock Text="Avg Reaction" Foreground="{DynamicResource MutedText}" />
-                <TextBlock Text="{Binding AvgReactionMs, StringFormat={}{0:F0} ms}"
-                           FontSize="18" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryText}" />
-            </StackPanel>
-
-            <StackPanel Margin="0 0 0 20">
-                <TextBlock Text="Best Reaction" Foreground="{DynamicResource MutedText}" />
-                <TextBlock Text="{Binding BestReactionMs, StringFormat={}{0:F0} ms}"
-                           FontSize="18" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryText}" />
-            </StackPanel>
-
-            <!-- Score -->
-            <StackPanel Margin="0 0 0 30">
-                <TextBlock Text="Score" Foreground="{DynamicResource MutedText}" />
-                <TextBlock Text="{Binding Score, StringFormat={}{0:N0}}"
-                           FontSize="26" FontWeight="Bold"
-                           Foreground="{DynamicResource AccentBrush}" />
-            </StackPanel>
-
-            <!-- Close Button -->
-            <Button Content="Close"
-                    Width="120"
-                    HorizontalAlignment="Center"
-                    Padding="8 4"
-                    Style="{StaticResource GlowButton}"
-                    Click="Close_Click"/>
-
-        </StackPanel>
+        </Grid>
     </Border>
 </Window>

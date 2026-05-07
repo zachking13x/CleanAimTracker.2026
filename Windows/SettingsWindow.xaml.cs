@@ -1,8 +1,5 @@
-﻿using CleanAimTracker.Services;
+using CleanAimTracker.Services;
 using System.Windows;
-using System.Windows.Controls;
-using CleanAimTracker.Models;
-
 
 namespace CleanAimTracker.Windows
 {
@@ -17,39 +14,33 @@ namespace CleanAimTracker.Windows
         private void LoadSettings()
         {
             var s = SettingsService.Load();
+            DpiInput.Text          = s.DPI.ToString();
+            SensitivityInput.Text  = s.Sensitivity.ToString("F4");
+            ThemeSelector.SelectedIndex = s.ThemeMode == "Light" ? 1 : 0;
 
-            DpiInput.Text = s.DPI.ToString();
-            SensitivityInput.Text = s.Sensitivity.ToString("F4");
-
-            ThemeSelector.SelectedIndex = s.Theme == "Light" ? 1 : 0;
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!int.TryParse(DpiInput.Text, out int dpi))
-            {
-                MessageBox.Show("Invalid DPI value.");
-                return;
-            }
+            var s = SettingsService.Load();
 
-            if (!double.TryParse(SensitivityInput.Text, out double sens))
-            {
-                MessageBox.Show("Invalid sensitivity value.");
-                return;
-            }
+            if (double.TryParse(DpiInput.Text, out double dpi) && dpi > 0)
+                s.DPI = (int)dpi;
 
-            string theme = ((ComboBoxItem)ThemeSelector.SelectedItem).Content.ToString();
+            if (double.TryParse(SensitivityInput.Text, out double sens) && sens > 0)
+                s.Sensitivity = sens;
 
-            SettingsService.Save(new UserSettings
+            s.ThemeMode = ThemeSelector.SelectedIndex == 1 ? "Light" : "Dark";
 
-            {
-                DPI = dpi,
-                Sensitivity = sens,
-                Theme = theme
-            });
+            SettingsService.Save(s);
+            ThemeService.ApplyTheme(s.ThemeMode);
 
-            MessageBox.Show("Settings saved!", "Success");
+            MessageBox.Show("Settings saved.", "Saved",
+                MessageBoxButton.OK, MessageBoxImage.None);
             Close();
         }
+
+        private void Cancel_Click(object sender, RoutedEventArgs e)
+            => Close();
     }
 }

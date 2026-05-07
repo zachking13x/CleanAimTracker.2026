@@ -12,7 +12,7 @@
 
         // First launch system
         public bool FirstLaunchComplete { get; set; } = false;
-        public DateTime FirstLaunchDate { get; set; } = DateTime.UtcNow;
+        public DateTime FirstLaunchDate { get; set; } = DateTime.MinValue;
 
         // Profile system
         public string SelectedProfile { get; set; } = "";
@@ -23,5 +23,7 @@
         public double OverlayLeft { get; set; } = -1;
         public double OverlayTop { get; set; } = -1;
 
+        // AI Coach (optional — enables personalized coaching in result window)
+        public string AnthropicApiKey { get; set; } = "";
     }
 }

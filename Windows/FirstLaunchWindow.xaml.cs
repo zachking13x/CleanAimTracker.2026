@@ -29,10 +29,7 @@ namespace CleanAimTracker
             s.FirstLaunchComplete = true;
             SettingsService.Save(s);
 
-            // ⭐ Correct: Only open ONE MainWindow
-            var main = new MainWindow();
-            main.Show();
-
+            // App.xaml.cs opens MainWindow after ShowDialog() returns — do NOT open it here
             Close();
         }
     }

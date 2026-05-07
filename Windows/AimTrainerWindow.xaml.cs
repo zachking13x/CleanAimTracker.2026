@@ -151,6 +151,8 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         // START / STOP
         // ─────────────────────────────────────────────────────────────
+        public void StartNewDrill() => StartStop_Click(this, new RoutedEventArgs());
+
         private void StartStop_Click(object sender, RoutedEventArgs e)
         {
             if (_isRunning)

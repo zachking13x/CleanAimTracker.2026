@@ -1,4 +1,3 @@
-using CleanAimTracker.Services;
 using System;
 using System.Threading.Tasks;
 using Windows.Services.Store;
@@ -10,14 +9,20 @@ namespace CleanAimTracker.Services
         private static StoreContext? _context;
         private static bool _initialized;
 
-        public const string PRODUCT_PRO          = "pro_monthly";
-        public const string PRODUCT_PRO_TRAINER  = "pro_trainer_monthly";
-        public const string PRODUCT_LIFETIME     = "lifetime_pro";
+        // ── Store IDs (Microsoft-assigned — used for RequestPurchaseAsync) ──
+        public const string STOREID_LIFETIME    = "9P9B8QZZTVX1";   // lifetime_unlock — LIVE
+        public const string STOREID_PRO         = "9NKB13MNDKF1";   // pro_monthly — LIVE
+        public const string STOREID_PRO_TRAINER = "9N1J6FR6BX1N";   // pro_trainer_monthly — LIVE
+
+        // ── InAppOfferTokens (developer-defined — used for license checks) ──
+        private const string TOKEN_LIFETIME     = "lifetime_unlock";
+        private const string TOKEN_PRO          = "pro_monthly";
+        private const string TOKEN_PRO_TRAINER  = "pro_trainer_monthly";
 
         public static bool HasPro      { get; private set; }
         public static bool HasTrainer  { get; private set; }
         public static bool HasLifetime { get; private set; }
-        public static bool IsFree => !HasPro && !HasTrainer && !HasLifetime;
+        public static bool IsFree      => !HasPro && !HasTrainer && !HasLifetime;
 
         public static async Task InitializeAsync()
         {
@@ -47,25 +52,32 @@ namespace CleanAimTracker.Services
             {
                 var appLicense = await _context.GetAppLicenseAsync();
 
-                var productsResult = await _context.GetAssociatedStoreProductsAsync(
-                    new[] { "Durable", "Subscription" });
-
-                if (productsResult.Products == null) return;
-
-                foreach (var kv in productsResult.Products)
+                // ── Durable (lifetime) — check directly by Store ID ──────────
+                if (appLicense.AddOnLicenses.TryGetValue(STOREID_LIFETIME, out var lifetimeLic)
+                    && lifetimeLic.IsActive)
                 {
-                    var product = kv.Value;
-                    string token = product.InAppOfferToken ?? "";
+                    HasLifetime = true;
+                }
 
-                    // Check if this product has an active license
-                    bool isActive = appLicense.AddOnLicenses.TryGetValue(product.StoreId, out var lic)
-                        && lic.IsActive;
+                // ── Subscriptions — match by InAppOfferToken ─────────────────
+                var subsResult = await _context.GetAssociatedStoreProductsAsync(
+                    new[] { "Subscription" });
 
-                    if (!isActive) continue;
+                if (subsResult.Products != null)
+                {
+                    foreach (var kv in subsResult.Products)
+                    {
+                        var product = kv.Value;
+                        string token = product.InAppOfferToken ?? "";
 
-                    if (token == PRODUCT_LIFETIME) HasLifetime = true;
-                    if (token == PRODUCT_PRO)         HasPro = true;
-                    if (token == PRODUCT_PRO_TRAINER) { HasPro = true; HasTrainer = true; }
+                        bool isActive = appLicense.AddOnLicenses.TryGetValue(
+                            product.StoreId, out var subLic) && subLic.IsActive;
+
+                        if (!isActive) continue;
+
+                        if (token == TOKEN_PRO)         HasPro = true;
+                        if (token == TOKEN_PRO_TRAINER) { HasPro = true; HasTrainer = true; }
+                    }
                 }
             }
             catch (Exception ex)
@@ -74,7 +86,8 @@ namespace CleanAimTracker.Services
             }
         }
 
-        public static async Task<bool> PurchaseAsync(string productId)
+        /// <summary>Purchase an add-on by its Store ID (not InAppOfferToken).</summary>
+        public static async Task<bool> PurchaseAsync(string storeId)
         {
             if (_context == null)
             {
@@ -84,7 +97,7 @@ namespace CleanAimTracker.Services
 
             try
             {
-                StorePurchaseResult result = await _context.RequestPurchaseAsync(productId);
+                StorePurchaseResult result = await _context.RequestPurchaseAsync(storeId);
 
                 if (result.Status == StorePurchaseStatus.Succeeded)
                 {

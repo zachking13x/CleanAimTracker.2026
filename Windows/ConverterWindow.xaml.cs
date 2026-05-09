@@ -12,12 +12,17 @@ namespace CleanAimTracker.Windows
         public ConverterWindow()
         {
             InitializeComponent();
-        }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
             SourceGameCombo.ItemsSource = GameSensitivityTranslators.GetSupportedGames();
             TargetGameCombo.ItemsSource = GameSensitivityTranslators.GetSupportedGames();
+
+            // Pre-fill with saved DPI/sens so converter is ready immediately
+            var settings = SettingsService.Load();
+            DpiInput.Text  = settings.DPI.ToString();
+            SensInput.Text = settings.Sensitivity.ToString("F4");
+
+            SourceGameCombo.SelectedIndex = 0;
+            TargetGameCombo.SelectedIndex = 1;
         }
 
         private void OnInputChanged(object sender, EventArgs e)

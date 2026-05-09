@@ -76,6 +76,14 @@ namespace CleanAimTracker.Windows
 
         public event Action? StatsUpdated;
 
+        // Live stat properties for the overlay to read
+        public bool IsTracking          => _isTracking;
+        public double LiveQuality       => _overallQualityScore;
+        public double LiveVelocity      => _currentVelocity;
+        public int    LiveFlicks        => _flickCount;
+        public double LiveSmoothness    => _smoothnessScore;
+        public TimeSpan SessionElapsed  => _isTracking ? DateTime.Now - _sessionStart : TimeSpan.Zero;
+
         // ─────────────────────────────────────────────────────────────
         // CONSTRUCTOR — FIXED WITH SourceInitialized
         // ─────────────────────────────────────────────────────────────

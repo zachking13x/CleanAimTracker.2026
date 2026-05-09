@@ -1,72 +1,157 @@
-﻿using CleanAimTracker.Services;
+using CleanAimTracker.Services;
 using System;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace CleanAimTracker.Windows
 {
     public partial class OverlayWindow : Window
     {
+        private readonly DispatcherTimer _refreshTimer;
+        private bool _isCollapsed = false;
+
+        private static readonly SolidColorBrush GreenBrush  = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        private static readonly SolidColorBrush YellowBrush = new(Color.FromRgb(0xFF, 0xD7, 0x00));
+        private static readonly SolidColorBrush RedBrush    = new(Color.FromRgb(0xEF, 0x53, 0x50));
+        private static readonly SolidColorBrush CyanBrush   = new(Color.FromRgb(0x00, 0xD4, 0xFF));
+        private static readonly SolidColorBrush DimBrush    = new(Color.FromRgb(0x44, 0x44, 0x44));
+        private static readonly SolidColorBrush MutedBrush  = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
+
         public OverlayWindow()
         {
             InitializeComponent();
-            Loaded += Overlay_Loaded;
-            LocationChanged += Overlay_LocationChanged;
+            Loaded           += Overlay_Loaded;
+            LocationChanged  += Overlay_LocationChanged;
+
+            _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _refreshTimer.Tick += RefreshStats;
+            _refreshTimer.Start();
         }
 
-        // Allow dragging the overlay
+        // ── STATS REFRESH ──────────────────────────────────────────────
+        private void RefreshStats(object? sender, EventArgs e)
+        {
+            if (Application.Current.MainWindow is not MainWindow main) return;
+
+            bool tracking = main.IsTracking;
+
+            // Status indicator
+            StatusDot.Fill = tracking ? RedBrush : DimBrush;
+            StatusLabel.Foreground = tracking
+                ? new SolidColorBrush(Color.FromRgb(0xEF, 0x53, 0x50))
+                : new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
+            StatusLabel.Text = tracking ? "LIVE" : "READY";
+
+            // Timer
+            var elapsed = main.SessionElapsed;
+            TimerText.Text = tracking
+                ? $"{elapsed:mm\\:ss}"
+                : "00:00";
+            TimerText.Foreground = tracking ? MutedBrush : DimBrush;
+
+            if (_isCollapsed) return;
+
+            if (!tracking)
+            {
+                QualityText.Text      = "—";
+                QualityText.Foreground = DimBrush;
+                VelocityText.Text     = "—";
+                FlicksText.Text       = "—";
+                SmoothnessText.Text   = "—";
+                return;
+            }
+
+            // Quality score — color coded
+            double q = main.LiveQuality;
+            QualityText.Text = $"{q:F0}";
+            QualityText.Foreground = q >= 80 ? GreenBrush
+                                   : q >= 60 ? YellowBrush
+                                   :           RedBrush;
+
+            // Mini stats
+            double vel = main.LiveVelocity;
+            VelocityText.Text      = $"{vel:F0}";
+            VelocityText.Foreground = vel > 150 ? CyanBrush : MutedBrush;
+
+            FlicksText.Text        = main.LiveFlicks.ToString();
+            FlicksText.Foreground  = MutedBrush;
+
+            double sm = main.LiveSmoothness;
+            SmoothnessText.Text      = $"{sm:F0}";
+            SmoothnessText.Foreground = sm >= 80 ? GreenBrush
+                                       : sm >= 60 ? YellowBrush
+                                       :            RedBrush;
+        }
+
+        // ── OPACITY FADE ───────────────────────────────────────────────
+        private void Border_MouseEnter(object sender, MouseEventArgs e)
+            => OuterBorder.Opacity = 0.97;
+
+        private void Border_MouseLeave(object sender, MouseEventArgs e)
+            => OuterBorder.Opacity = 0.82;
+
+        // ── COLLAPSE TOGGLE ────────────────────────────────────────────
+        private void Collapse_Click(object sender, RoutedEventArgs e)
+        {
+            _isCollapsed = !_isCollapsed;
+            StatsSection.Visibility = _isCollapsed ? Visibility.Collapsed : Visibility.Visible;
+            CollapseBtn.Content     = _isCollapsed ? "▼" : "▲";
+        }
+
+        // ── DRAG ───────────────────────────────────────────────────────
         private void OverlayDrag(object sender, MouseButtonEventArgs e)
         {
             if (e.LeftButton == MouseButtonState.Pressed)
                 DragMove();
         }
 
-        // Restore saved position when overlay loads
+        // ── POSITION SAVE / RESTORE ────────────────────────────────────
         private void Overlay_Loaded(object sender, RoutedEventArgs e)
         {
             var s = SettingsService.Load();
-
             if (s.OverlayLeft >= 0 && s.OverlayTop >= 0)
             {
                 Left = s.OverlayLeft;
-                Top = s.OverlayTop;
+                Top  = s.OverlayTop;
             }
         }
 
-        // Save overlay position when moved
         private void Overlay_LocationChanged(object sender, EventArgs e)
         {
             var s = SettingsService.Load();
             s.OverlayLeft = Left;
-            s.OverlayTop = Top;
+            s.OverlayTop  = Top;
             SettingsService.Save(s);
         }
 
-        // Start button → call MainWindow's Start logic
+        // ── CONTROLS ───────────────────────────────────────────────────
         private void Start_Click(object sender, RoutedEventArgs e)
         {
             if (Application.Current.MainWindow is MainWindow main)
                 main.StartButton_Click(sender, e);
         }
 
-        // Stop button → call MainWindow's Stop logic
         private void Stop_Click(object sender, RoutedEventArgs e)
         {
             if (Application.Current.MainWindow is MainWindow main)
                 main.StopButton_Click(sender, e);
         }
 
-        // Recommend button → call MainWindow's Recommend logic
         private void Recommend_Click(object sender, RoutedEventArgs e)
         {
             if (Application.Current.MainWindow is MainWindow main)
                 main.OpenRecommendation_Click(sender, e);
         }
 
-        // Close button on the overlay itself
         private void Close_Click(object sender, RoutedEventArgs e)
+            => Close();
+
+        protected override void OnClosed(EventArgs e)
         {
-            Close();
+            _refreshTimer.Stop();
+            base.OnClosed(e);
         }
     }
 }

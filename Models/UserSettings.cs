@@ -25,5 +25,11 @@
 
         // AI Coach (optional — enables personalized coaching in result window)
         public string AnthropicApiKey { get; set; } = "";
+
+        // Goal + Streak tracking
+        public int DailyGoalQuality { get; set; } = 70;
+        public int CurrentStreak { get; set; } = 0;
+        public int BestStreakDays { get; set; } = 0;
+        public DateTime LastSessionDate { get; set; } = DateTime.MinValue;
     }
 }

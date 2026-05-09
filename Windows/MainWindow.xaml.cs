@@ -119,6 +119,8 @@ namespace CleanAimTracker.Windows
 
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
+
+            LoadTodayStats();
         }
 
         // TRIAL BANNER
@@ -306,6 +308,7 @@ namespace CleanAimTracker.Windows
 
             _rawInput.Start();
             _timer.Start();
+            RecordingPanel.Visibility = Visibility.Visible;
 
             LogService.Info($"Tracking started — DPI:{_dpi} Sens:{_sensitivity} Profile:{_selectedProfile?.Name}");
         }
@@ -315,6 +318,7 @@ namespace CleanAimTracker.Windows
             _isTracking = false;
             _timer.Stop();
             _rawInput.Stop();
+            RecordingPanel.Visibility = Visibility.Collapsed;
             LogService.Info("Tracking stopped");
         }
 
@@ -322,6 +326,7 @@ namespace CleanAimTracker.Windows
         {
             _isTracking = false;
             _timer.Stop();
+            RecordingPanel.Visibility = Visibility.Collapsed;
 
             _totalDistance = 0; TotalDistanceText.Text = "0";
             DxDyText.Text = "dX: 0  dY: 0";
@@ -366,6 +371,11 @@ namespace CleanAimTracker.Windows
             if (_overlay == null)
             {
                 _overlay = new OverlayWindow();
+                _overlay.Closed += (s, args) =>
+                {
+                    _overlay = null;
+                    ToggleOverlayButton.Content = "Show Overlay";
+                };
                 _overlay.Show();
                 ToggleOverlayButton.Content = "Hide Overlay";
             }
@@ -408,15 +418,62 @@ namespace CleanAimTracker.Windows
         private void OpenExport_Click(object sender, RoutedEventArgs e)
         {
             if (!TrialService.RequestProAccess("Export")) return;
-            var summary = BuildSessionSummary();
-            ExportService.ExportSummary(summary);
-            MessageBox.Show("Session exported successfully.", "Export");
+
+            var sessions = SessionStorage.LoadAll();
+            if (sessions.Count == 0)
+            {
+                MessageBox.Show("No sessions to export yet. Complete a session first.", "Nothing to Export",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                Title = "Export Session History",
+                Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json",
+                FileName = $"CleanAimTracker_{DateTime.Now:yyyyMMdd}"
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            try
+            {
+                if (dialog.FilterIndex == 1)
+                    ExportService.ExportAllToCsv(sessions, dialog.FileName);
+                else
+                    System.IO.File.WriteAllText(dialog.FileName,
+                        System.Text.Json.JsonSerializer.Serialize(sessions,
+                            new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+
+                MessageBox.Show($"Exported {sessions.Count} sessions successfully!", "Export Complete",
+                    MessageBoxButton.OK, MessageBoxImage.None);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Export failed: {ex.Message}", "Export Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private void OpenConverter_Click(object sender, RoutedEventArgs e)
         {
             if (!TrialService.RequestProAccess("Sensitivity Converter")) return;
-            new ConverterWindow();
+            new ConverterWindow { Owner = this }.Show();
+        }
+
+        private void OpenWeeklyReport_Click(object sender, RoutedEventArgs e)
+            => new WeeklyReportWindow { Owner = this }.Show();
+
+        private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = SettingsService.Load();
+            bool isDark = (settings.ThemeMode ?? "Dark") == "Dark";
+            string newMode = isDark ? "Light" : "Dark";
+            settings.ThemeMode = newMode;
+            settings.Theme = newMode;
+            SettingsService.Save(settings);
+            ThemeService.ApplyTheme(newMode);
+            ThemeToggleBtn.Content = newMode == "Dark" ? "🌙  Dark Mode" : "☀️  Light Mode";
         }
 
         private void OpenSessionHistory_Click(object sender, RoutedEventArgs e)
@@ -521,6 +578,43 @@ namespace CleanAimTracker.Windows
                     : 0,
                 TotalSamples = _movementEvents
             };
+        }
+
+        private void LoadTodayStats()
+        {
+            try
+            {
+                var all = SessionStorage.LoadAll();
+                var today = all.Where(s => s.Timestamp.Date == DateTime.Today).ToList();
+                TodaySessionsText.Text = today.Count.ToString();
+
+                // Streak: count consecutive days going backwards from today
+                int streak = 0;
+                var day = DateTime.Today;
+                while (true)
+                {
+                    bool hasSession = all.Any(s => s.Timestamp.Date == day);
+                    if (!hasSession) break;
+                    streak++;
+                    day = day.AddDays(-1);
+                }
+                StreakText.Text = streak.ToString();
+
+                // Best quality today
+                if (today.Count > 0)
+                    BestQualityTodayText.Text = $"{today.Max(s => s.OverallQualityScore):F0}";
+                else
+                    BestQualityTodayText.Text = "—";
+
+                // Weekly average
+                var weekAgo = DateTime.Today.AddDays(-7);
+                var weekSessions = all.Where(s => s.Timestamp.Date >= weekAgo).ToList();
+                if (weekSessions.Count > 0)
+                    WeeklyAvgText.Text = $"{weekSessions.Average(s => s.OverallQualityScore):F0}";
+                else
+                    WeeklyAvgText.Text = "—";
+            }
+            catch { /* ignore if no data */ }
         }
 
         private void RefreshProfiles()

@@ -62,5 +62,11 @@ namespace CleanAimTracker.Windows
             if (Application.Current.MainWindow is MainWindow main)
                 main.OpenRecommendation_Click(sender, e);
         }
+
+        // Close button on the overlay itself
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
     }
 }

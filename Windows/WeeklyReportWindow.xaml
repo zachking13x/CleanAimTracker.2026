@@ -1,0 +1,155 @@
+<Window x:Class="CleanAimTracker.Windows.WeeklyReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Weekly Report"
+        Width="600"
+        Height="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{DynamicResource AppBackground}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <Style x:Key="SummaryCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="4"/>
+        </Style>
+        <Style x:Key="BigValueText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="FontSize" Value="28"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="SmallLabelText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource MutedText}"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <TextBlock Text="📅  Weekly Performance Report"
+                       Foreground="{DynamicResource PrimaryText}"
+                       FontSize="20" FontWeight="Bold"/>
+            <TextBlock Text="Last 7 days"
+                       Foreground="{DynamicResource MutedText}"
+                       FontSize="13" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Summary stats row -->
+        <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+
+            <Border Style="{StaticResource SummaryCardStyle}">
+                <StackPanel>
+                    <TextBlock x:Name="TotalSessionsText" Text="0" Style="{StaticResource BigValueText}"/>
+                    <TextBlock Text="TOTAL SESSIONS" Style="{StaticResource SmallLabelText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SummaryCardStyle}">
+                <StackPanel>
+                    <TextBlock x:Name="AvgQualityText" Text="—" Style="{StaticResource BigValueText}"/>
+                    <TextBlock Text="AVG QUALITY" Style="{StaticResource SmallLabelText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SummaryCardStyle}">
+                <StackPanel>
+                    <TextBlock x:Name="AvgVelocityText" Text="—" Style="{StaticResource BigValueText}"/>
+                    <TextBlock Text="AVG VELOCITY" Style="{StaticResource SmallLabelText}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource SummaryCardStyle}">
+                <StackPanel>
+                    <TextBlock x:Name="BestQualityText" Text="—" Style="{StaticResource BigValueText}"/>
+                    <TextBlock Text="BEST QUALITY" Style="{StaticResource SmallLabelText}"/>
+                </StackPanel>
+            </Border>
+
+        </UniformGrid>
+
+        <!-- Daily Breakdown header -->
+        <TextBlock Grid.Row="2"
+                   Text="DAILY BREAKDOWN"
+                   Foreground="{DynamicResource MutedText}"
+                   FontSize="11" FontWeight="SemiBold"
+                   Margin="0,0,0,8"/>
+
+        <!-- Daily Breakdown list -->
+        <Border Grid.Row="3"
+                Background="{DynamicResource CardBackground}"
+                CornerRadius="10"
+                Padding="0"
+                Margin="0,0,0,16">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="DailyList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="RowBorder" Background="Transparent" Padding="16,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="90"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding DateLabel}"
+                                               Foreground="{DynamicResource PrimaryText}" FontSize="13"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SessionCount}"
+                                               Foreground="{DynamicResource SecondaryText}" FontSize="13"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding AvgQuality}"
+                                               Foreground="{DynamicResource AccentBrush}" FontSize="13"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding BestVelocity}"
+                                               Foreground="{DynamicResource SecondaryText}" FontSize="13"
+                                               HorizontalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Export Report"
+                    Click="ExportReport_Click"
+                    Background="{DynamicResource AccentBrush}"
+                    Foreground="Black"
+                    FontWeight="Bold"
+                    BorderThickness="0"
+                    Padding="16,8"
+                    Margin="0,0,10,0"
+                    Cursor="Hand"/>
+            <Button Content="Close"
+                    Click="Close_Click"
+                    Background="{DynamicResource ButtonSecondaryBg}"
+                    Foreground="{DynamicResource PrimaryText}"
+                    BorderThickness="0"
+                    Padding="16,8"
+                    Cursor="Hand"/>
+        </StackPanel>
+
+    </Grid>
+</Window>

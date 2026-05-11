@@ -1,4 +1,7 @@
 using CleanAimTracker.Models;
+using CleanAimTracker.Services;
+using System;
+using System.Linq;
 using System.Windows;
 
 namespace CleanAimTracker.Windows
@@ -7,15 +10,20 @@ namespace CleanAimTracker.Windows
     {
         private readonly SessionSummary _s;
         private readonly SensitivityRecommendation _rec;
+        private readonly StreakService.StreakResult? _streak;
 
-        public SummaryWindow(SessionSummary s, SensitivityRecommendation rec)
+        public SummaryWindow(SessionSummary s, SensitivityRecommendation rec,
+                              StreakService.StreakResult? streak = null)
         {
             InitializeComponent();
-            _s = s;
-            _rec = rec;
+            _s      = s;
+            _rec    = rec;
+            _streak = streak;
 
             LoadRecommendedSettings();
             LoadSummary();
+            LoadComparison();
+            LoadStreakMessage();   // TASK-16
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -64,6 +72,19 @@ namespace CleanAimTracker.Windows
             // Explanation
             ExplanationText.Text = _rec.Explanation;
 
+            // If there's an active warning, ensure explanation acknowledges it
+            bool hasWarning = !string.IsNullOrEmpty(RecommendedCm360WarningText.Text);
+            if (hasWarning && (_rec.Explanation.Contains("well-balanced") || _rec.Explanation.Contains("fine-tune")))
+            {
+                ExplanationText.Text = _rec.Explanation.Replace(
+                    "Your aim profile is well‑balanced. The recommended settings fine‑tune your control without disrupting muscle memory.",
+                    "Your movement fundamentals are solid — but your cm/360 is outside the recommended range. See the warning above.");
+                // Also handle the non-breaking hyphen variant
+                ExplanationText.Text = ExplanationText.Text.Replace(
+                    "Your aim profile is well-balanced. The recommended settings fine-tune your control without disrupting muscle memory.",
+                    "Your movement fundamentals are solid — but your cm/360 is outside the recommended range. See the warning above.");
+            }
+
             // Tips
             if (_rec.Tips != null && _rec.Tips.Count > 0)
             {
@@ -108,9 +129,95 @@ namespace CleanAimTracker.Windows
             TrendText.Text = _rec.TrendSummary;
         }
 
+        private void LoadComparison()
+        {
+            try
+            {
+                var history = SessionStorage.LoadAll();
+                // Exclude current session (it was just saved before this window opened)
+                var previous = history
+                    .Where(h => h.Timestamp < _s.Timestamp)
+                    .OrderByDescending(h => h.Timestamp)
+                    .ToList();
+
+                if (previous.Count == 0)
+                {
+                    QualityCompareText.Text  = "This is your first session — this is your baseline.";
+                    VelocityCompareText.Text = "";
+                    BaselineText.Text        = "Complete more sessions to see your progress over time.";
+                    return;
+                }
+
+                // Personal best quality
+                double pbQuality   = previous.Max(h => h.OverallQualityScore);
+                double lastQuality = previous[0].OverallQualityScore;
+                double qualityDelta = _s.OverallQualityScore - lastQuality;
+
+                string qualityDeltaStr = qualityDelta >= 0
+                    ? $"+{qualityDelta:F0} vs last"
+                    : $"{qualityDelta:F0} vs last";
+
+                QualityCompareText.Text = $"Quality:  {_s.OverallQualityScore:F0}  ({qualityDeltaStr})  •  PB: {pbQuality:F0}";
+
+                // Velocity delta
+                double lastVel  = previous[0].AverageVelocity;
+                double velDelta = _s.AverageVelocity - lastVel;
+                string velDeltaStr = velDelta >= 0 ? $"+{velDelta:F1}" : $"{velDelta:F1}";
+                VelocityCompareText.Text = $"Avg Speed:  {_s.AverageVelocity:F1} cm/s  ({velDeltaStr} vs last)";
+
+                // Since first session
+                var first = previous.LastOrDefault();
+                if (first != null && previous.Count >= 3)
+                {
+                    double sinceFirst = _s.OverallQualityScore - first.OverallQualityScore;
+                    string direction  = sinceFirst >= 0 ? "up" : "down";
+                    BaselineText.Text = $"{Math.Abs(sinceFirst):F0} pts {direction} since your first session  •  {previous.Count + 1} sessions total";
+                }
+                else
+                {
+                    BaselineText.Text = $"{previous.Count + 1} sessions completed";
+                }
+            }
+            catch
+            {
+                QualityCompareText.Text  = "Could not load session history.";
+                VelocityCompareText.Text = "";
+                BaselineText.Text        = "";
+            }
+        }
+
+        // TASK-16: Show streak retention message
+        private void LoadStreakMessage()
+        {
+            if (_streak == null) return;
+
+            StreakMessageText.Text            = _streak.Message;
+            StreakMessageText.Visibility      = Visibility.Visible;
+            StreakMessageBorder.Visibility    = Visibility.Visible;
+
+            // Color: red for broken streak, gold for new best, green for active
+            if (_streak.JustBrokeStreak)
+                StreakMessageText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+            else if (_streak.JustHitNewBest)
+                StreakMessageText.Foreground = System.Windows.Media.Brushes.Gold;
+            else
+                StreakMessageText.Foreground = System.Windows.Media.Brushes.LightGreen;
+        }
+
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        // TASK-18: Start Another Session
+        private void StartAnother_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+            if (Application.Current.MainWindow is MainWindow main)
+            {
+                main.ResetButton_Click(this, new RoutedEventArgs());
+                main.StartButton_Click(this, new RoutedEventArgs());
+            }
         }
     }
 }

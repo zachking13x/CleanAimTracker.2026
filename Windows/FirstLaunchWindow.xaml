@@ -1,80 +1,134 @@
 <Window x:Class="CleanAimTracker.FirstLaunchWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Welcome to Clean Aim Tracker" Width="520" Height="520"
-        WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource AppBackground}"
+        Title="CleanAimTracker"
+        WindowState="Maximized"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="#0D0D0D"
         ResizeMode="NoResize">
 
-    <Grid Margin="28">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- Subtle radial glow behind center content -->
+        <Ellipse Width="700" Height="700"
+                 HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Ellipse.Fill>
+                <RadialGradientBrush>
+                    <GradientStop Color="#1A0029" Offset="0"/>
+                    <GradientStop Color="#00000000" Offset="1"/>
+                </RadialGradientBrush>
+            </Ellipse.Fill>
+        </Ellipse>
 
-        <!-- Welcome Header -->
-        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,20">
-            <TextBlock Text="Welcome to"
-                       FontSize="16" Foreground="{DynamicResource MutedText}"
-                       HorizontalAlignment="Center"/>
+        <!-- Center content -->
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MaxWidth="540">
+
+            <!-- Logo / icon area -->
+            <TextBlock Text="🎯"
+                       FontSize="64"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,24"/>
+
+            <!-- App name -->
             <TextBlock Text="Clean Aim Tracker"
-                       FontSize="32" FontWeight="Bold"
-                       Foreground="{DynamicResource AccentBrush}"
-                       HorizontalAlignment="Center" Margin="0,4,0,0"/>
-            <TextBlock Text="Real-time mouse analytics for FPS improvement"
-                       FontSize="13" Foreground="{DynamicResource MutedText}"
-                       HorizontalAlignment="Center" Margin="0,6,0,0"/>
-        </StackPanel>
+                       FontSize="42"
+                       FontWeight="Black"
+                       Foreground="White"
+                       HorizontalAlignment="Center"/>
 
-        <!-- Setup Form -->
-        <StackPanel Grid.Row="1">
+            <!-- Tagline -->
+            <TextBlock Text="Real-time mouse analytics for FPS players."
+                       FontSize="17"
+                       Foreground="#888888"
+                       HorizontalAlignment="Center"
+                       Margin="0,10,0,48"
+                       TextAlignment="Center"/>
 
-            <!-- Quick Intro -->
-            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-                <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" FontSize="13" LineHeight="20">
-Clean Aim Tracker captures raw mouse input to measure velocity, flicks, jitter, smoothness, and more. Set your mouse DPI and sensitivity below to get accurate cm/360 calculations.</TextBlock>
-            </Border>
-
-            <!-- DPI -->
-            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,10">
+            <!-- Instruction card -->
+            <Border Background="#1A1A1A"
+                    CornerRadius="14"
+                    Padding="32,24"
+                    Margin="0,0,0,40"
+                    BorderBrush="#2A2A2A"
+                    BorderThickness="1">
                 <StackPanel>
-                    <TextBlock Text="Your Mouse DPI" Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="DpiInput" Text="800"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputText}"
-                             BorderBrush="{DynamicResource InputBorder}"
-                             Height="32" FontSize="14" Padding="6,4"
-                             TextAlignment="Center"/>
-                    <TextBlock Text="Check your mouse software or manual. Common: 400, 800, 1600"
-                               Foreground="{DynamicResource MutedText}" FontSize="11" Margin="0,4,0,0"/>
+                    <TextBlock Text="HOW IT WORKS"
+                               Foreground="#555555"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,14"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                        <TextBlock Text="①" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
+                        <TextBlock Text="Click Hit Start below" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                        <TextBlock Text="②" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
+                        <TextBlock Text="Move your mouse naturally for 90 seconds" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="③" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
+                        <TextBlock Text="Get your personalized aim analysis" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- Sensitivity -->
-            <Border Background="{DynamicResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,10">
-                <StackPanel>
-                    <TextBlock Text="Your In-Game Sensitivity" Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,0,4"/>
-                    <TextBox x:Name="SensInput" Text="1.0"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputText}"
-                             BorderBrush="{DynamicResource InputBorder}"
-                             Height="32" FontSize="14" Padding="6,4"
-                             TextAlignment="Center"/>
-                    <TextBlock Text="The sensitivity value from your game's settings"
-                               Foreground="{DynamicResource MutedText}" FontSize="11" Margin="0,4,0,0"/>
-                </StackPanel>
-            </Border>
+            <!-- Hit Start button -->
+            <Button x:Name="HitStartBtn"
+                    Content="▶  Hit Start"
+                    Click="HitStart_Click"
+                    FontSize="20"
+                    FontWeight="Bold"
+                    Foreground="Black"
+                    Background="#7B2FFF"
+                    BorderThickness="0"
+                    Padding="0,18"
+                    Cursor="Hand"
+                    HorizontalAlignment="Stretch"
+                    Height="60">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="#7B2FFF"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd"
+                                            Background="{TemplateBinding Background}"
+                                            CornerRadius="12">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#9B4FFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <!-- Skip link -->
+            <TextBlock Text="Skip — I'll set up manually"
+                       Foreground="#444444"
+                       FontSize="12"
+                       HorizontalAlignment="Center"
+                       Margin="0,16,0,0"
+                       Cursor="Hand"
+                       MouseDown="Skip_Click"
+                       TextDecorations="Underline"/>
 
         </StackPanel>
-
-        <!-- Get Started Button -->
-        <Button Grid.Row="2" Content="Get Started" Click="GetStarted_Click"
-                Background="{DynamicResource ButtonPrimaryBg}"
-                Foreground="{DynamicResource ButtonPrimaryFg}"
-                FontWeight="Bold" FontSize="16"
-                Padding="32,10"
-                HorizontalAlignment="Center" Margin="0,10,0,0"
-                BorderThickness="0" Cursor="Hand"/>
     </Grid>
 </Window>

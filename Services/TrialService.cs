@@ -5,7 +5,8 @@ namespace CleanAimTracker.Services
 {
     public static class TrialService
     {
-        private const int TrialDays = 7;
+        // TASK-13: 30 free sessions instead of 7-day timer
+        private const int FreeSessions = 30;
 
         public static void Initialize()
         {
@@ -19,19 +20,23 @@ namespace CleanAimTracker.Services
             }
         }
 
+        // TASK-13: Active while session count ≤ 30 (or user is licensed)
         public static bool IsTrialActive()
         {
             if (IsFullVersion()) return true;
-            var settings = SettingsService.Load();
-            if (settings.FirstLaunchDate == DateTime.MinValue) return true;
-            return (DateTime.UtcNow - settings.FirstLaunchDate).TotalDays <= TrialDays;
+            return SessionsCompleted() < FreeSessions;
         }
 
-        public static int DaysRemaining()
+        // Number of sessions the user has completed
+        public static int SessionsCompleted()
         {
-            var settings = SettingsService.Load();
-            if (settings.FirstLaunchDate == DateTime.MinValue) return TrialDays;
-            int remaining = TrialDays - (int)(DateTime.UtcNow - settings.FirstLaunchDate).TotalDays;
+            try { return SessionStorage.LoadAll().Count; }
+            catch { return 0; }
+        }
+
+        public static int SessionsRemaining()
+        {
+            int remaining = FreeSessions - SessionsCompleted();
             return Math.Max(0, remaining);
         }
 
@@ -54,31 +59,51 @@ namespace CleanAimTracker.Services
         {
             if (CanAccessProFeature()) return true;
 
-            // FIXED: Show() takes 0 arguments
-            UpgradeDialog.Show();
+            UpgradeDialog.Show(featureName);
             return false;
         }
 
         public static string GetStatusText()
         {
             if (IsFullVersion()) return "Pro";
-            int days = DaysRemaining();
-            if (days <= 0) return "Trial Expired";
-            return $"Trial – {days} day{(days == 1 ? "" : "s")} left";
+            int remaining = SessionsRemaining();
+            if (remaining <= 0) return "Free limit reached";
+            return $"Free — {remaining} session{(remaining == 1 ? "" : "s")} left";
         }
 
+        // TASK-12: Only show banner after at least one session is completed
         public static string GetBannerText()
         {
             if (IsFullVersion()) return "";
-            int days = DaysRemaining();
-            if (days <= 0) return "⚠ Trial expired — Upgrade to unlock all features";
-            if (days <= 2) return $"⚠ Trial ends in {days} day{(days == 1 ? "" : "s")} — Upgrade now";
-            return $"Free Trial — {days} day{(days == 1 ? "" : "s")} remaining";
+
+            int completed = SessionsCompleted();
+            if (completed == 0) return "";      // TASK-12: suppress until first session done
+
+            int remaining = SessionsRemaining();
+            if (remaining <= 0) return "⚠ Free limit reached — Upgrade to continue";
+            if (remaining <= 5) return $"⚠ {remaining} free session{(remaining == 1 ? "" : "s")} left — Upgrade now";
+            return $"Free — {remaining} sessions remaining";
+        }
+
+        // TASK-11: Returns true if this session count is a value-moment milestone
+        public static bool IsValueMoment(int sessionCount)
+        {
+            return sessionCount == 3 || sessionCount == 10 || sessionCount == 25;
+        }
+
+        public static string GetValueMomentMessage(int sessionCount)
+        {
+            return sessionCount switch
+            {
+                3  => "You've completed 3 sessions! Pro unlocks AI coaching, full history, and export.",
+                10 => "10 sessions in — you're building real habits! Unlock Pro to track your full journey.",
+                25 => "25 sessions! You're seriously committed. Pro gives you everything: trends, AI coaching, and more.",
+                _  => ""
+            };
         }
 
         public static string GetStoreLink()
         {
-            // FIXED: Real Store Product ID
             return "ms-windows-store://pdp/?productid=9MVBDZBQ01DM";
         }
     }

@@ -1,6 +1,6 @@
 using CleanAimTracker.Services;
-using CleanAimTracker.Windows;
 using System.Windows;
+using System.Windows.Input;
 
 namespace CleanAimTracker
 {
@@ -9,27 +9,23 @@ namespace CleanAimTracker
         public FirstLaunchWindow()
         {
             InitializeComponent();
-
-            // Pre-fill from saved settings if any
-            var s = SettingsService.Load();
-            DpiInput.Text = s.DPI.ToString("F0");
-            SensInput.Text = s.Sensitivity.ToString("F4");
         }
 
-        private void GetStarted_Click(object sender, RoutedEventArgs e)
+        private void HitStart_Click(object sender, RoutedEventArgs e)
         {
             var s = SettingsService.Load();
-
-            if (double.TryParse(DpiInput.Text, out double dpi) && dpi > 0)
-                s.DPI = (int)dpi;
-
-            if (double.TryParse(SensInput.Text, out double sens) && sens > 0)
-                s.Sensitivity = sens;
-
             s.FirstLaunchComplete = true;
+            s.OnboardingAutoStart = true;   // MainWindow will auto-start + 90s auto-stop
             SettingsService.Save(s);
+            Close();
+        }
 
-            // App.xaml.cs opens MainWindow after ShowDialog() returns — do NOT open it here
+        private void Skip_Click(object sender, MouseButtonEventArgs e)
+        {
+            var s = SettingsService.Load();
+            s.FirstLaunchComplete = true;
+            s.OnboardingAutoStart = false;
+            SettingsService.Save(s);
             Close();
         }
     }

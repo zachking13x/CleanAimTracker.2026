@@ -25,6 +25,9 @@ namespace CleanAimTracker
 
             var main = new MainWindow();
             main.Show();
+
+            // TASK-17: Re-engagement toast — fire after main window shows so app is registered
+            ToastService.CheckAndNotify();
         }
     }
 }

@@ -2,6 +2,7 @@ using CleanAimTracker.Helpers;
 using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using CleanAimTracker.Windows;
+using System.Windows.Media;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -69,6 +70,7 @@ namespace CleanAimTracker.Windows
         private DateTime _sessionStart;
         private readonly DispatcherTimer _timer = new();
         private double _sessionSeconds = 0;
+        private DispatcherTimer? _onboardingTimer;
 
         // DPI + SENSITIVITY
         private double _dpi = 800;
@@ -123,12 +125,56 @@ namespace CleanAimTracker.Windows
             if (_gameProfiles.Count > 0)
                 _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
 
+            ResetDisplaysToIdle();
+
             UpdateTrialBanner();
 
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
 
             LoadTodayStats();
+
+            // TASK-09: If user clicked "Hit Start" in onboarding, auto-start a 90s baseline session
+            this.Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            var settings = SettingsService.Load();
+            if (settings.OnboardingAutoStart)
+            {
+                settings.OnboardingAutoStart = false;
+                SettingsService.Save(settings);
+
+                // Small delay so the window finishes rendering first
+                var delayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
+                delayTimer.Tick += (s, args) =>
+                {
+                    delayTimer.Stop();
+                    StartButton_Click(this, new RoutedEventArgs());
+
+                    // Auto-stop after 90 seconds
+                    _onboardingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(90) };
+                    _onboardingTimer.Tick += (s2, args2) =>
+                    {
+                        _onboardingTimer?.Stop();
+                        _onboardingTimer = null;
+                        if (_isTracking)
+                        {
+                            StopButton_Click(this, new RoutedEventArgs());
+                            var msg = MessageBox.Show(
+                                "Your baseline session is done! Click 'Summary' to see your aim analysis.",
+                                "Baseline Captured ✓",
+                                MessageBoxButton.OKCancel,
+                                MessageBoxImage.None);
+                            if (msg == MessageBoxResult.OK)
+                                OpenSummary_Click(this, new RoutedEventArgs());
+                        }
+                    };
+                    _onboardingTimer.Start();
+                };
+                delayTimer.Start();
+            }
         }
 
         // TRIAL BANNER
@@ -171,7 +217,10 @@ namespace CleanAimTracker.Windows
                 _movementConsistency = Math.Clamp(100 - deviation * 10, 0, 100);
 
                 _overallQualityScore = Math.Clamp(
-                    (_smoothnessScore + _correctionSharpness + _movementConsistency) / 3, 0, 100);
+                    (_smoothnessScore * 0.50) +
+                    (_movementConsistency * 0.35) +
+                    ((100 - _correctionSharpness) * 0.15),
+                    0, 100);
                 OverallQualityText.Text = $"{_overallQualityScore:F0}";
 
                 if (eventDistance > _peakDistancePerEvent)
@@ -184,7 +233,6 @@ namespace CleanAimTracker.Windows
                 SmoothnessText.Text = $"{_smoothnessScore:F0}";
 
                 _angleChangeTotal += angleDiff;
-                AngleChangeText.Text = $"{_angleChangeTotal:F2}";
 
                 _angleStability = angleDiff;
                 StabilityText.Text = $"{_angleStability:F2}";
@@ -296,6 +344,12 @@ namespace CleanAimTracker.Windows
                 _averageVelocity = _totalDistance / _sessionSeconds;
                 AverageSpeedText.Text = $"{_averageVelocity:F2}";
             }
+
+            if (_sessionSeconds > 0)
+            {
+                double angleRate = _angleChangeTotal / _sessionSeconds;
+                AngleChangeText.Text = $"{angleRate:F1} deg/s";
+            }
         }
 
         // START / STOP
@@ -330,43 +384,36 @@ namespace CleanAimTracker.Windows
             LogService.Info("Tracking stopped");
         }
 
-        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        public void ResetButton_Click(object sender, RoutedEventArgs e)
         {
             _isTracking = false;
             _timer.Stop();
             RecordingPanel.Visibility = Visibility.Collapsed;
 
-            _totalDistance = 0; TotalDistanceText.Text = "0";
-            DxDyText.Text = "dX: 0  dY: 0";
-            LastDeltaText.Text = "Last Delta: 0, 0";
-            SessionTimeText.Text = "00:00";
-            CmPer360Text.Text = "--";
-
-            _peakVelocity = 0; PeakSpeedText.Text = "0";
-            _averageVelocity = 0; AverageSpeedText.Text = "0";
-            _currentVelocity = 0; CurrentSpeedText.Text = "0";
-
+            _totalDistance = 0;
+            _peakVelocity = 0;
+            _averageVelocity = 0;
+            _currentVelocity = 0;
             _movementEvents = 0;
             _sessionSeconds = 0;
-
-            _flickCount = 0; FlicksCountText.Text = "0";
-            _smallFlicks = 0; SmallFlicksText.Text = "0";
-            _largeFlicks = 0; LargeFlicksText.Text = "0";
-
-            _jitterAmount = 0; JitterText.Text = "0";
-            _movementDensity = 0; DensityText.Text = "0";
-
+            _flickCount = 0;
+            _smallFlicks = 0;
+            _largeFlicks = 0;
+            _jitterAmount = 0;
+            _movementDensity = 0;
             _idleTime = 0;
-            _idleBurstCount = 0; IdleBurstsText.Text = "0";
-
+            _idleBurstCount = 0;
             _lastAngle = 0;
-            _angleStability = 0; StabilityText.Text = "0";
-            _angleChangeTotal = 0; AngleChangeText.Text = "0";
-
+            _angleStability = 0;
+            _angleChangeTotal = 0;
             _movementConsistency = 100;
-            _smoothnessScore = 100; SmoothnessText.Text = "100";
-            _correctionSharpness = 0; CorrectionSharpnessText.Text = "0";
-            _overallQualityScore = 100; OverallQualityText.Text = "100";
+            _smoothnessScore = 100;
+            _correctionSharpness = 0;
+            _overallQualityScore = 100;
+
+            LastDeltaText.Text = "Last Delta: 0, 0";
+            DxDyText.Text = "dX: 0  dY: 0";
+            ResetDisplaysToIdle();
         }
 
         // OVERLAY
@@ -401,7 +448,8 @@ namespace CleanAimTracker.Windows
 
         private void NavHistory_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Session History")) return;
+            // TASK-14: Full history is Pro; basic tracking is always free
+            if (!TrialService.RequestProAccess("Full Session History")) return;
             new SessionHistoryWindow { Owner = this }.Show();
         }
 
@@ -465,12 +513,16 @@ namespace CleanAimTracker.Windows
 
         private void OpenConverter_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Sensitivity Converter")) return;
+            // TASK-14: Converter is free — utility that keeps users in the app
             new ConverterWindow { Owner = this }.Show();
         }
 
         private void OpenWeeklyReport_Click(object sender, RoutedEventArgs e)
-            => new WeeklyReportWindow { Owner = this }.Show();
+        {
+            // TASK-14: Weekly report is a Pro trend feature
+            if (!TrialService.RequestProAccess("Weekly Report & Trends")) return;
+            new WeeklyReportWindow { Owner = this }.Show();
+        }
 
         private void ThemeToggle_Click(object sender, RoutedEventArgs e)
         {
@@ -486,7 +538,7 @@ namespace CleanAimTracker.Windows
 
         private void OpenSessionHistory_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Session History")) return;
+            if (!TrialService.RequestProAccess("Full Session History")) return;
             new SessionHistoryWindow { Owner = this }.Show();
         }
 
@@ -500,7 +552,16 @@ namespace CleanAimTracker.Windows
 
         private void OpenSummary_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Session Summary & Recommendations")) return;
+            // TASK-14: Basic summary is always free
+            if (_sessionSeconds < 60)
+            {
+                MessageBox.Show(
+                    $"Session too short for analysis. Keep going — {(int)(60 - _sessionSeconds)} more seconds needed.",
+                    "Session Too Short",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
 
             _isTracking = false;
             _timer.Stop();
@@ -508,13 +569,37 @@ namespace CleanAimTracker.Windows
             var summary = BuildSessionSummary();
             SessionStorage.SaveSession(summary);
 
+            // TASK-16: Update streak after saving
+            var streakResult = StreakService.UpdateStreak();
+
+            LoadTodayStats();
+            UpdateTrialBanner();   // refresh count after session saves
+
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
-            new SummaryWindow(summary, rec) { Owner = this }.Show();
+            new SummaryWindow(summary, rec, streakResult) { Owner = this }.Show();
+
+            // TASK-11: Value moment — show upgrade nudge at sessions 3, 10, 25
+            if (!TrialService.IsFullVersion())
+            {
+                int count = TrialService.SessionsCompleted();
+                if (TrialService.IsValueMoment(count))
+                {
+                    var result = MessageBox.Show(
+                        TrialService.GetValueMomentMessage(count) +
+                        "\n\nUpgrade now?",
+                        "🎯 Nice Work!",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.None);
+
+                    if (result == MessageBoxResult.Yes)
+                        UpgradeDialog.Show("Pro Features");
+                }
+            }
         }
 
         public void OpenRecommendation_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Recommendations")) return;
+            // TASK-14: Basic recommendations always free
 
             var summary = SessionStorage.LoadLast();
             if (summary == null)
@@ -546,12 +631,12 @@ namespace CleanAimTracker.Windows
 
         private void TrialBanner_Click(object sender, RoutedEventArgs e)
         {
-            UpgradeDialog.Show();
+            UpgradeDialog.Show("Pro Features");
         }
 
         private void OpenAimTrainer_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Aim Trainer")) return;
+            // TASK-14: Aim Trainer is free — it's a core value driver
             new AimTrainerWindow { Owner = this }.Show();
         }
 
@@ -621,8 +706,40 @@ namespace CleanAimTracker.Windows
                     WeeklyAvgText.Text = $"{weekSessions.Average(s => s.OverallQualityScore):F0}";
                 else
                     WeeklyAvgText.Text = "—";
+
+                // TASK-15: Tier badge
+                var tier = ProgressionService.GetTier(all);
+                TierText.Text = $"{tier.Emoji} {tier.Name}";
+                TierText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));
             }
             catch { /* ignore if no data */ }
+        }
+
+        private void ResetDisplaysToIdle()
+        {
+            DxDyText.Text                = "--";
+            TotalDistanceText.Text       = "--";
+            CmPer360Text.Text            = "--";
+            SpeedText.Text               = "--";
+            CurrentSpeedText.Text        = "--";
+            PeakSpeedText.Text           = "--";
+            AverageSpeedText.Text        = "--";
+            MpsText.Text                 = "--";
+            RollingDensityText.Text      = "--";
+            PeakVelocityChangeText.Text  = "--";
+            FlicksCountText.Text         = "--";
+            SmallFlicksText.Text         = "--";
+            LargeFlicksText.Text         = "--";
+            IdleBurstsText.Text          = "--";
+            OverallQualityText.Text      = "--";
+            SmoothnessText.Text          = "--";
+            CorrectionSharpnessText.Text = "--";
+            StabilityText.Text           = "--";
+            AngleChangeText.Text         = "--";
+            JitterText.Text              = "--";
+            DensityText.Text             = "--";
+            SessionTimeText.Text         = "--";
         }
 
         private void RefreshProfiles()

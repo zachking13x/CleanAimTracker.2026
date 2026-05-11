@@ -454,12 +454,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="dX / dY" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="DxDyText" Text="dX: 0   dY: 0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="DxDyText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Total Distance" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="TotalDistanceText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="TotalDistanceText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
@@ -496,12 +496,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Speed" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="SpeedText" Text="0 cm/s" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Current" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="CurrentSpeedText" Text="0 cm/s" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="CurrentSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
@@ -515,12 +515,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Peak" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="PeakSpeedText" Text="0 cm/s" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="PeakSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Average" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="AverageSpeedText" Text="0 cm/s" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="AverageSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
@@ -534,18 +534,18 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="MpsText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="RollingDensityText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
                         <StackPanel>
                             <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"/>
-                            <TextBlock x:Name="PeakVelocityChangeText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                            <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -563,12 +563,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="FlicksCountText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="FlicksCountText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Small Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="SmallFlicksText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SmallFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
@@ -582,12 +582,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Large Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="LargeFlicksText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="LargeFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="IdleBurstsText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
@@ -606,12 +606,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="OverallQualityText" Text="100" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="SmoothnessText" Text="100" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
@@ -625,12 +625,12 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="CorrectionSharpnessText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="StabilityText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
@@ -642,27 +642,44 @@
                         <TextBlock Text="Advanced Metrics" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Angle Change" Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="AngleChangeText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="AngleChangeText" Text="--" Style="{StaticResource ValueTextStyle}"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="JitterText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="DensityText" Text="0" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ── Row 2, Col 3: Today's Stats ── -->
                 <Border Style="{StaticResource StatCardStyle}">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Today's Stats" Style="{StaticResource SectionHeaderText}"/>
-                            <TextBlock Text=" 🔥" FontSize="14" VerticalAlignment="Center"/>
-                        </StackPanel>
+                        <!-- Header row with tier badge -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                                <TextBlock Text="Today's Stats" Style="{StaticResource SectionHeaderText}"/>
+                                <TextBlock Text=" 🔥" FontSize="14" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <!-- Tier badge -->
+                            <Border Grid.Column="1"
+                                    x:Name="TierBadge"
+                                    CornerRadius="6" Padding="8,3"
+                                    Background="#1A1A1A">
+                                <TextBlock x:Name="TierText"
+                                           Text="Rookie"
+                                           FontSize="11" FontWeight="Bold"
+                                           Foreground="#888888"/>
+                            </Border>
+                        </Grid>
 
                         <Grid>
                             <Grid.ColumnDefinitions>

@@ -52,7 +52,10 @@ namespace CleanAimTracker.Services
             bool   NewAccuracyRecord,
             bool   NewReactionRecord,
             string WeakArea,
-            string StrongArea
+            string StrongArea,
+            double OverallAvgAccuracy,
+            double OverallAvgReaction,
+            int    TotalSessionsAll
         );
 
         private static CoachContext BuildContext(AimTrainerResult r, List<AimTrainerResult> history)
@@ -105,6 +108,17 @@ namespace CleanAimTracker.Services
             string weak   = areas.OrderBy(a => a.Value).First().Key;
             string strong = areas.OrderByDescending(a => a.Value).First().Key;
 
+            // Cross-scenario context from ALL history (last 10 sessions)
+            var allRecent = history
+                .Where(h => h.Timestamp != r.Timestamp)
+                .OrderByDescending(h => h.Timestamp)
+                .Take(10)
+                .ToList();
+
+            double overallAvgAccuracy = allRecent.Count > 0 ? allRecent.Average(h => h.Accuracy) : r.Accuracy;
+            double overallAvgReaction = allRecent.Count > 0 ? allRecent.Average(h => h.AvgReactionMs) : r.AvgReactionMs;
+            int    totalSessionsAll   = history.Count;
+
             return new CoachContext(
                 accGrade, reactGrade, streakGrade,
                 accDelta, scoreDelta, reactDelta,
@@ -112,7 +126,8 @@ namespace CleanAimTracker.Services
                 same.Count + 1,
                 pbAccuracy, pbReaction,
                 newAccPB, newReactPB,
-                weak, strong
+                weak, strong,
+                overallAvgAccuracy, overallAvgReaction, totalSessionsAll
             );
         }
 
@@ -152,13 +167,20 @@ namespace CleanAimTracker.Services
             if (c.AccuracyDelta < -5 && !c.IsFirstSession)
                 return $"Accuracy dipped {Math.Abs(c.AccuracyDelta):F0}% from last session — happens to everyone. Here's how to bounce back.";
             if (c.IsFirstSession)
+            {
+                if (c.TotalSessionsAll > 3)
+                    return $"First {r.Scenario} session — {r.Accuracy:F0}% accuracy. Across your {c.TotalSessionsAll} total sessions your overall avg accuracy is {c.OverallAvgAccuracy:F0}%.";
                 return $"First {r.Scenario} session logged — {r.Accuracy:F0}% accuracy gives you a solid baseline to build from.";
+            }
             return $"{r.Accuracy:F0}% accuracy, {r.AvgReactionMs:F0}ms avg reaction. {(c.AccuracyGrade == "good" ? "Solid session." : "Keep building.")}";
         }
 
         private static List<string> GetStrengths(AimTrainerResult r, CoachContext c)
         {
             var list = new List<string>();
+
+            if (!c.IsFirstSession && c.TotalSessionsAll >= 5 && r.Accuracy > c.OverallAvgAccuracy + 5)
+                list.Add($"This session's {r.Accuracy:F0}% accuracy is {(r.Accuracy - c.OverallAvgAccuracy):F0}% above your overall average of {c.OverallAvgAccuracy:F0}% — your best relative performance recently.");
 
             if (c.AccuracyGrade == "elite")
                 list.Add($"Your {r.Accuracy:F0}% accuracy is elite level — most competitive players hover around {Bench.AccuracyGood(r.Scenario):F0}%. You're well above that.");
@@ -319,6 +341,8 @@ namespace CleanAimTracker.Services
                 return "First session is just the start. Come back tomorrow and you'll already be better.";
             if (c.AccuracyDelta < -5)
                 return "Bad sessions are data, not failure. You showed up — that's what separates players who improve from players who don't.";
+            if (c.TotalSessionsAll >= 10)
+                return $"{c.TotalSessionsAll} sessions logged across all scenarios. Your overall average accuracy is {c.OverallAvgAccuracy:F0}% — that's your real benchmark.";
             if (c.SessionCount >= 10)
                 return $"{c.SessionCount} sessions tracked. The players who log 10+ sessions are the ones who actually improve — you're one of them.";
             return "Every drill is a deposit in the bank. It adds up faster than you think.";

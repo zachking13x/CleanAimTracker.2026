@@ -111,6 +111,38 @@
                 </StackPanel>
             </Border>
 
+            <!-- Session Comparison -->
+            <Border Background="{DynamicResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="14"
+                    Margin="0,0,0,12"
+                    x:Name="ComparisonCard">
+                <StackPanel>
+                    <TextBlock Text="Your Progress"
+                               Foreground="{DynamicResource PrimaryText}"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0 0 0 10"/>
+
+                    <TextBlock x:Name="QualityCompareText"
+                               Foreground="{DynamicResource PrimaryText}"
+                               FontSize="13"
+                               Margin="0 0 0 6"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="VelocityCompareText"
+                               Foreground="{DynamicResource PrimaryText}"
+                               FontSize="13"
+                               Margin="0 0 0 6"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock x:Name="BaselineText"
+                               Foreground="{DynamicResource SecondaryText}"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- Core Stats -->
             <Border Background="{DynamicResource CardBackground}"
                     CornerRadius="8"
@@ -246,13 +278,37 @@
                 </StackPanel>
             </Border>
 
-            <!-- Close -->
-            <Button Content="Close"
-                    Click="Close_Click"
-                    Style="{StaticResource GlowButton}"
-                    HorizontalAlignment="Center"
-                    Width="120"
-                    Margin="0,12,0,0"/>
+            <!-- TASK-16: Streak retention message -->
+            <Border Background="{DynamicResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="14,10"
+                    Margin="0,0,0,10"
+                    Visibility="Collapsed"
+                    x:Name="StreakMessageBorder">
+                <TextBlock x:Name="StreakMessageText"
+                           Text=""
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center"
+                           HorizontalAlignment="Center"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"/>
+            </Border>
+
+            <!-- TASK-18: Action buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
+                <Button Content="▶ Start Another"
+                        Click="StartAnother_Click"
+                        Style="{StaticResource GlowButton}"
+                        Width="140"
+                        Foreground="{DynamicResource AccentBrush}"
+                        Margin="0,0,8,0"/>
+
+                <Button Content="Close"
+                        Click="Close_Click"
+                        Style="{StaticResource GlowButton}"
+                        Width="100"/>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Window>

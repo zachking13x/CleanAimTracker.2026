@@ -29,35 +29,12 @@ namespace CleanAimTracker.Windows
             else
             {
                 ProBtn.IsEnabled = true;
-                ProBtn.Content   = "Pro  —  $5.99 / mo";
-                MessageBox.Show(
-                    "Purchase was canceled or could not be completed.",
-                    "Purchase Canceled",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.None);
-            }
-        }
+                // Restore the button content
+                var stack = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Pro  — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 14 });
+                stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "$4.99 / month", FontSize = 16, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center });
+                ProBtn.Content = stack;
 
-        private async void ProTrainer_Click(object sender, RoutedEventArgs e)
-        {
-            ProTrainerBtn.IsEnabled = false;
-            ProTrainerBtn.Content   = "Processing...";
-
-            bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_PRO_TRAINER);
-
-            if (ok)
-            {
-                MessageBox.Show(
-                    "You're now on Pro + Trainer! Thank you for subscribing.",
-                    "Purchase Successful",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.None);
-                Close();
-            }
-            else
-            {
-                ProTrainerBtn.IsEnabled = true;
-                ProTrainerBtn.Content   = "Pro + Trainer  —  $8.99 / mo";
                 MessageBox.Show(
                     "Purchase was canceled or could not be completed.",
                     "Purchase Canceled",
@@ -76,7 +53,7 @@ namespace CleanAimTracker.Windows
             if (ok)
             {
                 MessageBox.Show(
-                    "You now have Lifetime Pro! Thank you for your support.",
+                    "You now have Lifetime Pro! Thank you — enjoy it forever.",
                     "Purchase Successful",
                     MessageBoxButton.OK,
                     MessageBoxImage.None);
@@ -85,7 +62,12 @@ namespace CleanAimTracker.Windows
             else
             {
                 LifetimeBtn.IsEnabled = true;
-                LifetimeBtn.Content   = "Lifetime Pro  —  $39.99";
+                // Restore the button content
+                var stack = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
+                stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Lifetime  — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 14 });
+                stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "$24.99", FontSize = 17, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                LifetimeBtn.Content = stack;
+
                 MessageBox.Show(
                     "Purchase was canceled or could not be completed.",
                     "Purchase Canceled",

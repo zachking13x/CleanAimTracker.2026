@@ -640,6 +640,11 @@ namespace CleanAimTracker.Windows
             new AimTrainerWindow { Owner = this }.Show();
         }
 
+        private void ViewLastCoachReport_Click(object sender, RoutedEventArgs e)
+        {
+            AimTrainerResultWindow.OpenLastReport(this);
+        }
+
         // HELPERS
         private double CalculateCmPer360()
             => (360.0 / (_dpi * _sensitivity)) * 2.54;

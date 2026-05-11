@@ -280,7 +280,8 @@
                     CornerRadius="0 0 14 14"
                     Padding="24 16">
                 <Grid>
-                    <Button Content="▶  Play Again"
+                    <Button x:Name="PlayAgainBtn"
+                            Content="▶  Play Again"
                             Click="PlayAgain_Click"
                             Width="140" Height="38"
                             HorizontalAlignment="Left"

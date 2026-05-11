@@ -291,6 +291,8 @@
                     <Button Content="🎯  Aim Trainer" Click="OpenAimTrainer_Click"
                             Style="{StaticResource NavButtonStyle}"
                             Foreground="{DynamicResource AccentBrush}"/>
+                    <Button Content="🤖  Last Report" Click="ViewLastCoachReport_Click"
+                            Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="🔄  Sensitivity" Click="OpenConverter_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📅  Weekly Report" Click="OpenWeeklyReport_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📤  Export Data" Click="OpenExport_Click" Style="{StaticResource NavButtonStyle}"/>

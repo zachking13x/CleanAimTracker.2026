@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Upgrade to Pro"
-        Height="620" Width="440"
+        Height="600" Width="440"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource AppBackground}">
@@ -15,92 +15,129 @@
                        FontSize="22" FontWeight="Black"
                        Foreground="{DynamicResource AccentBrush}"
                        HorizontalAlignment="Center"
-                       Margin="0 0 0 8"/>
-            <TextBlock Text="One payment. Everything unlocked. Forever."
+                       Margin="0 0 0 6"/>
+            <TextBlock Text="Everything unlocked. Cancel anytime."
                        FontSize="13"
                        Foreground="{DynamicResource MutedText}"
                        HorizontalAlignment="Center"
-                       Margin="0 0 0 28"/>
+                       Margin="0 0 0 24"/>
 
             <!-- Feature list -->
             <Border Background="{DynamicResource CardBackground}"
-                    CornerRadius="10" Padding="20 16" Margin="0 0 0 20">
+                    CornerRadius="10" Padding="20 16" Margin="0 0 0 24">
                 <StackPanel>
-                    <TextBlock Text="WHAT YOU GET WITH PRO"
+                    <TextBlock Text="WHAT YOU UNLOCK"
                                Foreground="{DynamicResource MutedText}"
                                FontSize="10" FontWeight="Bold"
                                Margin="0 0 0 12"/>
-                    <TextBlock Text="✅  Full session history"
+                    <TextBlock Text="✅  Full session history &amp; trends"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
-                    <TextBlock Text="✅  AI coaching after every drill"
+                    <TextBlock Text="✅  AI coaching after every session"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
-                    <TextBlock Text="✅  Sensitivity recommendations"
+                    <TextBlock Text="✅  Weekly performance reports"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
-                    <TextBlock Text="✅  In-game overlay"
+                    <TextBlock Text="✅  In-game live overlay"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
-                    <TextBlock Text="✅✅  Aim Trainer — all scenarios &amp; difficulties  (Pro + Trainer)"
+                    <TextBlock Text="✅  Aim Trainer — all scenarios &amp; difficulties"
+                               Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
+                    <TextBlock Text="✅  Data export &amp; custom profiles"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13"/>
                 </StackPanel>
             </Border>
 
-            <!-- Pro Monthly button -->
+            <!-- Monthly button -->
             <Button x:Name="ProBtn"
                     Click="Pro_Click"
-                    Height="48"
-                    Background="#2D6A4F"
+                    Height="52"
+                    Background="#7B2FFF"
                     Foreground="White"
                     FontWeight="Bold"
                     FontSize="14"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Margin="0 0 0 8">
+                    Margin="0 0 0 10">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="#7B2FFF"/>
+                        <Setter Property="Foreground" Value="White"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="#9B4FFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.85"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Pro  — " VerticalAlignment="Center"/>
-                    <TextBlock Text="$5.99 / mo" FontSize="15" FontWeight="Black" VerticalAlignment="Center"/>
+                    <TextBlock Text="Pro  — " VerticalAlignment="Center" FontSize="14"/>
+                    <TextBlock Text="$4.99 / month" FontSize="16" FontWeight="Black" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
 
-            <!-- Pro + Trainer Monthly button -->
-            <Button x:Name="ProTrainerBtn"
-                    Click="ProTrainer_Click"
-                    Height="48"
-                    Background="#1B4332"
-                    Foreground="White"
-                    FontWeight="Bold"
-                    FontSize="14"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    Margin="0 0 0 8">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Pro + Trainer  — " VerticalAlignment="Center"/>
-                    <TextBlock Text="$8.99 / mo" FontSize="15" FontWeight="Black" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-
-            <!-- Lifetime purchase button -->
+            <!-- Lifetime button -->
             <Button x:Name="LifetimeBtn"
                     Click="Lifetime_Click"
                     Height="52"
-                    Background="{DynamicResource AccentBrush}"
                     Foreground="Black"
                     FontWeight="Black"
-                    FontSize="15"
+                    FontSize="14"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Margin="0 0 0 8">
+                    Margin="0 0 0 4">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="Foreground" Value="Black"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Lifetime Pro  — " VerticalAlignment="Center"/>
-                    <TextBlock Text="$39.99" FontSize="17" FontWeight="Black" VerticalAlignment="Center"/>
+                    <TextBlock Text="Lifetime  — " VerticalAlignment="Center" FontSize="14"/>
+                    <TextBlock Text="$24.99" FontSize="17" FontWeight="Black" VerticalAlignment="Center" Margin="0 0 8 0"/>
+                    <Border Background="#1A1A1A" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                        <TextBlock Text="pays off in 5 months" Foreground="#CCCCCC" FontSize="10" FontWeight="Normal"/>
+                    </Border>
                 </StackPanel>
             </Button>
 
-            <TextBlock Text="Subscriptions auto-renew monthly · Cancel anytime · Lifetime = one-time purchase"
+            <TextBlock Text="Subscription renews monthly · Cancel anytime · Lifetime = one-time payment"
                        Foreground="{DynamicResource MutedText}"
                        FontSize="10"
                        HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
-                       Margin="0 0 0 16"/>
+                       Margin="0 8 0 16"/>
 
             <!-- Cancel -->
             <Button Content="Maybe Later"

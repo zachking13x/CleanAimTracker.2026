@@ -10,13 +10,42 @@ namespace CleanAimTracker.Windows
     public partial class AimTrainerResultWindow : Window
     {
         private readonly AimTrainerResult _result;
+        private readonly bool _isReplay;
 
-        public AimTrainerResultWindow(AimTrainerResult result)
+        /// <param name="result">The drill result to display.</param>
+        /// <param name="isReplay">True when opened via "Last Report" — hides Play Again, changes title.</param>
+        public AimTrainerResultWindow(AimTrainerResult result, bool isReplay = false)
         {
             InitializeComponent();
-            _result = result;
+            _result   = result;
+            _isReplay = isReplay;
+
+            if (isReplay)
+            {
+                Title             = "Last Coaching Report";
+                PlayAgainBtn.Visibility = Visibility.Collapsed;
+            }
+
             PopulateStats(result);
             _ = LoadCoachingAsync(result);
+        }
+
+        /// <summary>Opens the most recent coaching report from storage, or shows a message if none exists.</summary>
+        public static void OpenLastReport(Window owner)
+        {
+            var last = AimTrainerStorage.LoadLast();
+            if (last == null)
+            {
+                MessageBox.Show(
+                    "No coaching report yet. Complete an Aim Trainer drill to generate your first report.",
+                    "No Report Found",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var win = new AimTrainerResultWindow(last, isReplay: true) { Owner = owner };
+            win.Show();
         }
 
         // ── Populate stats immediately ────────────────────────────────

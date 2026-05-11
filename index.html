@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clean Aim Tracker — FPS Aim Trainer with Personalized Coaching</title>
+  <meta name="description" content="Most FPS players practice without feedback and wonder why they never improve. Clean Aim Tracker analyzes every session and coaches you based on your actual data." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #090c10;
+      --bg2:       #0d1117;
+      --bg3:       #111820;
+      --border:    rgba(0,212,255,0.12);
+      --accent:    #00d4ff;
+      --accent2:   #00ff9d;
+      --warn:      #ffaa00;
+      --text:      #e8edf2;
+      --muted:     #7a8a99;
+      --card:      rgba(255,255,255,0.03);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── Grid lines background ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Typography ── */
+    h1, h2, h3, .label {
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    .label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    /* ── Layout ── */
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    section { position: relative; z-index: 1; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(9,12,16,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-logo span { color: var(--accent); }
+
+    .nav-cta {
+      background: var(--accent);
+      color: #000;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 8px 20px;
+      clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .nav-cta:hover { background: var(--accent2); transform: translateY(-1px); }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 120px 0 80px;
+    }
+
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .hero-eyebrow::after {
+      content: '';
+      display: block;
+      height: 1px;
+      width: 60px;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    .hero h1 {
+      font-size: clamp(2.6rem, 6vw, 4.8rem);
+      font-weight: 700;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      max-width: 820px;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin-bottom: 40px;
+      font-weight: 300;
+      line-height: 1.7;
+    }
+
+    .hero-sub strong { color: var(--text); font-weight: 500; }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 14px 32px;
+      clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,212,255,0.3);
+    }
+
+    .btn-primary svg { width: 18px; height: 18px; }
+
+    .hero-note {
+      font-size: 0.82rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hero-note::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent2);
+    }
+
+    /* ── Hero screenshot ── */
+    .hero-screenshot {
+      margin-top: 60px;
+      position: relative;
+    }
+
+    .screenshot-frame {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      box-shadow:
+        0 0 0 1px rgba(0,212,255,0.08),
+        0 40px 80px rgba(0,0,0,0.6),
+        0 0 120px rgba(0,212,255,0.06);
+    }
+
+    .screenshot-frame img {
+      width: 100%;
+      display: block;
+    }
+
+    .screenshot-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: var(--bg3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .screenshot-placeholder .ph-icon {
+      width: 48px; height: 48px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      font-size: 1.4rem;
+    }
+
+    /* Glow line under hero screenshot */
+    .hero-screenshot::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.4;
+    }
+
+    /* ── Stats strip ── */
+    .stats-strip {
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 0;
+      background: var(--bg2);
+    }
+
+    .stats-strip .wrap {
+      display: flex;
+      justify-content: space-around;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Problem section ── */
+    .problem {
+      padding: 100px 0;
+    }
+
+    .problem .wrap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .problem-text h2 {
+      font-size: clamp(1.8rem, 3vw, 2.8rem);
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+
+    .problem-text h2 span { color: var(--warn); }
+
+    .problem-text p {
+      color: var(--muted);
+      font-weight: 300;
+      margin-bottom: 16px;
+      line-height: 1.75;
+    }
+
+    .problem-text p strong { color: var(--text); font-weight: 500; }
+
+    .pain-list {
+      list-style: none;
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .pain-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .pain-list li::before {
+      content: '✕';
+      color: #ff4444;
+      font-size: 0.75rem;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .solution-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .solution-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .solution-list li::before {
+      content: '✓';
+      color: var(--accent2);
+      font-size: 0.8rem;
+      margin-top: 3px;
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+
+    .solution-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 32px;
+    }
+
+    .solution-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 20px;
+      color: var(--accent2);
+    }
+
+    /* ── Screenshots section ── */
+    .screenshots {
+      padding: 100px 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-header h2 {
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .screenshot-card {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .screenshot-card:hover {
+      border-color: rgba(0,212,255,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+
+    .screenshot-card img {
+      width: 100%;
+      display: block;
+    }
+
+    .screenshot-card-placeholder {
+      aspect-ratio: 4/3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      background: var(--bg3);
+    }
+
+    .screenshot-caption {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .screenshot-caption strong {
+      display: block;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .screenshot-caption span {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 100px 0;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px 24px;
+      transition: border-color 0.3s, background 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(0,212,255,0.25);
+      background: rgba(0,212,255,0.04);
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      font-size: 1.6rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .feature-tag {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: var(--accent);
+      background: rgba(0,212,255,0.08);
+      padding: 3px 8px;
+      border-radius: 3px;
+    }
+
+    .feature-tag.free {
+      color: var(--accent2);
+      background: rgba(0,255,157,0.08);
+    }
+
+    /* ── Pricing ── */
+    .pricing {
+      padding: 100px 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+      align-items: start;
+    }
+
+    .pricing-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 32px 28px;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--accent);
+      background: rgba(0,212,255,0.04);
+      position: relative;
+    }
+
+    .pricing-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #000;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+    }
+
+    .pricing-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .pricing-price {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .pricing-price span {
+      font-size: 1rem;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .pricing-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .pricing-features {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .pricing-features li {
+      font-size: 0.88rem;
+      color: var(--muted);
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .pricing-features li.active { color: var(--text); }
+
+    .pricing-features li::before {
+      content: '—';
+      color: rgba(255,255,255,0.15);
+      flex-shrink: 0;
+    }
+
+    .pricing-features li.active::before {
+      content: '✓';
+      color: var(--accent2);
+    }
+
+    .btn-store {
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 12px 20px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-store.primary {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-store.primary:hover {
+      background: var(--accent2);
+      transform: translateY(-1px);
+    }
+
+    .btn-store.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-store.secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── FAQ ── */
+    .faq {
+      padding: 100px 0;
+    }
+
+    .faq-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .faq-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .faq-item h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+
+    .faq-item p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      padding: 100px 0;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-section h2 {
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      font-weight: 700;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .cta-section p {
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      font-weight: 300;
+      position: relative;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    footer .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .footer-logo {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .footer-logo span { color: var(--accent); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+      list-style: none;
+    }
+
+    .footer-links a {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover { color: var(--accent); }
+
+    .footer-note {
+      font-size: 0.78rem;
+      color: rgba(122,138,153,0.5);
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .hero-eyebrow { animation: fadeUp 0.6s ease both; }
+    .hero h1      { animation: fadeUp 0.6s 0.1s ease both; }
+    .hero-sub     { animation: fadeUp 0.6s 0.2s ease both; }
+    .hero-actions { animation: fadeUp 0.6s 0.3s ease both; }
+    .hero-screenshot { animation: fadeUp 0.8s 0.4s ease both; }
+
+    /* ── Crosshair accent ── */
+    .crosshair {
+      display: inline-block;
+      width: 20px; height: 20px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .crosshair::before,
+    .crosshair::after {
+      content: '';
+      position: absolute;
+      background: var(--accent);
+      border-radius: 1px;
+    }
+    .crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+    .crosshair::after  { height: 2px; width: 100%; top: 50%; transform: translateY(-50%); }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .problem .wrap { grid-template-columns: 1fr; gap: 40px; }
+      .screenshots-grid { grid-template-columns: 1fr; }
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .faq-grid { grid-template-columns: 1fr; }
+      footer .wrap { flex-direction: column; text-align: center; }
+    }
+
+    @media (max-width: 520px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">Clean<span>Aim</span> Tracker</a>
+  <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM" class="nav-cta" target="_blank" rel="noopener">
+    Free Download
+  </a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow">
+      <span class="label">FPS Aim Trainer — Windows</span>
+    </div>
+
+    <h1>Practice with <em>feedback.</em><br>Improve with data.</h1>
+
+    <p class="hero-sub">
+      Most FPS players drill for hours and still plateau.
+      <strong>Clean Aim Tracker analyzes every session and coaches you based on your actual data</strong>
+      — not generic tips that apply to everyone.
+    </p>
+
+    <div class="hero-actions">
+      <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM"
+         class="btn-primary" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M3 12l9-9 9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/>
+        </svg>
+        Download Free — Microsoft Store
+      </a>
+      <span class="hero-note">Windows 10 / 11 &nbsp;•&nbsp; 30 free sessions</span>
+    </div>
+
+    <!-- HERO SCREENSHOT — replace src with your actual screenshot -->
+    <div class="hero-screenshot">
+      <div class="screenshot-frame">
+        <!-- REPLACE THIS with: <img src="screenshot-coaching.png" alt="Clean Aim Tracker AI coaching result screen showing 91% accuracy with personalized feedback" /> -->
+        <div class="screenshot-placeholder">
+          <div class="ph-icon">🎯</div>
+          <span>Replace with screenshot-coaching.png</span>
+          <span style="font-size:0.75rem; opacity:0.5">Post-session result with AI coaching populated</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- STATS STRIP -->
+<div class="stats-strip">
+  <div class="wrap">
+    <div class="stat-item">
+      <div class="stat-value">5</div>
+      <div class="stat-label">Drill Scenarios</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">30</div>
+      <div class="stat-label">Free Sessions</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">100%</div>
+      <div class="stat-label">Local — No Internet</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">7</div>
+      <div class="stat-label">Coaching Fields Per Session</div>
+    </div>
+  </div>
+</div>
+
+<!-- PROBLEM / SOLUTION -->
+<section class="problem">
+  <div class="wrap">
+    <div class="problem-text">
+      <span class="label">The Problem</span>
+      <h2>Aim trainers show you <span>numbers.</span><br>They don't tell you what to do.</h2>
+      <p>
+        You finish a drill. You see your accuracy and reaction time.
+        <strong>Then what?</strong> Most aim trainers leave you to figure out the rest yourself.
+      </p>
+      <p>
+        Without feedback, you repeat the same habits — good and bad — and wonder
+        why you're not improving.
+      </p>
+      <ul class="pain-list">
+        <li>No idea if your session was actually good or just felt good</li>
+        <li>Same generic tips that don't apply to your specific weaknesses</li>
+        <li>No sense of whether you're improving over time</li>
+        <li>No guidance on what to practice next</li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="solution-card">
+        <span class="label" style="color: var(--accent2)">The Fix</span>
+        <h3>Coaching based on your data</h3>
+        <ul class="solution-list">
+          <li>Grades your accuracy against real scenario benchmarks</li>
+          <li>Identifies your specific weak area — accuracy, reaction, streak, or endurance</li>
+          <li>Compares this session to your personal history, not global averages</li>
+          <li>Tells you exactly what to practice next and why</li>
+          <li>Tracks your trend across sessions so improvement is visible</li>
+          <li>All on your device — no internet, no account, no data sent anywhere</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREENSHOTS -->
+<section class="screenshots">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="label">See It In Action</span>
+      <h2>Every session tells you something specific</h2>
+    </div>
+
+    <div class="screenshots-grid">
+      <div class="screenshot-card">
+        <!-- REPLACE with: <img src="screenshot-coaching.png" alt="AI coaching result showing 91% accuracy with personalized strengths and areas to improve" /> -->
+        <div class="screenshot-card-placeholder">
+          <span style="font-size:1.5rem">🎯</span>
+          <span>Replace with screenshot-coaching.png</span>
+        </div>
+        <div class="screenshot-caption">
+          <strong>Personalized Coaching</strong>
+          <span>Specific feedback based on your actual session history — not generic advice</span>
+        </div>
+      </div>
+
+      <div class="screenshot-card">
+        <!-- REPLACE with: <img src="screenshot-history.png" alt="Session history screen showing quality score trend chart across 7 sessions" /> -->
+        <div class="screenshot-card-placeholder">
+          <span style="font-size:1.5rem">📈</span>
+          <span>Replace with screenshot-history.png</span>
+        </div>
+        <div class="screenshot-caption">
+          <strong>Session History & Trends</strong>
+          <span>Quality score trend chart across all your sessions so improvement is visible</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="text-align:center; margin-top:20px; font-size:0.8rem; color:var(--muted);">
+      <!-- Remove this line after adding screenshots -->
+      Add your screenshots: rename them screenshot-coaching.png and screenshot-history.png, place in the same folder as index.html, then remove the placeholder divs above.
+    </p>
+
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="label">What You Get</span>
+      <h2>Built for players who actually want to improve</h2>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card">
+        <span class="feature-icon">🧠</span>
+        <h3>AI Coach Report</h3>
+        <p>After every drill, get a personalized breakdown — strengths, weak areas, specific advice, and your next recommended drill. Based on your data, not a template.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3>Trend Analysis</h3>
+        <p>See your quality score trend across sessions with a visual chart. Know whether you're genuinely improving or just having a good day.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🎯</span>
+        <h3>5 Drill Scenarios</h3>
+        <p>Tracking, Flicking, Precision, Switching, and Adaptive — each targeting a different aim skill. Four difficulty levels from Easy to Nightmare.</p>
+        <span class="feature-tag free">Free</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔥</span>
+        <h3>Streak Tracking</h3>
+        <p>Daily streak counter that keeps you coming back. See your current streak and personal best — and get a nudge when you're about to break it.</p>
+        <span class="feature-tag free">Free</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🏆</span>
+        <h3>Progression Tiers</h3>
+        <p>Rookie → Bronze → Silver → Gold → Elite. Your tier is based on your lifetime average quality score. Always know where you stand and what it takes to rank up.</p>
+        <span class="feature-tag">Pro</span>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔒</span>
+        <h3>Fully Private</h3>
+        <p>All data stays on your device. No account required, no internet connection, nothing sent anywhere. Your aim data is yours.</p>
+        <span class="feature-tag free">Free</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="label">Pricing</span>
+      <h2>Start free. Upgrade when you're ready.</h2>
+    </div>
+
+    <div class="pricing-grid">
+
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="pricing-price">$0</div>
+        <p class="pricing-note">30 full sessions — no credit card</p>
+        <ul class="pricing-features">
+          <li class="active">All 5 drill scenarios</li>
+          <li class="active">Live stats during drills</li>
+          <li class="active">Basic session summary</li>
+          <li class="active">Daily streak tracking</li>
+          <li class="active">Full coaching for 30 sessions</li>
+          <li>Trend analysis</li>
+          <li>Progression tiers</li>
+          <li>Session export</li>
+        </ul>
+        <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM"
+           class="btn-store secondary" target="_blank" rel="noopener">
+          Download Free
+        </a>
+      </div>
+
+      <div class="pricing-card featured">
+        <div class="pricing-badge">Most Popular</div>
+        <h3>Pro Monthly</h3>
+        <div class="pricing-price">$4.99 <span>/ month</span></div>
+        <p class="pricing-note">Cancel anytime</p>
+        <ul class="pricing-features">
+          <li class="active">Everything in Free</li>
+          <li class="active">Full AI coaching — unlimited</li>
+          <li class="active">Trend analysis across sessions</li>
+          <li class="active">Progression tier system</li>
+          <li class="active">Personal best tracking</li>
+          <li class="active">Session data export</li>
+          <li class="active">Priority support</li>
+        </ul>
+        <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM"
+           class="btn-store primary" target="_blank" rel="noopener">
+          Get Pro
+        </a>
+      </div>
+
+      <div class="pricing-card">
+        <h3>Lifetime</h3>
+        <div class="pricing-price">$24.99</div>
+        <p class="pricing-note">One time — pays for itself in 5 months</p>
+        <ul class="pricing-features">
+          <li class="active">Everything in Pro</li>
+          <li class="active">All future updates included</li>
+          <li class="active">Never pay again</li>
+        </ul>
+        <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM"
+           class="btn-store secondary" target="_blank" rel="noopener">
+          Get Lifetime
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="wrap">
+    <div class="section-header">
+      <span class="label">FAQ</span>
+      <h2>Common questions</h2>
+    </div>
+
+    <div class="faq-grid">
+
+      <div class="faq-item">
+        <h3>Is it safe to download?</h3>
+        <p>Yes. Clean Aim Tracker is distributed through the Microsoft Store, which scans all apps for malware and requires publisher verification. It runs entirely locally — no network connections are made.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Does it track my mouse when I'm not using it?</h3>
+        <p>No. Mouse input is only captured during active drill sessions. When a drill is not running, the app does nothing in the background. You can verify this in Task Manager.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Where does my data go?</h3>
+        <p>Nowhere. All session data is stored locally on your device in a private app folder. No data is sent to any server, ever. You can delete everything from the settings panel at any time.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Will it work with my game?</h3>
+        <p>Clean Aim Tracker is a standalone trainer — it runs alongside any FPS game. The sensitivity recommendation engine supports CS2, Valorant, Apex, Overwatch 2, and more.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>How is this different from Aim Lab?</h3>
+        <p>Aim Lab shows you stats. Clean Aim Tracker coaches you. After every session you get specific feedback based on your personal history — what your weak area is, why, and exactly what to practice next.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>What happens after 30 free sessions?</h3>
+        <p>You keep access to all drills with basic stats. Pro features — AI coaching, trend analysis, and progression tiers — require a subscription. No sudden lockout, no pressure.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="wrap">
+    <h2>Start training smarter today.</h2>
+    <p>30 free sessions. No account. No credit card. Just better aim.</p>
+    <a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM"
+       class="btn-primary" target="_blank" rel="noopener"
+       style="display:inline-flex; margin: 0 auto;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px">
+        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      Download Free — Microsoft Store
+    </a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <a href="#" class="footer-logo">Clean<span>Aim</span> Tracker</a>
+    <ul class="footer-links">
+      <li><a href="https://apps.microsoft.com/store/detail/9MVBDZBQ01DM" target="_blank" rel="noopener">Microsoft Store</a></li>
+      <li><a href="mailto:support@cleanaImtracker.com">Support</a></li>
+    </ul>
+    <span class="footer-note">© 2026 Clean Aim Tracker. All rights reserved.</span>
+  </div>
+</footer>
+
+</body>
+</html>

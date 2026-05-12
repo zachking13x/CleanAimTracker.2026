@@ -178,7 +178,7 @@ namespace CleanAimTracker.Windows
         }
 
         // TRIAL BANNER
-        private void UpdateTrialBanner()
+        public void UpdateTrialBanner()
         {
             string banner = TrialService.GetBannerText();
             TrialBannerText.Text = banner;
@@ -368,7 +368,22 @@ namespace CleanAimTracker.Windows
             double cm360 = CalculateCmPer360();
             CmPer360Text.Text = $"{cm360:F2}";
 
-            _rawInput.Start();
+            try
+            {
+                _rawInput.Start();
+            }
+            catch (Exception ex)
+            {
+                _isTracking = false;
+                LogService.Error("Failed to start raw input", ex);
+                MessageBox.Show(
+                    "Could not start mouse tracking. Try running the app as Administrator if the problem persists.",
+                    "Tracking Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
             _timer.Start();
             RecordingPanel.Visibility = Visibility.Visible;
 
@@ -382,6 +397,46 @@ namespace CleanAimTracker.Windows
             _rawInput.Stop();
             RecordingPanel.Visibility = Visibility.Collapsed;
             LogService.Info("Tracking stopped");
+
+            // TASK-11: Populate plain-English verdicts if session was long enough
+            if (_sessionSeconds >= 10)
+                PopulateTrackerInterpretations(BuildSessionSummary());
+        }
+
+        private void PopulateTrackerInterpretations(SessionSummary s)
+        {
+            // Movement / cm/360 verdict
+            string movementVerdict = s.CmPer360 < 20
+                ? $"cm/360 is low ({s.CmPer360:F1}) — sensitivity may be limiting micro-adjustment."
+                : s.CmPer360 > 60
+                ? $"cm/360 is high ({s.CmPer360:F1}) — consider lowering sensitivity for more control."
+                : $"cm/360 is in a good range ({s.CmPer360:F1}).";
+
+            // Velocity consistency verdict
+            string velocityVerdict = s.AverageVelocity > 0 && s.PeakVelocity > 0
+                ? (s.AverageVelocity / s.PeakVelocity > 0.6
+                    ? "Consistent speed — good movement control."
+                    : "High speed variance — movement is inconsistent.")
+                : "Not enough movement data.";
+
+            // Overall quality verdict
+            string qualityVerdict = s.OverallQualityScore >= 75
+                ? $"Strong session — quality {s.OverallQualityScore:F0}/100."
+                : s.OverallQualityScore >= 50
+                ? $"Average session — quality {s.OverallQualityScore:F0}/100. Room to improve."
+                : $"Tough session — quality {s.OverallQualityScore:F0}/100. Check grip and surface.";
+
+            // Smoothness verdict
+            string smoothnessVerdict = s.SmoothnessScore >= 80
+                ? "Smooth movement — good mouse control."
+                : s.SmoothnessScore >= 60
+                ? "Some jitter detected — check sensitivity and grip pressure."
+                : "High jitter — sensitivity may be too high or grip too tense.";
+
+            MovementVerdictText.Text   = movementVerdict;
+            VelocityVerdictText.Text   = velocityVerdict;
+            QualityVerdictText.Text    = qualityVerdict;
+            SmoothnessVerdictText.Text = smoothnessVerdict;
         }
 
         public void ResetButton_Click(object sender, RoutedEventArgs e)
@@ -414,6 +469,12 @@ namespace CleanAimTracker.Windows
             LastDeltaText.Text = "Last Delta: 0, 0";
             DxDyText.Text = "dX: 0  dY: 0";
             ResetDisplaysToIdle();
+
+            // Clear verdict lines so they don't carry over to the next session
+            MovementVerdictText.Text   = "";
+            VelocityVerdictText.Text   = "";
+            QualityVerdictText.Text    = "";
+            SmoothnessVerdictText.Text = "";
         }
 
         // OVERLAY
@@ -567,7 +628,20 @@ namespace CleanAimTracker.Windows
             _timer.Stop();
 
             var summary = BuildSessionSummary();
-            SessionStorage.SaveSession(summary);
+            try
+            {
+                SessionStorage.SaveSession(summary);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to save session", ex);
+                MessageBox.Show(
+                    "Your session couldn't be saved — storage may be full or unavailable. " +
+                    "Your stats are still visible for this session.",
+                    "Save Warning",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
 
             // TASK-16: Update streak after saving
             var streakResult = StreakService.UpdateStreak();

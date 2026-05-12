@@ -104,7 +104,7 @@ Clean Aim Tracker captures raw mouse input to measure velocity, flicks, jitter, 
                         <TextBlock TextWrapping="Wrap"
                                    Foreground="{DynamicResource PrimaryText}"
                                    FontSize="13" LineHeight="22">
-Clean Aim Tracker includes a 7-day free trial with full access to all features. After the trial period, a Pro subscription is required to access: Aim Trainer, Session History, Sensitivity Recommendations, and the In-Game Overlay. Core mouse tracking remains free.
+Clean Aim Tracker gives you 30 free sessions to try everything. After 30 sessions, a Pro subscription unlocks: Aim Trainer, full Session History, Sensitivity Recommendations, and the In-Game Overlay. Core mouse tracking is always free — no time limit.
                         </TextBlock>
                     </StackPanel>
                 </Border>
@@ -145,6 +145,36 @@ Clean Aim Tracker includes a 7-day free trial with full access to all features. 
                                    Foreground="{DynamicResource SecondaryText}"
                                    FontSize="12" LineHeight="20">
 Not affiliated with, endorsed by, or associated with any game developer or publisher. All sensitivity calculations use publicly available mathematical constants.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
+                <!-- Changelog -->
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="18" Margin="0 0 0 10">
+                    <StackPanel>
+                        <TextBlock Text="WHAT'S NEW"
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="10" FontWeight="Bold"
+                                   Margin="0 0 0 4"/>
+                        <TextBlock x:Name="ChangelogVersionText"
+                                   Text="v1.0.20"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Margin="0 0 0 10"/>
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="12" LineHeight="22">
+• AI Coach now reads your mouse tracker data (sensitivity, smoothness, correction sharpness) for personalized advice
+• New progression tier system — Rookie → Bronze → Silver → Gold → Elite
+• Daily streak tracking with motivational messages
+• "View Last Report" — re-open your AI coaching report from the sidebar anytime
+• Plain-English session verdicts shown after each tracking session
+• First-run onboarding with guided 90-second baseline session
+• Updated pricing: Pro $4.99/mo · Lifetime $24.99
+• Tooltips added to all non-obvious metrics
+• Privacy statement added to Settings
+• Bug fixes and stability improvements
                         </TextBlock>
                     </StackPanel>
                 </Border>

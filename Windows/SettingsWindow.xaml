@@ -132,6 +132,29 @@
                     </Grid>
                 </Border>
 
+                <!-- Privacy -->
+                <TextBlock Text="PRIVACY"
+                           Foreground="{DynamicResource MutedText}"
+                           FontSize="10" FontWeight="Bold"
+                           Margin="0 0 0 10"/>
+
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="18" Margin="0 0 0 6">
+                    <StackPanel>
+                        <TextBlock Text="Your data stays on this PC"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="14" FontWeight="SemiBold"
+                                   Margin="0 0 0 8"/>
+                        <TextBlock TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryText}"
+                                   FontSize="12" LineHeight="20">
+Clean Aim Tracker stores all data locally — nothing is sent to any server or cloud service. The app records mouse movement metrics (speed, smoothness, flick counts), session timestamps, your DPI and sensitivity settings, and Aim Trainer drill results.
+
+All data is saved in your Windows app data folder. Uninstalling the app removes it completely. No account or internet connection is required.
+                        </TextBlock>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
 

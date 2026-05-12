@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
@@ -6,102 +7,120 @@ using System.Windows.Shapes;
 
 namespace CleanAimTracker.Trainer.Scenarios
 {
+    /// <summary>
+    /// Follow a moving target.
+    /// Variants:
+    ///   Smooth    — single target, smooth bounce (default)
+    ///   Evasive   — single target, sharp random direction changes every ~800 ms
+    ///   Two-Track — two targets moving simultaneously; click either for a hit
+    /// </summary>
     public class TrackingScenario : IAimScenario
     {
-        private Canvas _canvas;
-        private Ellipse _target;
-        private Random _rng;
+        private readonly string _variant;
+
+        private Canvas _canvas = null!;
+        private Random _rng    = null!;
 
         private double _targetSize;
         private double _moveSpeed;
 
-        private readonly Stopwatch _reactionTimer = new();
-        private double _totalReactionMs;
+        private readonly List<Ellipse> _targets = new();
+        private readonly TargetMover   _mover   = new();
 
+        private readonly Stopwatch _reactionTimer = new();
+        private readonly Stopwatch _evasiveTimer  = new();
+        private double _totalReactionMs;
         private int _streak;
 
-        private readonly TargetMover _mover = new();
+        public int    Hits            { get; private set; }
+        public int    Misses          { get; private set; }
+        public double BestReactionMs  { get; private set; } = double.MaxValue;
+        public double AvgReactionMs   => Hits == 0 ? 0 : _totalReactionMs / Hits;
+        public int    MaxStreak       { get; private set; }
 
-        public int Hits { get; private set; }
-        public int Misses { get; private set; }
-        public double BestReactionMs { get; private set; } = double.MaxValue;
-        public double AvgReactionMs => Hits == 0 ? 0 : _totalReactionMs / Hits;
-        public int MaxStreak { get; private set; }
+        public TrackingScenario(string variant = "Smooth")
+        {
+            _variant = variant;
+        }
 
         public void Start(Canvas canvas, double targetSize, double moveSpeed, Random rng)
         {
-            _canvas = canvas;
-            _rng = rng;
+            _canvas     = canvas;
+            _rng        = rng;
             _targetSize = targetSize;
-            _moveSpeed = moveSpeed;
+            _moveSpeed  = _variant == "Evasive" ? moveSpeed * 1.45 : moveSpeed;
 
-            // Spawn in the center
-            double x = canvas.ActualWidth / 2;
-            double y = canvas.ActualHeight / 2;
+            int count = _variant == "Two-Track" ? 2 : 1;
 
-            _target = TargetFactory.CreateTrackingTarget(_targetSize, x, y);
-            canvas.Children.Add(_target);
+            for (int i = 0; i < count; i++)
+            {
+                // Stagger start positions so Two-Track targets don't overlap
+                double x = canvas.ActualWidth  / 2 + (i == 1 ?  targetSize * 3 : 0);
+                double y = canvas.ActualHeight / 2 + (i == 1 ? -targetSize * 2 : 0);
 
-            _mover.AddTarget(_target, _moveSpeed);
+                var target = TargetFactory.CreateTrackingTarget(_targetSize, x, y);
+                _targets.Add(target);
+                canvas.Children.Add(target);
+                _mover.AddTarget(target, _moveSpeed);
+            }
 
+            if (_variant == "Evasive") _evasiveTimer.Restart();
             _reactionTimer.Restart();
         }
 
         public void Update(Canvas canvas)
         {
             _mover.Update(canvas);
+
+            // Evasive: randomise velocity every 800 ms
+            if (_variant == "Evasive" && _evasiveTimer.ElapsedMilliseconds >= 800)
+            {
+                foreach (var t in _targets)
+                    _mover.RandomizeVelocity(t, _moveSpeed);
+                _evasiveTimer.Restart();
+            }
         }
 
         public bool HandleClick(Point clickPos)
         {
-            if (_target == null)
-                return false;
-
-            double x = Canvas.GetLeft(_target);
-            double y = Canvas.GetTop(_target);
-            double size = _target.Width;
-
-            // Manual hit detection
-            double centerX = x + size / 2;
-            double centerY = y + size / 2;
-
-            double dx = clickPos.X - centerX;
-            double dy = clickPos.Y - centerY;
-
-            bool hit = (dx * dx + dy * dy) <= (size / 2) * (size / 2);
-
-            if (hit)
+            foreach (var target in _targets)
             {
-                Hits++;
-                _streak++;
-                MaxStreak = Math.Max(MaxStreak, _streak);
+                double left = Canvas.GetLeft(target);
+                double top  = Canvas.GetTop(target);
+                double size = target.Width;
+                double cx   = left + size / 2;
+                double cy   = top  + size / 2;
+                double dx   = clickPos.X - cx;
+                double dy   = clickPos.Y - cy;
 
-                double reaction = _reactionTimer.Elapsed.TotalMilliseconds;
-                _totalReactionMs += reaction;
+                if (dx * dx + dy * dy <= (size / 2) * (size / 2))
+                {
+                    Hits++;
+                    _streak++;
+                    MaxStreak = Math.Max(MaxStreak, _streak);
 
-                if (reaction < BestReactionMs)
-                    BestReactionMs = reaction;
+                    double reaction = _reactionTimer.Elapsed.TotalMilliseconds;
+                    _totalReactionMs += reaction;
+                    if (reaction < BestReactionMs) BestReactionMs = reaction;
+                    _reactionTimer.Restart();
 
-                _reactionTimer.Restart();
-            }
-            else
-            {
-                Misses++;
-                _streak = 0;
+                    return true;
+                }
             }
 
-            return hit;
+            Misses++;
+            _streak = 0;
+            return false;
         }
 
         public void Stop(Canvas canvas)
         {
-            if (_target != null)
+            foreach (var t in _targets)
             {
-                canvas.Children.Remove(_target);
-                _mover.RemoveTarget(_target);
+                canvas.Children.Remove(t);
+                _mover.RemoveTarget(t);
             }
-
-            _target = null;
+            _targets.Clear();
         }
     }
 }

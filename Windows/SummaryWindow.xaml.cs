@@ -159,6 +159,16 @@ namespace CleanAimTracker.Windows
 
                 QualityCompareText.Text = $"Quality:  {_s.OverallQualityScore:F0}  ({qualityDeltaStr})  •  PB: {pbQuality:F0}";
 
+                // TASK-27: Surface the personal best moment
+                if (_s.OverallQualityScore > pbQuality)
+                {
+                    PersonalBestBanner.Visibility = Visibility.Visible;
+                    double margin = _s.OverallQualityScore - pbQuality;
+                    PersonalBestScoreText.Text =
+                        $"Quality {_s.OverallQualityScore:F0}/100 — beats your previous best " +
+                        $"({pbQuality:F0}) by {margin:F0} pts";
+                }
+
                 // Velocity delta
                 double lastVel  = previous[0].AverageVelocity;
                 double velDelta = _s.AverageVelocity - lastVel;
@@ -202,6 +212,20 @@ namespace CleanAimTracker.Windows
                 StreakMessageText.Foreground = System.Windows.Media.Brushes.Gold;
             else
                 StreakMessageText.Foreground = System.Windows.Media.Brushes.LightGreen;
+        }
+
+        // TASK-27: Copy personal best to clipboard
+        private void SharePb_Click(object sender, RoutedEventArgs e)
+        {
+            string text =
+                $"🏆 New personal best in Clean Aim Tracker! " +
+                $"Aim quality: {_s.OverallQualityScore:F0}/100 " +
+                $"(smoothness {_s.SmoothnessScore:F0}, " +
+                $"cm/360: {_s.CmPer360:F1}) " +
+                $"— keep grinding! 🎯 #CleanAimTracker #AimTraining";
+
+            System.Windows.Clipboard.SetText(text);
+            SharePbBtn.Content = "✅  Copied!";
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)

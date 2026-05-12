@@ -41,6 +41,18 @@ namespace CleanAimTracker.Windows
         private string _scenario = "Tracking";
         private string _difficulty = "Medium";
         private string _adaptiveWeakSpot = "Flicking";
+        private string _variant = "Smooth";
+
+        // Daily Warm-Up state
+        private bool   _isWarmupMode       = false;
+        private int    _warmupRound        = 0;
+        private int    _warmupTotalHits    = 0;
+        private int    _warmupTotalMisses  = 0;
+        private double _warmupTotalReactionMs = 0;
+        private double _warmupBestReaction = double.MaxValue;
+
+        private static readonly string[] WarmupScenarioOrder =
+            new[] { "Precision", "Tracking", "Flicking", "Switching" };
 
         // Difficulty config
         private record DifficultyConfig(double TargetSize, double MoveSpeed, double SpawnDelayMs);
@@ -108,14 +120,20 @@ namespace CleanAimTracker.Windows
             if (sender is not Border btn) return;
 
             _scenario = btn.Tag?.ToString() ?? "Tracking";
-            ScenarioLabel.Text = _scenario == "Adaptive"
-                ? $"Adaptive → {_adaptiveWeakSpot}"
-                : _scenario;
+
+            ScenarioLabel.Text = _scenario switch
+            {
+                "Adaptive" => $"Adaptive → {_adaptiveWeakSpot}",
+                "WarmUp"   => "☀️ Daily Warm-Up",
+                _          => _scenario,
+            };
 
             foreach (var child in ((StackPanel)btn.Parent).Children.OfType<Border>())
                 child.Background = Brushes.Transparent;
 
             btn.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0xE5, 0xFF));
+
+            UpdateVariantCombo(_scenario);
         }
 
         private void DifficultyCombo_Changed(object sender, SelectionChangedEventArgs e)
@@ -129,6 +147,35 @@ namespace CleanAimTracker.Windows
             _difficulty = tag;
             _config = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
             DifficultyLabel.Text = _difficulty;
+        }
+
+        private void UpdateVariantCombo(string scenario)
+        {
+            string[] variants = scenario switch
+            {
+                "Tracking"  => new[] { "Smooth", "Evasive", "Two-Track" },
+                "Precision" => new[] { "Standard", "Micro", "Double" },
+                "Flicking"  => new[] { "Standard", "Peripheral", "Pairs" },
+                "Switching" => new[] { "4-Target", "6-Target", "Speed Rush" },
+                _           => new[] { "Standard" },
+            };
+
+            VariantCombo.SelectionChanged -= VariantCombo_Changed;
+            VariantCombo.Items.Clear();
+            foreach (var v in variants)
+                VariantCombo.Items.Add(new ComboBoxItem { Content = v });
+            VariantCombo.SelectedIndex = 0;
+            VariantCombo.IsEnabled = scenario is not "Adaptive" and not "WarmUp";
+            VariantCombo.SelectionChanged += VariantCombo_Changed;
+
+            _variant = variants[0];
+        }
+
+        private void VariantCombo_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (!_uiReady) return;
+            if (VariantCombo.SelectedItem is ComboBoxItem item)
+                _variant = item.Content?.ToString() ?? "Standard";
         }
 
         private void DurationCombo_Changed(object sender, SelectionChangedEventArgs e)
@@ -164,9 +211,7 @@ namespace CleanAimTracker.Windows
         private void StartDrill()
         {
             _isRunning = true;
-
             _score = 0;
-            _secondsLeft = _durationSeconds;
 
             IdleMessage.Visibility = Visibility.Collapsed;
             StartStopBtn.Content = "■  Stop Drill";
@@ -174,20 +219,46 @@ namespace CleanAimTracker.Windows
 
             ClearTargets();
             UpdateLiveStats();
-            UpdateTimerDisplay();
 
-            string activeScenario = _scenario == "Adaptive" ? _adaptiveWeakSpot : _scenario;
-
-            _scenarioInstance = activeScenario switch
+            if (_scenario == "WarmUp")
             {
-                "Tracking" => new TrackingScenario(),
-                "Switching" => new SwitchingScenario(),
-                "Adaptive" => new AdaptiveScenario(_adaptiveWeakSpot),
-                _ => new StaticScenario(),
-            };
+                _isWarmupMode          = true;
+                _warmupRound           = 1;
+                _warmupTotalHits       = 0;
+                _warmupTotalMisses     = 0;
+                _warmupTotalReactionMs = 0;
+                _warmupBestReaction    = double.MaxValue;
+                _secondsLeft           = 60;
 
+                WarmUpRoundText.Text       = $"Round 1/4 — {WarmupScenarioOrder[0]}";
+                WarmUpRoundText.Visibility = Visibility.Visible;
+
+                _scenarioInstance = new StaticScenario("Precision", "Standard");
+            }
+            else
+            {
+                _isWarmupMode              = false;
+                _secondsLeft               = _durationSeconds;
+                WarmUpRoundText.Visibility = Visibility.Collapsed;
+
+                if (_scenario == "Adaptive")
+                {
+                    _scenarioInstance = new AdaptiveScenario(_adaptiveWeakSpot);
+                }
+                else
+                {
+                    _scenarioInstance = _scenario switch
+                    {
+                        "Tracking"  => new TrackingScenario(_variant),
+                        "Switching" => new SwitchingScenario(_variant),
+                        "Flicking"  => new StaticScenario("Flicking", _variant),
+                        _           => new StaticScenario("Precision", _variant),
+                    };
+                }
+            }
+
+            UpdateTimerDisplay();
             _scenarioInstance.Start(TargetCanvas, _config.TargetSize, _config.MoveSpeed, _rng);
-
             _gameTimer.Start();
             _updateTimer.Start();
         }
@@ -199,11 +270,9 @@ namespace CleanAimTracker.Windows
             _gameTimer.Stop();
             _updateTimer.Stop();
 
-            _scenarioInstance?.Stop(TargetCanvas);
-
-            // Capture stats before clearing scenario
+            // Capture stats before stopping
             var statsSource = _scenarioInstance;
-
+            _scenarioInstance?.Stop(TargetCanvas);
             _scenarioInstance = null;
 
             ClearTargets();
@@ -211,18 +280,41 @@ namespace CleanAimTracker.Windows
             StartStopBtn.Content = "▶  Start Drill";
             StartStopBtn.Background = (Brush)Application.Current.Resources["AccentBrush"];
 
-            IdleMessage.Visibility = Visibility.Visible;
+            IdleMessage.Visibility         = Visibility.Visible;
+            WarmUpRoundText.Visibility     = Visibility.Collapsed;
             UpdateTimerDisplay();
 
-            if (showResults && statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
+            if (_isWarmupMode)
             {
-                var result = BuildResult(statsSource);
-                SaveResult(result);
+                // Accumulate final round stats
+                if (statsSource != null)
+                {
+                    _warmupTotalHits       += statsSource.Hits;
+                    _warmupTotalMisses     += statsSource.Misses;
+                    _warmupTotalReactionMs += statsSource.AvgReactionMs * statsSource.Hits;
+                    if (statsSource.BestReactionMs < _warmupBestReaction)
+                        _warmupBestReaction = statsSource.BestReactionMs;
+                }
+                _isWarmupMode = false;
 
-                new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
-
-                var rec = BuildRecommendation(result);
-                new RecommendationWindow(rec) { Owner = this }.ShowDialog();
+                if (showResults && (_warmupTotalHits + _warmupTotalMisses) > 0)
+                {
+                    var result = BuildWarmupResult();
+                    SaveResult(result);
+                    new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+                    new RecommendationWindow(BuildRecommendation(result)) { Owner = this }.ShowDialog();
+                }
+            }
+            else
+            {
+                _isWarmupMode = false;
+                if (showResults && statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
+                {
+                    var result = BuildResult(statsSource);
+                    SaveResult(result);
+                    new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+                    new RecommendationWindow(BuildRecommendation(result)) { Owner = this }.ShowDialog();
+                }
             }
         }
 
@@ -235,7 +327,12 @@ namespace CleanAimTracker.Windows
             UpdateTimerDisplay();
 
             if (_secondsLeft <= 0)
-                StopDrill(showResults: true);
+            {
+                if (_isWarmupMode && _warmupRound < 4)
+                    AdvanceWarmupRound();
+                else
+                    StopDrill(showResults: true);
+            }
         }
 
         private void UpdateScenario_Tick(object? sender, EventArgs e)
@@ -356,6 +453,61 @@ namespace CleanAimTracker.Windows
                 AvgReactionMs = stats.AvgReactionMs,
                 BestReactionMs = stats.BestReactionMs,
                 MaxStreak = stats.MaxStreak,
+            };
+        }
+
+        private void AdvanceWarmupRound()
+        {
+            // Accumulate completed round stats
+            if (_scenarioInstance != null)
+            {
+                _warmupTotalHits       += _scenarioInstance.Hits;
+                _warmupTotalMisses     += _scenarioInstance.Misses;
+                _warmupTotalReactionMs += _scenarioInstance.AvgReactionMs * _scenarioInstance.Hits;
+                if (_scenarioInstance.BestReactionMs < _warmupBestReaction)
+                    _warmupBestReaction = _scenarioInstance.BestReactionMs;
+                _scenarioInstance.Stop(TargetCanvas);
+                _scenarioInstance = null;
+            }
+
+            _warmupRound++;
+            _secondsLeft = 60;
+            ClearTargets();
+
+            string nextScenario = WarmupScenarioOrder[_warmupRound - 1];
+            WarmUpRoundText.Text = $"Round {_warmupRound}/4 — {nextScenario}";
+
+            _scenarioInstance = nextScenario switch
+            {
+                "Tracking"  => new TrackingScenario("Smooth"),
+                "Flicking"  => new StaticScenario("Flicking", "Standard"),
+                "Switching" => new SwitchingScenario("4-Target"),
+                _           => new StaticScenario("Precision", "Standard"),
+            };
+            _scenarioInstance.Start(TargetCanvas, _config.TargetSize, _config.MoveSpeed, _rng);
+            UpdateTimerDisplay();
+        }
+
+        private AimTrainerResult BuildWarmupResult()
+        {
+            int    total      = _warmupTotalHits + _warmupTotalMisses;
+            double accuracy   = total > 0 ? _warmupTotalHits * 100.0 / total : 0;
+            double avgReact   = _warmupTotalHits > 0 ? _warmupTotalReactionMs / _warmupTotalHits : 0;
+            double bestReact  = _warmupBestReaction == double.MaxValue ? 0 : _warmupBestReaction;
+
+            return new AimTrainerResult
+            {
+                Timestamp       = DateTime.Now,
+                Scenario        = "Daily Warm-Up",
+                Difficulty      = _difficulty,
+                DurationSeconds = 240,
+                Hits            = _warmupTotalHits,
+                Misses          = _warmupTotalMisses,
+                Accuracy        = accuracy,
+                Score           = _score,
+                AvgReactionMs   = avgReact,
+                BestReactionMs  = bestReact,
+                MaxStreak       = 0,
             };
         }
 

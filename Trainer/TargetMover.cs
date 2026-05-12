@@ -29,6 +29,18 @@ namespace CleanAimTracker.Trainer
             _velocities.Clear();
         }
 
+        /// <summary>Assign a fresh random velocity to an existing tracked target (used by Evasive variant).</summary>
+        public void RandomizeVelocity(Ellipse target, double speed)
+        {
+            if (!_velocities.ContainsKey(target)) return;
+            double dx = (_rng.NextDouble() * 2 - 1) * speed;
+            double dy = (_rng.NextDouble() * 2 - 1) * speed;
+            // Ensure neither axis is near-zero so the target keeps moving
+            if (Math.Abs(dx) < 0.5) dx = speed * (dx < 0 ? -1 : 1);
+            if (Math.Abs(dy) < 0.5) dy = speed * (dy < 0 ? -1 : 1);
+            _velocities[target] = (dx, dy);
+        }
+
         public void Update(Canvas canvas)
         {
             double w = canvas.ActualWidth;

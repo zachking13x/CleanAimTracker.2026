@@ -1,6 +1,7 @@
 using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -84,8 +85,11 @@ namespace CleanAimTracker.Windows
 
             try
             {
-                var history = await Task.Run(() => AimTrainerStorage.LoadAll());
-                var report  = await Task.Run(() => AiCoachService.Analyze(result, history));
+                var history       = await Task.Run(() => AimTrainerStorage.LoadAll());
+                var recentTracker = await Task.Run(() => SessionStorage.LoadAll()
+                                        ?.OrderByDescending(s => s.Timestamp)
+                                        .FirstOrDefault(s => s.SessionSeconds >= 45));
+                var report        = await Task.Run(() => AiCoachService.Analyze(result, history, recentTracker));
                 PopulateCoaching(report);
             }
             catch (Exception ex)

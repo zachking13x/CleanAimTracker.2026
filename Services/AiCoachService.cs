@@ -2,6 +2,7 @@ using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+#nullable enable
 
 namespace CleanAimTracker.Services
 {
@@ -29,9 +30,12 @@ namespace CleanAimTracker.Services
         }
 
         // ── Public entry point ────────────────────────────────────────
-        public static AiCoachReport Analyze(AimTrainerResult result, List<AimTrainerResult> history)
+        public static AiCoachReport Analyze(
+            AimTrainerResult result,
+            List<AimTrainerResult> history,
+            SessionSummary? recentTrackerSession = null)
         {
-            var context = BuildContext(result, history);
+            var context = BuildContext(result, history, recentTrackerSession);
             return GenerateReport(result, context);
         }
 
@@ -55,11 +59,30 @@ namespace CleanAimTracker.Services
             string StrongArea,
             double OverallAvgAccuracy,
             double OverallAvgReaction,
-            int    TotalSessionsAll
+            int    TotalSessionsAll,
+            // New tracker fields — nullable because tracker session may not exist
+            double? TrackerCmPer360,
+            double? TrackerSmoothness,
+            double? TrackerCorrectionSharpness
         );
 
-        private static CoachContext BuildContext(AimTrainerResult r, List<AimTrainerResult> history)
+        private static CoachContext BuildContext(
+            AimTrainerResult r,
+            List<AimTrainerResult> history,
+            SessionSummary? tracker = null)
         {
+            // Extract tracker data — only use if session was long enough to be reliable
+            double? trackerCmPer360            = null;
+            double? trackerSmoothness          = null;
+            double? trackerCorrectionSharpness = null;
+
+            if (tracker != null && tracker.SessionSeconds >= 45)
+            {
+                trackerCmPer360            = tracker.CmPer360 > 0 ? tracker.CmPer360 : (double?)null;
+                trackerSmoothness          = tracker.SmoothnessScore;
+                trackerCorrectionSharpness = tracker.CorrectionSharpness;
+            }
+
             var same = history
                 .Where(h => h.Scenario == r.Scenario && h.Timestamp != r.Timestamp)
                 .OrderByDescending(h => h.Timestamp)
@@ -127,7 +150,8 @@ namespace CleanAimTracker.Services
                 pbAccuracy, pbReaction,
                 newAccPB, newReactPB,
                 weak, strong,
-                overallAvgAccuracy, overallAvgReaction, totalSessionsAll
+                overallAvgAccuracy, overallAvgReaction, totalSessionsAll,
+                trackerCmPer360, trackerSmoothness, trackerCorrectionSharpness
             );
         }
 
@@ -224,14 +248,61 @@ namespace CleanAimTracker.Services
             switch (c.WeakArea)
             {
                 case "accuracy":
+                    // Check for sensitivity root cause first — most valuable diagnosis
+                    if (c.TrackerCmPer360.HasValue && r.Scenario == "Precision")
+                    {
+                        if (c.TrackerCmPer360.Value < 20)
+                        {
+                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — that's too low for Precision. " +
+                                     "At that range you physically cannot make the micro-adjustments small targets require. " +
+                                     "This is a settings problem, not a skill problem. Use the Recommend screen to find your optimal range.");
+                            break;
+                        }
+                        else if (c.TrackerCmPer360.Value > 55)
+                        {
+                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — that's too high for Precision. " +
+                                     "You are overshooting small targets because the cursor moves too far per hand movement. " +
+                                     "Lower your sensitivity and retest.");
+                            break;
+                        }
+                    }
+                    if (c.TrackerCmPer360.HasValue && r.Scenario == "Tracking")
+                    {
+                        if (c.TrackerCmPer360.Value < 15)
+                        {
+                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — too low to smoothly follow moving targets. " +
+                                     "Tracking rewards fluid wrist movement, which is nearly impossible at this sensitivity range.");
+                            break;
+                        }
+                        else if (c.TrackerCmPer360.Value > 65)
+                        {
+                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — too high for consistent Tracking. " +
+                                     "Small hand movements translate to large cursor jumps, making smooth tracking very difficult.");
+                            break;
+                        }
+                    }
+                    // Default accuracy coaching when no sensitivity diagnosis applies
                     list.Add(r.Accuracy < 50
-                        ? $"At {r.Accuracy:F0}% accuracy you're missing more than half your shots — slow down and prioritize clicking when your cursor is actually on the target."
-                        : $"{r.Accuracy:F0}% accuracy has room to grow. You're rushing some clicks — wait for the moment of confidence before clicking.");
+                        ? $"At {r.Accuracy:F0}% accuracy you are missing more than half your shots — slow down and prioritize clicking when your cursor is actually on the target."
+                        : $"{r.Accuracy:F0}% accuracy has room to grow. You are rushing some clicks — wait for the moment of confidence before clicking.");
                     break;
                 case "reaction":
-                    list.Add(c.ReactionGrade == "slow"
-                        ? $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction."
-                        : $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) is {r.AvgReactionMs - r.BestReactionMs:F0}ms — your ceiling is higher than your average suggests.");
+                    // Check if slow reaction is actually a movement problem, not a cognitive one
+                    if (c.TrackerCorrectionSharpness.HasValue
+                        && c.TrackerCorrectionSharpness.Value > 60
+                        && c.ReactionGrade == "slow")
+                    {
+                        list.Add($"Your reaction time looks slow at {r.AvgReactionMs:F0}ms but your correction sharpness score " +
+                                 $"({c.TrackerCorrectionSharpness.Value:F0}) suggests you are overshooting and correcting — " +
+                                 "that adds 80-150ms artificially. The fix is smoother initial movement, not faster reactions. " +
+                                 "Focus on landing on the target in one motion instead of correcting after overshoot.");
+                    }
+                    else
+                    {
+                        list.Add(c.ReactionGrade == "slow"
+                            ? $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction."
+                            : $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) is {r.AvgReactionMs - r.BestReactionMs:F0}ms — your ceiling is higher than your average suggests.");
+                    }
                     break;
                 case "streak":
                     list.Add($"Your best streak was {r.MaxStreak} — breaking streaks early usually means rushing after a miss or losing focus mid-drill. Take a breath after each miss and reset.");
@@ -241,6 +312,18 @@ namespace CleanAimTracker.Services
                         ? $"Accuracy dropped {Math.Abs(c.AccuracyDelta):F0}% from last session. This can be fatigue, distraction, or sensitivity. Note the conditions — time of day and warmup matter more than people realize."
                         : "Your later targets seem harder than early ones — this is a focus endurance issue, not a skill issue. Short drills help train consistent focus.");
                     break;
+            }
+
+            // Smoothness diagnosis — only for Tracking with low accuracy and low smoothness data
+            if (c.TrackerSmoothness.HasValue
+                && c.TrackerSmoothness.Value < 60
+                && r.Scenario == "Tracking"
+                && r.Accuracy < 65
+                && list.Count < 2)
+            {
+                list.Add($"Your smoothness score from your last tracker session was {c.TrackerSmoothness.Value:F0}/100. " +
+                         "That level of jitter makes consistent tracking physically harder — " +
+                         "check your grip, surface friction, and make sure your mousepad is clean and flat.");
             }
 
             if (r.Scenario == "Tracking" && r.Accuracy < 65)
@@ -275,9 +358,23 @@ namespace CleanAimTracker.Services
                         : $"Your reaction is already strong at {r.AvgReactionMs:F0}ms. Focus on reducing your miss rate to convert that speed into real accuracy.");
                     break;
                 case "Precision":
-                    tips.Add(r.Accuracy < 75
-                        ? "Treat Precision like a patience drill. Hover over the target for a half-second before clicking — the slowdown is worth the accuracy gain."
-                        : "Maintain this accuracy while trying to reduce your reaction time. Precise and fast is the goal — you already have precise.");
+                    if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value < 20)
+                    {
+                        tips.Add($"Your primary fix is sensitivity — at {c.TrackerCmPer360.Value:F1}cm/360 you need more cm/360 " +
+                                 "to make precise micro-adjustments. Use the Recommend screen to find your target range, " +
+                                 "then retest Precision at the new setting before drawing conclusions about your skill level.");
+                    }
+                    else if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value > 55)
+                    {
+                        tips.Add($"Lower your sensitivity first — at {c.TrackerCmPer360.Value:F1}cm/360 small targets will always feel " +
+                                 "unpredictable. Get into the 25-50cm range and your Precision accuracy will improve immediately.");
+                    }
+                    else
+                    {
+                        tips.Add(r.Accuracy < 75
+                            ? "Treat Precision like a patience drill. Hover over the target for a half-second before clicking — the slowdown is worth the accuracy gain."
+                            : "Maintain this accuracy while trying to reduce your reaction time. Precise and fast is the goal — you already have precise.");
+                    }
                     break;
                 case "Switching":
                     tips.Add(r.MaxStreak < 5
@@ -331,21 +428,71 @@ namespace CleanAimTracker.Services
 
         private static string GetMotivation(AimTrainerResult r, CoachContext c)
         {
+            // Rotate variants using session count so same line never repeats consecutively
+            int v = c.TotalSessionsAll % 4;
+
             if (c.NewAccuracyRecord || c.NewReactionRecord)
-                return "Personal records don't happen by accident — you earned this one.";
+                return v switch {
+                    0 => "Personal records don't happen by accident — you earned this one.",
+                    1 => "That's a new benchmark. Now you know what you're capable of.",
+                    2 => "Records are proof the work is paying off. Keep showing up.",
+                    _ => "New personal best. That number is yours to beat now."
+                };
+
             if (c.IsImproving && c.SessionCount >= 5)
-                return $"Session {c.SessionCount} in the books — the trend is real and it's pointing up.";
+                return v switch {
+                    0 => $"Session {c.SessionCount} in the books — the trend is real and it's pointing up.",
+                    1 => $"{c.SessionCount} sessions logged and the improvement is measurable. Stay consistent.",
+                    2 => "The data shows you're getting better. Trust the process.",
+                    _ => $"Upward trend confirmed across {c.SessionCount} sessions. Don't break the streak."
+                };
+
             if (c.AccuracyGrade == "elite")
-                return "You're performing at a level most players never reach. Keep showing up.";
+                return v switch {
+                    0 => "You're performing at a level most players never reach. Keep showing up.",
+                    1 => "Elite accuracy isn't luck — it's reps. You're putting them in.",
+                    2 => "Top tier performance. The gap between you and average players is widening.",
+                    _ => "That accuracy puts you ahead of the vast majority. Maintain it."
+                };
+
             if (c.IsFirstSession)
-                return "First session is just the start. Come back tomorrow and you'll already be better.";
+                return v switch {
+                    0 => "First session is just the start. Come back tomorrow and you'll already be better.",
+                    1 => "Baseline set. Everything from here is measurable improvement.",
+                    2 => "Day one done. The players who improve are the ones who come back for day two.",
+                    _ => "First session logged. Now you have something to beat."
+                };
+
             if (c.AccuracyDelta < -5)
-                return "Bad sessions are data, not failure. You showed up — that's what separates players who improve from players who don't.";
+                return v switch {
+                    0 => "Bad sessions are data, not failure. You showed up — that's what separates players who improve from players who don't.",
+                    1 => "Off sessions happen to everyone. What matters is you tracked it and came back.",
+                    2 => "The dip is logged. That's how you find the pattern — show up again tomorrow.",
+                    _ => "One bad session doesn't define the trend. Your history is longer than today."
+                };
+
             if (c.TotalSessionsAll >= 10)
-                return $"{c.TotalSessionsAll} sessions logged across all scenarios. Your overall average accuracy is {c.OverallAvgAccuracy:F0}% — that's your real benchmark.";
+                return v switch {
+                    0 => $"{c.TotalSessionsAll} sessions logged across all scenarios. Your overall average accuracy is {c.OverallAvgAccuracy:F0}% — that's your real benchmark.",
+                    1 => $"Double digits in. At {c.TotalSessionsAll} sessions your data is starting to tell a real story.",
+                    2 => $"{c.TotalSessionsAll} sessions tracked. The improvement is in the data whether you feel it today or not.",
+                    _ => $"Your {c.TotalSessionsAll}-session history is your actual performance record. Trust it over any single session."
+                };
+
             if (c.SessionCount >= 10)
-                return $"{c.SessionCount} sessions tracked. The players who log 10+ sessions are the ones who actually improve — you're one of them.";
-            return "Every drill is a deposit in the bank. It adds up faster than you think.";
+                return v switch {
+                    0 => $"{c.SessionCount} sessions tracked. The players who log 10+ sessions are the ones who actually improve — you're one of them.",
+                    1 => $"10+ sessions in this scenario. Muscle memory is building whether you notice it yet or not.",
+                    2 => "Consistency over 10 sessions is rarer than people think. You're in the group that improves.",
+                    _ => $"{c.SessionCount} sessions and still showing up. That's the whole game."
+                };
+
+            return v switch {
+                0 => "Every drill is a deposit in the bank. It adds up faster than you think.",
+                1 => "Showing up consistently is the actual skill. You're building it.",
+                2 => "Progress in aim training is slow and then suddenly obvious. Keep going.",
+                _ => "The session is logged. That's one more data point working in your favor."
+            };
         }
     }
 }

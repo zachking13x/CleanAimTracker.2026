@@ -226,6 +226,33 @@
             </Setter>
         </Style>
 
+        <!-- Dark tooltip — matches app theme -->
+        <Style TargetType="ToolTip">
+            <Setter Property="Background" Value="#1C1C1C"/>
+            <Setter Property="Foreground" Value="#CCCCCC"/>
+            <Setter Property="BorderBrush" Value="#333333"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="HasDropShadow" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToolTip">
+                        <Border Background="#1C1C1C"
+                                BorderBrush="#333333"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="10 7">
+                            <TextBlock Text="{TemplateBinding Content}"
+                                       Foreground="#CCCCCC"
+                                       FontSize="12"
+                                       MaxWidth="240"
+                                       TextWrapping="Wrap"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <!-- ROOT: Sidebar + Main -->
@@ -339,7 +366,8 @@
                         <!-- DPI -->
                         <StackPanel Orientation="Vertical" Margin="0,0,24,0">
                             <TextBlock Text="DPI" Foreground="{DynamicResource MutedText}"
-                                       FontSize="10" Margin="0,0,0,3"/>
+                                       FontSize="10" Margin="0,0,0,3"
+                                       ToolTip="Your mouse hardware DPI setting. Check your mouse software or physical DPI button. Common values: 400, 800, 1600, 3200."/>
                             <TextBox x:Name="DpiInput" Width="80" Text="800"
                                      Style="{StaticResource ModernTextBox}"/>
                         </StackPanel>
@@ -347,7 +375,8 @@
                         <!-- Sensitivity -->
                         <StackPanel Orientation="Vertical" Margin="0,0,24,0">
                             <TextBlock Text="SENSITIVITY" Foreground="{DynamicResource MutedText}"
-                                       FontSize="10" Margin="0,0,0,3"/>
+                                       FontSize="10" Margin="0,0,0,3"
+                                       ToolTip="Your in-game sensitivity value. Used to calculate cm/360 and generate sensitivity-specific coaching advice."/>
                             <TextBox x:Name="SensitivityInput" Width="80" Text="1.0"
                                      Style="{StaticResource ModernTextBox}"/>
                         </StackPanel>
@@ -455,12 +484,14 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="dX / dY" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="dX / dY" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Raw mouse delta — the X and Y axis movement your mouse reported each poll cycle."/>
                                 <TextBlock x:Name="DxDyText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Total Distance" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Total Distance" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Total raw mouse units moved this session. Higher means more physical mouse movement overall."/>
                                 <TextBlock x:Name="TotalDistanceText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
@@ -474,7 +505,8 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="cm/360" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="cm/360" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Centimeters of physical desk movement for one full 360° spin in-game. Lower = faster/twitchier. Higher = slower/more precise. Most players prefer 20–50 cm/360."/>
                                 <TextBlock x:Name="CmPer360Text" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
@@ -482,6 +514,12 @@
                                 <TextBlock Text="Session Time" Style="{StaticResource LabelTextStyle}"/>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Verdict line — populated after session ends -->
+                        <TextBlock x:Name="MovementVerdictText" Text=""
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="11" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 
@@ -535,20 +573,29 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Mouse Movements Per Second — how actively your mouse was moving this session."/>
                                 <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Micro-movements per second over the last 1-second window — indicates aim tremor or active micro-adjustment patterns."/>
                                 <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
 
                         <StackPanel>
-                            <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"/>
+                            <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"
+                                       ToolTip="Largest sudden velocity change this session — high values mean fast, explosive flick shots."/>
                             <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                         </StackPanel>
+
+                        <!-- Verdict line -->
+                        <TextBlock x:Name="VelocityVerdictText" Text=""
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="11" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 
@@ -588,7 +635,8 @@
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Fast movements that start from near-stillness — indicates reactive, instinctive aim from a stationary position."/>
                                 <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
@@ -607,12 +655,14 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Composite aim score 0–100 based on smoothness, control, and correction consistency. 70+ is solid; 85+ is elite."/>
                                 <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="How fluid and continuous your movement is. High = fewer jerky direction changes. Aim for 65+."/>
                                 <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
@@ -626,15 +676,23 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="How aggressively you correct your aim. Very high (80+) may mean you're overshooting targets; very low (&lt;20) may mean slow, hesitant adjustments."/>
                                 <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="How steady your aim is during slow movement or pauses. Higher is better for tracking scenarios."/>
                                 <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
                         </Grid>
+
+                        <!-- Verdict line -->
+                        <TextBlock x:Name="QualityVerdictText" Text=""
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="11" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 
@@ -648,13 +706,21 @@
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
-                        <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"/>
+                        <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"
+                                   ToolTip="Rapid involuntary micro-movements that aren't intentional aim. High jitter can indicate grip tension, fatigue, or sensitivity set too high."/>
                         <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
-                        <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"/>
+                        <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"
+                                   ToolTip="Active movement events per second across the full session — how busy your aim is over time."/>
                         <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+
+                        <!-- Verdict line -->
+                        <TextBlock x:Name="SmoothnessVerdictText" Text=""
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="11" FontStyle="Italic"
+                                   TextWrapping="Wrap" Margin="0,6,0,0"/>
                     </StackPanel>
                 </Border>
 

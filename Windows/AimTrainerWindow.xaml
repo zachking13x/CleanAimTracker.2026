@@ -82,13 +82,34 @@
                     <Border x:Name="ScenarioBtn_Adaptive"
                             Tag="Adaptive"
                             Background="Transparent" CornerRadius="6"
-                            Padding="12 8" Margin="0 0 0 16"
+                            Padding="12 8" Margin="0 0 0 4"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click">
                         <StackPanel>
                             <TextBlock Text="🤖  Adaptive" Foreground="{DynamicResource AccentBrush}" FontSize="13" FontWeight="SemiBold"/>
                             <TextBlock Text="Targets your weak spots" Foreground="#888" FontSize="10" Margin="0 2 0 0"/>
                         </StackPanel>
                     </Border>
+
+                    <Border x:Name="ScenarioBtn_WarmUp"
+                            Tag="WarmUp"
+                            Background="Transparent" CornerRadius="6"
+                            Padding="12 8" Margin="0 0 0 16"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click">
+                        <StackPanel>
+                            <TextBlock Text="☀️  Daily Warm-Up" Foreground="LightGreen" FontSize="13" FontWeight="SemiBold"/>
+                            <TextBlock Text="4 × 60s guided routine" Foreground="#888" FontSize="10" Margin="0 2 0 0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Variant -->
+                    <TextBlock Text="VARIANT" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{DynamicResource MutedText}" Margin="0 0 0 8"/>
+                    <ComboBox x:Name="VariantCombo" Margin="0 0 0 16"
+                              SelectionChanged="VariantCombo_Changed">
+                        <ComboBoxItem Content="Smooth" IsSelected="True"/>
+                        <ComboBoxItem Content="Evasive"/>
+                        <ComboBoxItem Content="Two-Track"/>
+                    </ComboBox>
 
                     <!-- Difficulty -->
                     <TextBlock Text="DIFFICULTY" FontSize="10" FontWeight="SemiBold"
@@ -231,6 +252,12 @@
                                    Text="Medium"
                                    Foreground="{DynamicResource MutedText}"
                                    FontSize="12"/>
+                        <TextBlock x:Name="WarmUpRoundText"
+                                   Text=""
+                                   Foreground="LightGreen"
+                                   FontSize="12" FontWeight="Bold"
+                                   Margin="16 0 0 0"
+                                   Visibility="Collapsed"/>
                     </StackPanel>
 
                     <!-- Timer -->

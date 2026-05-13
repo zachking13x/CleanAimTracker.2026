@@ -256,12 +256,30 @@ namespace CleanAimTracker.Windows
             TourBubbleText.Text  = text;
             TourNextBtn.Content  = step == TourStops.Length - 1 ? "Done →" : "Next →";
 
-            // Position bubble: to the right of sidebar items, below main-area items
-            double bx = pos.X < 185 ? pos.X + w + 14 : pos.X;
-            double by = pos.X < 185 ? pos.Y - 4       : pos.Y + h + 12;
+            // Bubble positioning — prefer right of element, fall back to below, then above.
+            // All coordinates come from TranslatePoint so they're correct on any screen size.
+            const double BubbleW = 252, BubbleH = 110, Gap = 12;
 
-            bx = Math.Max(8, Math.Min(bx, ActualWidth  - 260));
-            by = Math.Max(8, Math.Min(by, ActualHeight - 120));
+            double rightX = pos.X + w + Gap;
+            double belowY = pos.Y + h + Gap;
+            double aboveY = pos.Y - BubbleH - Gap;
+
+            double bx, by;
+            if (rightX + BubbleW <= ActualWidth)          // fits to the right
+            {
+                bx = rightX;
+                by = Math.Max(8, Math.Min(pos.Y, ActualHeight - BubbleH - 8));
+            }
+            else if (belowY + BubbleH <= ActualHeight)    // fits below
+            {
+                bx = Math.Max(8, Math.Min(pos.X, ActualWidth - BubbleW - 8));
+                by = belowY;
+            }
+            else                                           // place above
+            {
+                bx = Math.Max(8, Math.Min(pos.X, ActualWidth - BubbleW - 8));
+                by = Math.Max(8, aboveY);
+            }
 
             TourBubble.Margin     = new Thickness(bx, by, 0, 0);
             TourBubble.Visibility = Visibility.Visible;

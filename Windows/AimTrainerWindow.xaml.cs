@@ -105,12 +105,12 @@ namespace CleanAimTracker.Windows
             _isOnboarding    = true;
             _scenario        = "Tracking";
             _variant         = "Smooth";
-            _difficulty      = "Medium";
+            _difficulty      = "Hard";
             _durationSeconds = 90;
-            _config          = DiffConfigs["Medium"];
+            _config          = DiffConfigs["Hard"];
 
             ScenarioLabel.Text   = "Tracking";
-            DifficultyLabel.Text = "Medium";
+            DifficultyLabel.Text = "Hard";
 
             StartDrill();
             OnboardingHintText.Visibility = Visibility.Visible;

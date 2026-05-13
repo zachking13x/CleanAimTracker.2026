@@ -35,10 +35,10 @@ namespace CleanAimTracker.Windows
         private double _previousAngle = 0;
         private double _angleChangeTotal = 0;
         private double _angleStability = 0;
-        private double _smoothnessScore = 100;
+        private double _smoothnessScore = 0;
         private double _correctionSharpness = 0;
-        private double _movementConsistency = 100;
-        private double _overallQualityScore = 100;
+        private double _movementConsistency = 0;
+        private double _overallQualityScore = 0;
 
         // FLICKS + JITTER + DENSITY
         private int _flickCount = 0;
@@ -364,7 +364,8 @@ namespace CleanAimTracker.Windows
                     (_movementConsistency * 0.35) +
                     ((100 - _correctionSharpness) * 0.15),
                     0, 100);
-                OverallQualityText.Text = $"{_overallQualityScore:F0}";
+                if (_sessionSeconds >= 3)
+                    OverallQualityText.Text = $"{_overallQualityScore:F0}";
 
                 if (eventDistance > _peakDistancePerEvent)
                     _peakDistancePerEvent = eventDistance;
@@ -373,7 +374,8 @@ namespace CleanAimTracker.Windows
                 double angleDiff = Math.Abs(_lastAngle - _previousAngle);
 
                 _smoothnessScore = Math.Clamp(100 - Math.Abs(angleDiff) * 2, 0, 100);
-                SmoothnessText.Text = $"{_smoothnessScore:F0}";
+                if (_sessionSeconds >= 3)
+                    SmoothnessText.Text = $"{_smoothnessScore:F0}";
 
                 _angleChangeTotal += angleDiff;
 
@@ -440,7 +442,8 @@ namespace CleanAimTracker.Windows
 
                     double velocityChange = Math.Abs(_currentVelocity - _previousVelocity);
                     _correctionSharpness = Math.Min(velocityChange * 2, 100);
-                    CorrectionSharpnessText.Text = $"{_correctionSharpness:F0}";
+                    if (_sessionSeconds >= 3)
+                        CorrectionSharpnessText.Text = $"{_correctionSharpness:F0}";
 
                     _previousVelocity = _currentVelocity;
                 }
@@ -604,10 +607,10 @@ namespace CleanAimTracker.Windows
             _lastAngle = 0;
             _angleStability = 0;
             _angleChangeTotal = 0;
-            _movementConsistency = 100;
-            _smoothnessScore = 100;
+            _movementConsistency = 0;
+            _smoothnessScore = 0;
             _correctionSharpness = 0;
-            _overallQualityScore = 100;
+            _overallQualityScore = 0;
 
             LastDeltaText.Text = "Last Delta: 0, 0";
             DxDyText.Text = "dX: 0  dY: 0";

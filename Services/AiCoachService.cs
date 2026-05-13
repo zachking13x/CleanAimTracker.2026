@@ -314,26 +314,30 @@ namespace CleanAimTracker.Services
                     break;
             }
 
-            // Smoothness diagnosis — only for Tracking with low accuracy and low smoothness data
+            // Smoothness diagnosis — hardware root-cause, higher priority than generic scenario tips.
+            // Runs before scenario tips so it claims a slot first when both conditions fire.
             if (c.TrackerSmoothness.HasValue
                 && c.TrackerSmoothness.Value < 60
                 && r.Scenario == "Tracking"
-                && r.Accuracy < 65
-                && list.Count < 2)
+                && r.Accuracy < 65)
             {
                 list.Add($"Your smoothness score from your last tracker session was {c.TrackerSmoothness.Value:F0}/100. " +
                          "That level of jitter makes consistent tracking physically harder — " +
                          "check your grip, surface friction, and make sure your mousepad is clean and flat.");
             }
 
-            if (r.Scenario == "Tracking" && r.Accuracy < 65)
-                list.Add("In Tracking, many players chase the center of the target — aim slightly ahead of where it's moving instead.");
-            else if (r.Scenario == "Flicking" && r.AvgReactionMs > 450)
-                list.Add("For Flicking, your eyes should land on the target before your mouse moves. The eyes lead, the hand follows.");
-            else if (r.Scenario == "Precision" && r.Accuracy < 75)
-                list.Add("Precision requires slowing down intentionally — if you feel rushed, you'll overshoot small targets every time.");
-            else if (r.Scenario == "Switching" && r.MaxStreak < 4)
-                list.Add("In Switching, scan for the next target while clicking the current one — don't wait until after you've clicked to look for what's next.");
+            // Scenario-specific tips — only add if there is still room; smoothness diagnosis above takes priority.
+            if (list.Count < 2)
+            {
+                if (r.Scenario == "Tracking" && r.Accuracy < 65)
+                    list.Add("In Tracking, many players chase the center of the target — aim slightly ahead of where it's moving instead.");
+                else if (r.Scenario == "Flicking" && r.AvgReactionMs > 450)
+                    list.Add("For Flicking, your eyes should land on the target before your mouse moves. The eyes lead, the hand follows.");
+                else if (r.Scenario == "Precision" && r.Accuracy < 75)
+                    list.Add("Precision requires slowing down intentionally — if you feel rushed, you'll overshoot small targets every time.");
+                else if (r.Scenario == "Switching" && r.MaxStreak < 4)
+                    list.Add("In Switching, scan for the next target while clicking the current one — don't wait until after you've clicked to look for what's next.");
+            }
 
             if (list.Count == 0)
                 list.Add($"Your {c.WeakArea} is the area with the most room to grow — even small improvements there will lift your overall score significantly.");

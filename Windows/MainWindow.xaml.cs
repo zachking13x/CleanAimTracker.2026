@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
 
@@ -70,7 +71,8 @@ namespace CleanAimTracker.Windows
         private DateTime _sessionStart;
         private readonly DispatcherTimer _timer = new();
         private double _sessionSeconds = 0;
-        private DispatcherTimer? _onboardingTimer;
+        private DispatcherTimer? _countdownTimer;
+        private int _onboardingCountdown = 3;
 
         // DPI + SENSITIVITY
         private double _dpi = 800;
@@ -146,35 +148,158 @@ namespace CleanAimTracker.Windows
                 settings.OnboardingAutoStart = false;
                 SettingsService.Save(settings);
 
-                // Small delay so the window finishes rendering first
-                var delayTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-                delayTimer.Tick += (s, args) =>
-                {
-                    delayTimer.Stop();
-                    StartButton_Click(this, new RoutedEventArgs());
+                OnboardingOverlay.Visibility = Visibility.Visible;
+                _onboardingCountdown = 3;
+                OnboardingCountdownText.Text = "3";
 
-                    // Auto-stop after 90 seconds
-                    _onboardingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(90) };
-                    _onboardingTimer.Tick += (s2, args2) =>
+                _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                _countdownTimer.Tick += (_, _) =>
+                {
+                    _onboardingCountdown--;
+                    if (_onboardingCountdown <= 0)
                     {
-                        _onboardingTimer?.Stop();
-                        _onboardingTimer = null;
-                        if (_isTracking)
-                        {
-                            StopButton_Click(this, new RoutedEventArgs());
-                            var msg = MessageBox.Show(
-                                "Your baseline session is done! Click 'Summary' to see your aim analysis.",
-                                "Baseline Captured ✓",
-                                MessageBoxButton.OKCancel,
-                                MessageBoxImage.None);
-                            if (msg == MessageBoxResult.OK)
-                                OpenSummary_Click(this, new RoutedEventArgs());
-                        }
-                    };
-                    _onboardingTimer.Start();
+                        _countdownTimer?.Stop();
+                        _countdownTimer = null;
+                        LaunchOnboardingSession();
+                    }
+                    else
+                    {
+                        OnboardingCountdownText.Text = _onboardingCountdown.ToString();
+                    }
                 };
-                delayTimer.Start();
+                _countdownTimer.Start();
             }
+        }
+
+        private void OnboardingGotIt_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer?.Stop();
+            _countdownTimer = null;
+            LaunchOnboardingSession();
+        }
+
+        private void LaunchOnboardingSession()
+        {
+            OnboardingOverlay.Visibility = Visibility.Collapsed;
+
+            var trainer = new AimTrainerWindow { Owner = this };
+            trainer.OnboardingSessionCompleted += () =>
+            {
+                Dispatcher.BeginInvoke(() => ShowAimTrainerHighlight());
+            };
+            trainer.Show();
+            trainer.BeginOnboardingSession();
+        }
+
+        private void ShowAimTrainerHighlight()
+        {
+            var pos = AimTrainerNavBtn.TranslatePoint(new Point(0, 0), this);
+            AimTrainerCallout.Margin = new Thickness(pos.X + 185, pos.Y - 4, 0, 0);
+            AimTrainerHighlight.Visibility = Visibility.Visible;
+        }
+
+        private void AimTrainerHighlight_Click(object sender, MouseButtonEventArgs e)
+        {
+            AimTrainerHighlight.Visibility = Visibility.Collapsed;
+            var s = SettingsService.Load();
+            s.FirstLaunchComplete = true;
+            SettingsService.Save(s);
+
+            if (!s.OnboardingTourComplete)
+                StartTour();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // GUIDED TOUR
+        // ─────────────────────────────────────────────────────────────
+        private int _tourStep = 0;
+
+        private static readonly (string Name, string Text)[] TourStops =
+        {
+            ("TodayStatsCard",    "Your session stats live here. Quality score, streak, and personal best update after every drill."),
+            ("AimTrainerNavBtn",  "Start a drill here anytime. Five scenarios, four difficulty levels."),
+            ("StreakPanel",       "Your daily streak. Train every day to keep it alive."),
+            ("TierBadge",        "Your progression tier. It improves as your average quality score rises."),
+            ("NavHistoryBtn",    "Every session is logged here with a trend chart so you can see improvement over time."),
+            ("NavLastReportBtn", "Tap here anytime to re-read your last AI coaching report."),
+            ("NavSensitivityBtn","After a few sessions the app will recommend your optimal sensitivity based on your actual movement data."),
+        };
+
+        private void StartTour()
+        {
+            _tourStep = 0;
+            TourFinalCard.Visibility  = Visibility.Collapsed;
+            TourBubble.Visibility     = Visibility.Collapsed;
+            TourHighlight.Visibility  = Visibility.Collapsed;
+            TourOverlay.Visibility    = Visibility.Visible;
+            ShowTourStep(0);
+        }
+
+        private void ShowTourStep(int step)
+        {
+            if (step >= TourStops.Length) { ShowTourFinalScreen(); return; }
+
+            var (name, text) = TourStops[step];
+            if (FindName(name) is not FrameworkElement el) { AdvanceTour(); return; }
+
+            var pos = el.TranslatePoint(new Point(0, 0), this);
+            double w = el.ActualWidth;
+            double h = el.ActualHeight;
+
+            // Highlight ring
+            TourHighlight.Width   = w + 8;
+            TourHighlight.Height  = h + 8;
+            TourHighlight.Margin  = new Thickness(pos.X - 4, pos.Y - 4, 0, 0);
+            TourHighlight.Visibility = Visibility.Visible;
+
+            // Bubble text + last-step label
+            TourBubbleText.Text  = text;
+            TourNextBtn.Content  = step == TourStops.Length - 1 ? "Done →" : "Next →";
+
+            // Position bubble: to the right of sidebar items, below main-area items
+            double bx = pos.X < 185 ? pos.X + w + 14 : pos.X;
+            double by = pos.X < 185 ? pos.Y - 4       : pos.Y + h + 12;
+
+            bx = Math.Max(8, Math.Min(bx, ActualWidth  - 260));
+            by = Math.Max(8, Math.Min(by, ActualHeight - 120));
+
+            TourBubble.Margin     = new Thickness(bx, by, 0, 0);
+            TourBubble.Visibility = Visibility.Visible;
+        }
+
+        private void ShowTourFinalScreen()
+        {
+            TourHighlight.Visibility = Visibility.Collapsed;
+            TourBubble.Visibility    = Visibility.Collapsed;
+            TourFinalCard.Visibility = Visibility.Visible;
+        }
+
+        private void AdvanceTour()
+        {
+            _tourStep++;
+            ShowTourStep(_tourStep);
+        }
+
+        private void CompleteTour()
+        {
+            TourOverlay.Visibility = Visibility.Collapsed;
+            var s = SettingsService.Load();
+            s.OnboardingTourComplete = true;
+            SettingsService.Save(s);
+        }
+
+        private void TourNext_Click(object sender, RoutedEventArgs e)    => AdvanceTour();
+        private void TourLetsGo_Click(object sender, RoutedEventArgs e)  => CompleteTour();
+
+        private void TourOverlay_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (_tourStep >= TourStops.Length) CompleteTour();
+            else AdvanceTour();
+        }
+
+        private void TourBubble_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true; // prevent click propagating to TourOverlay_MouseDown
         }
 
         // TRIAL BANNER

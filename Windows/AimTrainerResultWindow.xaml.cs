@@ -156,6 +156,20 @@ namespace CleanAimTracker.Windows
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
-            => Close();
+        {
+            // Skip prompt when opened as a replay from Last Report
+            if (_isReplay) { Close(); return; }
+
+            var response = MessageBox.Show(
+                "Come back tomorrow — 3 sessions builds a reliable trend.\n\nSchedule a reminder?",
+                "See You Tomorrow",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.None);
+
+            if (response == MessageBoxResult.Yes)
+                ToastService.ScheduleTomorrowReminder();
+
+            Close();
+        }
     }
 }

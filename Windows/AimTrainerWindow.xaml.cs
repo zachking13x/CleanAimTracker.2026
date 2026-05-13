@@ -43,6 +43,10 @@ namespace CleanAimTracker.Windows
         private string _adaptiveWeakSpot = "Flicking";
         private string _variant = "Smooth";
 
+        // Onboarding mode
+        private bool _isOnboarding = false;
+        public event Action? OnboardingSessionCompleted;
+
         // Daily Warm-Up state
         private bool   _isWarmupMode       = false;
         private int    _warmupRound        = 0;
@@ -91,6 +95,25 @@ namespace CleanAimTracker.Windows
             TargetCanvas.SizeChanged += (_, _) => PositionCenterDot();
 
             LoadAdaptiveWeakSpot();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // ONBOARDING
+        // ─────────────────────────────────────────────────────────────
+        public void BeginOnboardingSession()
+        {
+            _isOnboarding    = true;
+            _scenario        = "Tracking";
+            _variant         = "Smooth";
+            _difficulty      = "Medium";
+            _durationSeconds = 90;
+            _config          = DiffConfigs["Medium"];
+
+            ScenarioLabel.Text   = "Tracking";
+            DifficultyLabel.Text = "Medium";
+
+            StartDrill();
+            OnboardingHintText.Visibility = Visibility.Visible;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -308,6 +331,24 @@ namespace CleanAimTracker.Windows
             else
             {
                 _isWarmupMode = false;
+
+                if (_isOnboarding)
+                {
+                    _isOnboarding = false;
+                    OnboardingHintText.Visibility = Visibility.Collapsed;
+
+                    if (statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
+                    {
+                        var result = BuildResult(statsSource);
+                        SaveResult(result);
+                        new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+                    }
+
+                    OnboardingSessionCompleted?.Invoke();
+                    Close();
+                    return;
+                }
+
                 if (showResults && statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
                 {
                     var result = BuildResult(statsSource);

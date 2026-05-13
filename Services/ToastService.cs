@@ -41,6 +41,41 @@ namespace CleanAimTracker.Services
             }
         }
 
+        /// <summary>
+        /// Schedules a Windows toast for tomorrow at the same hour the user is training now.
+        /// Called when the user opts in via the "See You Tomorrow" prompt on Close.
+        /// </summary>
+        public static void ScheduleTomorrowReminder()
+        {
+            try
+            {
+                // Deliver at the same hour tomorrow, clamped to a polite window (10 am – 9 pm)
+                int hour         = Math.Clamp(DateTime.Now.Hour, 10, 21);
+                var deliveryTime = new DateTimeOffset(DateTime.Now.Date.AddDays(1).AddHours(hour));
+
+                string title   = "Time to train 🎯";
+                string message = "You set a reminder yesterday. 3 sessions builds a real trend — today's the day.";
+
+                var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
+                    .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+
+                var textNodes = toastXml.GetElementsByTagName("text");
+                textNodes[0].AppendChild(toastXml.CreateTextNode(title));
+                textNodes[1].AppendChild(toastXml.CreateTextNode(message));
+
+                var scheduled = new global::Windows.UI.Notifications.ScheduledToastNotification(
+                    toastXml, deliveryTime);
+
+                global::Windows.UI.Notifications.ToastNotificationManager
+                    .CreateToastNotifier(AppId)
+                    .AddToSchedule(scheduled);
+            }
+            catch
+            {
+                // Silently swallow — non-critical
+            }
+        }
+
         private static void ShowReEngagementToast(DateTime lastDate, double lastQuality)
         {
             try

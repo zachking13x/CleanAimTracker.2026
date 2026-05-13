@@ -14,6 +14,7 @@
         public bool FirstLaunchComplete { get; set; } = false;
         public DateTime FirstLaunchDate { get; set; } = DateTime.MinValue;
         public bool OnboardingAutoStart { get; set; } = false;
+        public bool OnboardingTourComplete { get; set; } = false;
 
         // Profile system
         public string SelectedProfile { get; set; } = "";

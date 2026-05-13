@@ -14,8 +14,10 @@ namespace CleanAimTracker
         private void HitStart_Click(object sender, RoutedEventArgs e)
         {
             var s = SettingsService.Load();
-            s.FirstLaunchComplete = true;
-            s.OnboardingAutoStart = true;   // MainWindow will auto-start + 90s auto-stop
+            // FirstLaunchComplete is intentionally NOT set here.
+            // It is set only after the full onboarding flow completes (step 6).
+            // If the user closes mid-flow they will see onboarding again on next launch.
+            s.OnboardingAutoStart = true;
             SettingsService.Save(s);
             Close();
         }

@@ -281,37 +281,49 @@
                 </Grid>
             </Border>
 
-            <!-- Target canvas -->
-            <Canvas x:Name="TargetCanvas"
-                    Grid.Row="1"
-                    Background="#0A0A0A"
-                    Cursor="Cross"
-                    MouseDown="Canvas_MouseDown"
-                    ClipToBounds="True">
+            <!-- Canvas + onboarding hint wrapper -->
+            <Grid Grid.Row="1">
+                <Canvas x:Name="TargetCanvas"
+                        Background="#0A0A0A"
+                        Cursor="Cross"
+                        MouseDown="Canvas_MouseDown"
+                        ClipToBounds="True">
 
-                <!-- Crosshair dot -->
-                <Ellipse x:Name="CenterDot"
-                         Width="6" Height="6"
-                         Fill="#44FFFFFF"
-                         IsHitTestVisible="False"/>
+                    <!-- Crosshair dot -->
+                    <Ellipse x:Name="CenterDot"
+                             Width="6" Height="6"
+                             Fill="#44FFFFFF"
+                             IsHitTestVisible="False"/>
 
-                <!-- Idle message -->
-                <StackPanel x:Name="IdleMessage"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="SELECT A SCENARIO AND PRESS START"
-                               Foreground="#333"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               HorizontalAlignment="Center"/>
-                    <TextBlock Text="or press SPACE"
-                               Foreground="#222"
-                               FontSize="12"
-                               HorizontalAlignment="Center"
-                               Margin="0 8 0 0"/>
-                </StackPanel>
+                    <!-- Idle message -->
+                    <StackPanel x:Name="IdleMessage"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="SELECT A SCENARIO AND PRESS START"
+                                   Foreground="#333"
+                                   FontSize="16"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Text="or press SPACE"
+                                   Foreground="#222"
+                                   FontSize="12"
+                                   HorizontalAlignment="Center"
+                                   Margin="0 8 0 0"/>
+                    </StackPanel>
 
-            </Canvas>
+                </Canvas>
+
+                <!-- Onboarding hint — shown only during the first session -->
+                <TextBlock x:Name="OnboardingHintText"
+                           Text="Follow the target — click when your crosshair is on it."
+                           Foreground="#AAFFFFFF"
+                           FontSize="13"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Bottom"
+                           Margin="0 0 0 16"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

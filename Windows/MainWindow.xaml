@@ -314,13 +314,17 @@
                 <!-- NAV BUTTONS -->
                 <StackPanel DockPanel.Dock="Top">
                     <Button Content="🏠  Home" Click="NavHome_Click" Style="{StaticResource NavButtonStyle}"/>
-                    <Button Content="📊  History" Click="NavHistory_Click" Style="{StaticResource NavButtonStyle}"/>
-                    <Button Content="🎯  Aim Trainer" Click="OpenAimTrainer_Click"
+                    <Button x:Name="NavHistoryBtn"
+                            Content="📊  History" Click="NavHistory_Click" Style="{StaticResource NavButtonStyle}"/>
+                    <Button x:Name="AimTrainerNavBtn"
+                            Content="🎯  Aim Trainer" Click="OpenAimTrainer_Click"
                             Style="{StaticResource NavButtonStyle}"
                             Foreground="{DynamicResource AccentBrush}"/>
-                    <Button Content="🤖  Last Report" Click="ViewLastCoachReport_Click"
+                    <Button x:Name="NavLastReportBtn"
+                            Content="🤖  Last Report" Click="ViewLastCoachReport_Click"
                             Style="{StaticResource NavButtonStyle}"/>
-                    <Button Content="🔄  Sensitivity" Click="OpenConverter_Click" Style="{StaticResource NavButtonStyle}"/>
+                    <Button x:Name="NavSensitivityBtn"
+                            Content="🔄  Sensitivity" Click="OpenConverter_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📅  Weekly Report" Click="OpenWeeklyReport_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📤  Export Data" Click="OpenExport_Click" Style="{StaticResource NavButtonStyle}"/>
 
@@ -725,7 +729,7 @@
                 </Border>
 
                 <!-- ── Row 2, Col 3: Today's Stats ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border x:Name="TodayStatsCard" Style="{StaticResource StatCardStyle}">
                     <StackPanel>
                         <!-- Header row with tier badge -->
                         <Grid Margin="0,0,0,8">
@@ -760,7 +764,7 @@
                                 <TextBlock x:Name="TodaySessionsText" Text="—" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="1">
+                            <StackPanel x:Name="StreakPanel" Grid.Column="1">
                                 <TextBlock Text="CURRENT STREAK" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="StreakText" Text="—" Style="{StaticResource ValueTextStyle}"/>
                                 <TextBlock Text="days in a row" Foreground="{DynamicResource MutedText}"
@@ -790,7 +794,260 @@
                 </Border>
 
             </UniformGrid>
+
         </Grid>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- ONBOARDING OVERLAY — 3s countdown, first session only   -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <Border x:Name="OnboardingOverlay"
+                Grid.ColumnSpan="2"
+                Background="#CC000000"
+                Visibility="Collapsed"
+                Panel.ZIndex="100">
+            <Border Background="#0D0D1A"
+                    BorderBrush="#2A2A4A"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="52 44"
+                    MaxWidth="500"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+
+                    <TextBlock Text="GET READY"
+                               Foreground="{DynamicResource AccentBrush}"
+                               FontSize="11" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0 0 0 18"/>
+
+                    <TextBlock Text="Follow the target and click it when your crosshair is on it. We'll analyze your aim for 90 seconds and show you your results."
+                               Foreground="White"
+                               FontSize="16" FontWeight="SemiBold"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="380"
+                               Margin="0 0 0 32"/>
+
+                    <!-- Countdown number -->
+                    <TextBlock x:Name="OnboardingCountdownText"
+                               Text="3"
+                               Foreground="{DynamicResource AccentBrush}"
+                               FontSize="72" FontWeight="Black"
+                               HorizontalAlignment="Center"
+                               Margin="0 0 0 28"/>
+
+                    <!-- Got it button -->
+                    <Button x:Name="OnboardingGotItBtn"
+                            Content="Got it →"
+                            Click="OnboardingGotIt_Click"
+                            Height="44" Width="160"
+                            HorizontalAlignment="Center"
+                            FontSize="14" FontWeight="Bold"
+                            BorderThickness="0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Cursor" Value="Hand"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border x:Name="Bd"
+                                                    Background="{TemplateBinding Background}"
+                                                    CornerRadius="10">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Opacity" Value="0.8"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- AIM TRAINER NAV HIGHLIGHT — shown after first session     -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <Grid x:Name="AimTrainerHighlight"
+              Grid.ColumnSpan="2"
+              Panel.ZIndex="99"
+              Visibility="Collapsed"
+              MouseDown="AimTrainerHighlight_Click"
+              Cursor="Hand">
+
+            <!-- Dim the rest of the window -->
+            <Rectangle Fill="#99000000"/>
+
+            <!-- Callout card — Margin set in code to align with nav button -->
+            <Border x:Name="AimTrainerCallout"
+                    Background="#0F1F0F"
+                    BorderBrush="#3A7A3A"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14 11"
+                    MaxWidth="220"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top">
+                <StackPanel>
+                    <TextBlock Text="Come back here to train anytime."
+                               Foreground="LightGreen"
+                               FontSize="12" FontWeight="SemiBold"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="Tap anywhere to dismiss"
+                               Foreground="#555555"
+                               FontSize="10"
+                               Margin="0 5 0 0"/>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- GUIDED TOUR OVERLAY — runs once after first session      -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <Grid x:Name="TourOverlay"
+              Grid.ColumnSpan="2"
+              Panel.ZIndex="103"
+              Visibility="Collapsed"
+              MouseDown="TourOverlay_MouseDown">
+
+            <!-- Full-screen dim -->
+            <Rectangle Fill="#CC000000"/>
+
+            <!-- Cyan highlight ring — size + position set in code per step -->
+            <Border x:Name="TourHighlight"
+                    BorderBrush="#00E5FF"
+                    BorderThickness="2"
+                    CornerRadius="8"
+                    Background="#1000E5FF"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed"/>
+
+            <!-- Bubble card — positioned next to highlighted element -->
+            <Border x:Name="TourBubble"
+                    Background="#111111"
+                    BorderBrush="#2A2A2A"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="14 12"
+                    MaxWidth="240"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Visibility="Collapsed"
+                    MouseDown="TourBubble_MouseDown">
+                <StackPanel>
+                    <TextBlock x:Name="TourBubbleText"
+                               Foreground="White"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               Margin="0 0 0 12"/>
+                    <Button x:Name="TourNextBtn"
+                            Content="Next →"
+                            Click="TourNext_Click"
+                            Height="28" Width="88"
+                            HorizontalAlignment="Right"
+                            FontSize="12" FontWeight="Bold"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Opacity" Value="0.85"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Final "You are set up" screen -->
+            <Border x:Name="TourFinalCard"
+                    Background="#0D0D1A"
+                    BorderBrush="#1A1A3A"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="44 36"
+                    MaxWidth="460"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="Collapsed"
+                    MouseDown="TourBubble_MouseDown">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="✓"
+                               Foreground="{DynamicResource AccentBrush}"
+                               FontSize="36"
+                               HorizontalAlignment="Center"
+                               Margin="0 0 0 16"/>
+                    <TextBlock Text="You are set up."
+                               Foreground="White"
+                               FontSize="20" FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               Margin="0 0 0 10"/>
+                    <TextBlock Text="Come back daily for 5 minutes and your aim will improve. Your coach is already analyzing your data."
+                               Foreground="#AAAAAA"
+                               FontSize="13"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               MaxWidth="360"
+                               Margin="0 0 0 28"/>
+                    <Button Content="Let's go"
+                            Click="TourLetsGo_Click"
+                            Height="42" Width="140"
+                            HorizontalAlignment="Center"
+                            FontSize="14" FontWeight="Bold"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="Black"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Opacity" Value="0.85"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+        </Grid>
+
     </Grid>
 
 </Window>

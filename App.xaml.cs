@@ -10,6 +10,11 @@ namespace CleanAimTracker
         {
             base.OnStartup(e);
 
+            // Prevent WPF from shutting down when FirstLaunchWindow closes (it's the only
+            // window at that point and the default OnLastWindowClose would kill the process
+            // before MainWindow.Show() is reached).
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
             TrialService.Initialize();
             _ = LicenseService.InitializeAsync(); // background — does not block startup
 
@@ -25,6 +30,10 @@ namespace CleanAimTracker
 
             var main = new MainWindow();
             main.Show();
+
+            // Switch to OnMainWindowClose now that the real window is visible
+            MainWindow    = main;
+            ShutdownMode  = ShutdownMode.OnMainWindowClose;
 
             // TASK-17: Re-engagement toast — fire after main window shows so app is registered
             ToastService.CheckAndNotify();

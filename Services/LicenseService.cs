@@ -13,11 +13,13 @@ namespace CleanAimTracker.Services
         public const string STOREID_LIFETIME    = "9P9B8QZZTVX1";   // lifetime_unlock — LIVE
         public const string STOREID_PRO         = "9NKB13MNDKF1";   // pro_monthly — LIVE
         public const string STOREID_PRO_TRAINER = "9N1J6FR6BX1N";   // pro_trainer_monthly — LIVE
+        public const string STOREID_PROMO       = "9P6Z5PSG984Z";   // promo_pro_access — LIVE
 
         // ── InAppOfferTokens (developer-defined — used for license checks) ──
         private const string TOKEN_LIFETIME     = "lifetime_unlock";
         private const string TOKEN_PRO          = "pro_monthly";
         private const string TOKEN_PRO_TRAINER  = "pro_trainer_monthly";
+        private const string TOKEN_PROMO        = "promo_pro_access";
 
         public static bool HasPro      { get; private set; }
         public static bool HasTrainer  { get; private set; }
@@ -57,6 +59,45 @@ namespace CleanAimTracker.Services
                     && lifetimeLic.IsActive)
                 {
                     HasLifetime = true;
+                }
+
+                // ── Developer-managed consumable (promo reviewer key) ─────────
+                // Checks by InAppOfferToken since Store ID is not yet assigned.
+                // When promo_pro_access is redeemed via promotional code, treat
+                // it identically to lifetime_unlock — grants permanent Pro access
+                // on this device for this account.
+                if (!HasLifetime)
+                {
+                    try
+                    {
+                        var consumablesResult = await _context.GetAssociatedStoreProductsAsync(
+                            new[] { "Consumable", "UnmanagedConsumable" });
+
+                        if (consumablesResult.Products != null)
+                        {
+                            foreach (var kv in consumablesResult.Products)
+                            {
+                                var product = kv.Value;
+                                string token = product.InAppOfferToken ?? "";
+
+                                if (token == TOKEN_PROMO)
+                                {
+                                    bool isOwned = appLicense.AddOnLicenses.TryGetValue(
+                                        product.StoreId, out var promoLic) && promoLic.IsActive;
+
+                                    if (isOwned)
+                                    {
+                                        HasLifetime = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogService.Error("Promo consumable check failed", ex);
+                    }
                 }
 
                 // ── Subscriptions — match by InAppOfferToken ─────────────────

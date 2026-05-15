@@ -20,7 +20,7 @@ namespace CleanAimTracker.Models
         public bool IsCustom { get; set; } = false;
 
         public string DisplayName =>
-            IsCustom ? $"{Name} (Custom)" : $"{Name}  [Yaw {YawPerCount}]";
+            IsCustom ? $"{Name} (Custom)" : Name;
 
         public static List<GameProfile> GetDefaults()
         {

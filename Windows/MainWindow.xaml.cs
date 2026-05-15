@@ -1049,13 +1049,41 @@ namespace CleanAimTracker.Windows
         {
             var settings  = SettingsService.Load();
             var challenge = DailyChallengeService.GetToday();
-            bool done     = DailyChallengeService.IsTodayComplete(settings);
-            string status = done ? "✓ Completed" : "⚡ Active";
-            MessageBox.Show(
-                $"{challenge.Description}\n\nStatus: {status}\n\nComplete this drill in Aim Trainer to earn the challenge reward.",
-                "Daily Challenge",
-                MessageBoxButton.OK,
-                MessageBoxImage.None);
+
+            if (DailyChallengeService.IsTodayComplete(settings))
+            {
+                MessageBox.Show(
+                    "You already completed today's challenge. Come back tomorrow!",
+                    "Challenge Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            var trainer = new AimTrainerWindow { Owner = this };
+
+            trainer.Closed += (s, args) =>
+            {
+                var latestResults = AimTrainerStorage.LoadAll();
+                if (latestResults.Count > 0)
+                {
+                    var latest        = latestResults.OrderByDescending(r => r.Timestamp).First();
+                    var freshSettings = SettingsService.Load();
+                    bool completed    = DailyChallengeService.TryComplete(challenge, latest, freshSettings);
+                    if (completed)
+                    {
+                        LoadPlayerPanel(SessionStorage.LoadAll());
+                        MessageBox.Show(
+                            "Challenge complete! Well done.",
+                            "Daily Challenge",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                    }
+                }
+            };
+
+            trainer.PreSelectScenario(challenge.Scenario, challenge.Difficulty);
+            trainer.Show();
         }
 
         private void ChallengeAccept_Click(object sender, RoutedEventArgs e)

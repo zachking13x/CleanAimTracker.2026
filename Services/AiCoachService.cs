@@ -16,13 +16,70 @@ namespace CleanAimTracker.Services
         // ── Benchmarks ────────────────────────────────────────────────
         private static class Bench
         {
-            public static double AccuracyElite(string s) => s == "Precision" ? 88 : s == "Tracking" ? 75 : 85;
-            public static double AccuracyGood(string s)  => s == "Precision" ? 72 : s == "Tracking" ? 60 : 70;
-            public static double AccuracyAvg(string s)   => s == "Precision" ? 55 : s == "Tracking" ? 45 : 55;
+            // Accuracy — scenario-specific thresholds
+            // Tracking is harder so thresholds are lower but not dramatically so
+            // Precision is the purest accuracy test so thresholds are highest
+            public static double AccuracyElite(string s) => s switch
+            {
+                "Tracking"  => 80,
+                "Precision" => 88,
+                "Flicking"  => 82,
+                "Switching" => 80,
+                "Adaptive"  => 80,
+                _           => 82,
+            };
 
-            public const double ReactionElite   = 220;
-            public const double ReactionGood    = 350;
-            public const double ReactionAverage = 500;
+            public static double AccuracyGood(string s) => s switch
+            {
+                "Tracking"  => 65,
+                "Precision" => 72,
+                "Flicking"  => 68,
+                "Switching" => 65,
+                "Adaptive"  => 65,
+                _           => 68,
+            };
+
+            public static double AccuracyAvg(string s) => s switch
+            {
+                "Tracking"  => 50,
+                "Precision" => 55,
+                "Flicking"  => 52,
+                "Switching" => 50,
+                "Adaptive"  => 50,
+                _           => 52,
+            };
+
+            // Reaction — scenario-specific thresholds
+            // Flicking rewards fast reactions (tightest). Precision is a patience test (loosest).
+            public static double ReactionElite(string s) => s switch
+            {
+                "Flicking"  => 200,
+                "Switching" => 220,
+                "Tracking"  => 280,
+                "Precision" => 350,
+                "Adaptive"  => 250,
+                _           => 220,
+            };
+
+            public static double ReactionGood(string s) => s switch
+            {
+                "Flicking"  => 300,
+                "Switching" => 350,
+                "Tracking"  => 420,
+                "Precision" => 500,
+                "Adaptive"  => 380,
+                _           => 350,
+            };
+
+            public static double ReactionAverage(string s) => s switch
+            {
+                "Flicking"  => 450,
+                "Switching" => 500,
+                "Tracking"  => 580,
+                "Precision" => 650,
+                "Adaptive"  => 520,
+                _           => 500,
+            };
 
             public const int StreakElite   = 12;
             public const int StreakGood    = 6;
@@ -95,9 +152,9 @@ namespace CleanAimTracker.Services
                             : r.Accuracy >= Bench.AccuracyAvg(r.Scenario)   ? "average"
                             : "developing";
 
-            string reactGrade = r.AvgReactionMs <= Bench.ReactionElite   ? "elite"
-                              : r.AvgReactionMs <= Bench.ReactionGood     ? "good"
-                              : r.AvgReactionMs <= Bench.ReactionAverage  ? "average"
+            string reactGrade = r.AvgReactionMs <= Bench.ReactionElite(r.Scenario)   ? "elite"
+                              : r.AvgReactionMs <= Bench.ReactionGood(r.Scenario)    ? "good"
+                              : r.AvgReactionMs <= Bench.ReactionAverage(r.Scenario) ? "average"
                               : "slow";
 
             string streakGrade = r.MaxStreak >= Bench.StreakElite   ? "elite"

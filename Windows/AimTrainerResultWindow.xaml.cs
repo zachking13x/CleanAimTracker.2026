@@ -76,12 +76,15 @@ namespace CleanAimTracker.Windows
                         settings.CurrentStreak,
                         settings.ChallengesCompleted));
 
-                // TASK-13: show AchievementUnlockWindow when achievements are newly unlocked
-                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0)
+                // Show achievement unlock popup (never on replay)
+                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0 && !_isReplay)
                 {
                     Dispatcher.Invoke(() =>
                     {
-                        var popup = new AchievementUnlockWindow(_newlyUnlocked) { Owner = this };
+                        var popup = new AchievementUnlockWindow(_newlyUnlocked)
+                        {
+                            Owner = Window.GetWindow(this) ?? Application.Current.MainWindow
+                        };
                         popup.ShowDialog();
                     });
                 }

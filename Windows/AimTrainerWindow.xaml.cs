@@ -25,6 +25,10 @@ namespace CleanAimTracker.Windows
         private bool _isRunning = false;
         private bool _uiReady = false;
 
+        // Pre-selection set by PreSelectScenario() before Show()
+        private string? _preSelectScenario;
+        private string? _preSelectDifficulty;
+
         private readonly DispatcherTimer _gameTimer = new();
         private readonly DispatcherTimer _updateTimer = new();
 
@@ -77,7 +81,12 @@ namespace CleanAimTracker.Windows
         {
             InitializeComponent();
 
-            Loaded += (_, _) => _uiReady = true;
+            Loaded += (_, _) =>
+            {
+                _uiReady = true;
+                if (_preSelectScenario != null)
+                    ApplyPreSelection(_preSelectScenario, _preSelectDifficulty ?? "Medium");
+            };
 
             _gameTimer.Interval = TimeSpan.FromSeconds(1);
             _gameTimer.Tick += GameTimer_Tick;
@@ -137,6 +146,51 @@ namespace CleanAimTracker.Windows
 
         // ─────────────────────────────────────────────────────────────
         // UI EVENTS
+        // ─────────────────────────────────────────────────────────────
+        // PRE-SELECTION (daily challenge launch)
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Store scenario + difficulty to apply once the window finishes loading.</summary>
+        public void PreSelectScenario(string scenario, string difficulty)
+        {
+            _preSelectScenario  = scenario;
+            _preSelectDifficulty = difficulty;
+        }
+
+        private void ApplyPreSelection(string scenario, string difficulty)
+        {
+            // ── Scenario buttons ────────────────────────────────────────
+            var parent = ScenarioBtn_Tracking.Parent as StackPanel;
+            if (parent != null)
+            {
+                foreach (var child in parent.Children.OfType<Border>())
+                    child.Background = Brushes.Transparent;
+
+                var match = parent.Children.OfType<Border>()
+                                  .FirstOrDefault(b => b.Tag?.ToString() == scenario);
+                if (match != null)
+                    match.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0xE5, 0xFF));
+            }
+
+            _scenario          = scenario;
+            ScenarioLabel.Text = scenario;
+            UpdateVariantCombo(scenario);
+
+            // ── Difficulty combo ────────────────────────────────────────
+            foreach (ComboBoxItem item in DifficultyCombo.Items)
+            {
+                if (item.Tag?.ToString() == difficulty)
+                {
+                    DifficultyCombo.SelectedItem = item;
+                    break;
+                }
+            }
+
+            _difficulty      = difficulty;
+            _config          = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
+            DifficultyLabel.Text = _difficulty;
+        }
+
         // ─────────────────────────────────────────────────────────────
         private void ScenarioBtn_Click(object sender, MouseButtonEventArgs e)
         {
@@ -341,9 +395,10 @@ namespace CleanAimTracker.Windows
                     {
                         var result = BuildResult(statsSource);
                         SaveResult(result);
-                        new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+                        new AimTrainerResultWindow(result) { Owner = Application.Current.MainWindow }.ShowDialog();
                     }
 
+                    Application.Current.MainWindow.Activate();
                     OnboardingSessionCompleted?.Invoke();
                     Close();
                     return;

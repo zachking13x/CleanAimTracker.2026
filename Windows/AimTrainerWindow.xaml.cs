@@ -483,17 +483,18 @@ namespace CleanAimTracker.Windows
 
             return new AimTrainerResult
             {
-                Timestamp = DateTime.Now,
-                Scenario = _scenario,
-                Difficulty = _difficulty,
+                Timestamp       = DateTime.Now,
+                Scenario        = _scenario,
+                SubVariant      = _variant,
+                Difficulty      = _difficulty,
                 DurationSeconds = _durationSeconds,
-                Hits = hits,
-                Misses = misses,
-                Accuracy = accuracy,
-                Score = _score,
-                AvgReactionMs = stats.AvgReactionMs,
-                BestReactionMs = stats.BestReactionMs,
-                MaxStreak = stats.MaxStreak,
+                Hits            = hits,
+                Misses          = misses,
+                Accuracy        = accuracy,
+                Score           = _score,
+                AvgReactionMs   = stats.AvgReactionMs,
+                BestReactionMs  = stats.BestReactionMs,
+                MaxStreak       = stats.MaxStreak,
             };
         }
 

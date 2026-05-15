@@ -157,6 +157,69 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ═══ TASK-16: Personal Best badges ═══ -->
+                    <WrapPanel x:Name="PBBadgesPanel"
+                               Margin="0,0,0,16"
+                               Visibility="Collapsed"/>
+
+                    <!-- ═══ TASK-17: Top 5 Sessions ═══ -->
+                    <Border x:Name="Top5Panel"
+                            Background="{DynamicResource CardBackground}"
+                            CornerRadius="8" Padding="16,12"
+                            Margin="0,0,0,20"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock x:Name="Top5HeaderText"
+                                       Text="TOP 5 — SCENARIO"
+                                       Foreground="{DynamicResource MutedText}"
+                                       FontSize="10" FontWeight="SemiBold"
+                                       Margin="0,0,0,10"/>
+                            <ItemsControl x:Name="Top5List">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding RankDisplay}"
+                                                       FontSize="12" FontWeight="Bold"
+                                                       Foreground="{DynamicResource MutedText}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding DateDisplay}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource LabelText}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2"
+                                                       Text="{Binding AccuracyDisplay}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource LabelText}"
+                                                       Margin="12,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3"
+                                                       Text="{Binding ReactionDisplay}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource LabelText}"
+                                                       Margin="12,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4"
+                                                       Text="{Binding ScoreDisplay}"
+                                                       FontSize="13" FontWeight="Bold"
+                                                       Foreground="{DynamicResource AccentBrush}"
+                                                       Margin="12,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ═══ AI COACHING SECTION ═══ -->
                     <Border x:Name="CoachingPanel"
                             Background="{DynamicResource CardBackground}"

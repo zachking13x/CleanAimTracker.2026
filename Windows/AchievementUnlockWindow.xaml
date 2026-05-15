@@ -1,0 +1,81 @@
+<Window x:Class="CleanAimTracker.Windows.AchievementUnlockWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Achievement Unlocked!"
+        Width="360" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True">
+
+    <Border Background="#0D0D1A"
+            BorderBrush="#00D4FF"
+            BorderThickness="1"
+            CornerRadius="14"
+            Padding="28,24">
+
+        <StackPanel>
+            <!-- Header -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
+                <TextBlock Text="🏆" FontSize="28" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="ACHIEVEMENT UNLOCKED"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="#00D4FF"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="SubtitleText" Text=""
+                               FontSize="12" Foreground="#AAAAAA"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- Achievement list -->
+            <ItemsControl x:Name="AchievementList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="#1A1A2E"
+                                CornerRadius="8"
+                                Padding="14,10"
+                                Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Background="#0D1A2E"
+                                        CornerRadius="8"
+                                        Padding="8,6"
+                                        Margin="0,0,12,0"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Emoji}" FontSize="24"/>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="14" FontWeight="Bold"
+                                               Foreground="#FFFFFF"/>
+                                    <TextBlock Text="{Binding Description}"
+                                               FontSize="11" Foreground="#AAAAAA"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="{Binding Category}"
+                                               FontSize="9" Foreground="#00D4FF"
+                                               FontWeight="Bold"
+                                               Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <!-- Close button -->
+            <Button Content="Nice! 🎉"
+                    Click="Close_Click"
+                    Background="#00D4FF"
+                    Foreground="#000000"
+                    BorderThickness="0"
+                    FontSize="13" FontWeight="Bold"
+                    Padding="20,9"
+                    Cursor="Hand"
+                    HorizontalAlignment="Center"
+                    Margin="0,8,0,0"/>
+        </StackPanel>
+    </Border>
+</Window>

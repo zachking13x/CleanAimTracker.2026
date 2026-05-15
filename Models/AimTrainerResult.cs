@@ -4,9 +4,10 @@
     {
         public DateTime Timestamp { get; set; }
 
-        public string Scenario { get; set; } = "";
-        public string Difficulty { get; set; } = "";
-        public int DurationSeconds { get; set; }
+        public string Scenario    { get; set; } = "";
+        public string SubVariant  { get; set; } = "";   // e.g. "Smooth", "Evasive", "Standard"
+        public string Difficulty  { get; set; } = "";
+        public int    DurationSeconds { get; set; }
 
         public int Hits { get; set; }
         public int Misses { get; set; }

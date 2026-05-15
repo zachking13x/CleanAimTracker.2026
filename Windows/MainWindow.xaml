@@ -326,6 +326,9 @@
                     <Button x:Name="NavSensitivityBtn"
                             Content="🔄  Sensitivity" Click="OpenConverter_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📅  Weekly Report" Click="OpenWeeklyReport_Click" Style="{StaticResource NavButtonStyle}"/>
+                    <Button x:Name="NavAchievementsBtn"
+                            Content="🏆  Achievements" Click="NavAchievements_Click"
+                            Style="{StaticResource NavButtonStyle}"/>
                     <Button Content="📤  Export Data" Click="OpenExport_Click" Style="{StaticResource NavButtonStyle}"/>
 
                     <!-- Thin separator -->
@@ -473,8 +476,15 @@
                 </StackPanel>
             </Border>
 
+            <!-- STATS GRID + PLAYER PANEL (side-by-side, Row 1) -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="240"/>
+                </Grid.ColumnDefinitions>
+
             <!-- STATS GRID (3 columns, 2 rows) -->
-            <UniformGrid Grid.Row="1" Columns="3" Rows="2" SnapsToDevicePixels="True">
+            <UniformGrid Grid.Column="0" Columns="3" Rows="2" SnapsToDevicePixels="True">
 
                 <!-- ── Row 1, Col 1: Movement ── -->
                 <Border Style="{StaticResource StatCardStyle}">
@@ -728,22 +738,18 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── Row 2, Col 3: Today's Stats ── -->
+                <!-- ── Row 2, Col 3: Quick Launch ── -->
                 <Border x:Name="TodayStatsCard" Style="{StaticResource StatCardStyle}">
                     <StackPanel>
-                        <!-- Header row with tier badge -->
+                        <!-- Header row with tier badge (kept for code-behind compatibility) -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal" Grid.Column="0">
-                                <TextBlock Text="Today's Stats" Style="{StaticResource SectionHeaderText}"/>
-                                <TextBlock Text=" 🔥" FontSize="14" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <!-- Tier badge -->
-                            <Border Grid.Column="1"
-                                    x:Name="TierBadge"
+                            <TextBlock Text="Today" Style="{StaticResource SectionHeaderText}"
+                                       Grid.Column="0"/>
+                            <Border Grid.Column="1" x:Name="TierBadge"
                                     CornerRadius="6" Padding="8,3"
                                     Background="#1A1A1A">
                                 <TextBlock x:Name="TierText"
@@ -753,47 +759,191 @@
                             </Border>
                         </Grid>
 
-                        <Grid>
+                        <!-- Stats row -->
+                        <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="SESSIONS TODAY" Style="{StaticResource LabelTextStyle}"/>
+                                <TextBlock Text="SESSIONS" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="TodaySessionsText" Text="—" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
-
-                            <StackPanel x:Name="StreakPanel" Grid.Column="1">
-                                <TextBlock Text="CURRENT STREAK" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="StreakText" Text="—" Style="{StaticResource ValueTextStyle}"/>
-                                <TextBlock Text="days in a row" Foreground="{DynamicResource MutedText}"
-                                           FontSize="10" Margin="0,-8,0,8"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
-
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0">
+                            <StackPanel Grid.Column="1">
                                 <TextBlock Text="BEST QUALITY" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="BestQualityTodayText" Text="—" Style="{StaticResource ValueTextStyle}"/>
                             </StackPanel>
-
-                            <StackPanel Grid.Column="1">
-                                <TextBlock Text="WEEKLY AVG" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="WeeklyAvgText" Text="—" Style="{StaticResource ValueTextStyle}"/>
-                            </StackPanel>
                         </Grid>
+
+                        <!-- Weekly avg (hidden but kept for code-behind compat) -->
+                        <TextBlock x:Name="WeeklyAvgText" Visibility="Collapsed"/>
+                        <!-- Streak (hidden, now in Player Panel) -->
+                        <StackPanel x:Name="StreakPanel" Visibility="Collapsed">
+                            <TextBlock x:Name="StreakText"/>
+                        </StackPanel>
+
+                        <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,10"/>
+
+                        <!-- Quick Launch button -->
+                        <Button Content="🎯  Start Training"
+                                Click="OpenAimTrainer_Click"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="White"
+                                BorderThickness="0"
+                                FontSize="13" FontWeight="SemiBold"
+                                Padding="12,8"
+                                Cursor="Hand"
+                                HorizontalAlignment="Stretch"/>
+
+                        <!-- Session context line -->
+                        <TextBlock x:Name="SessionContextText"
+                                   Text=""
+                                   FontSize="10"
+                                   Foreground="{DynamicResource SecondaryText}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,6,0,0"
+                                   HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Border>
 
             </UniformGrid>
+
+            <!-- PLAYER PANEL (right column) -->
+            <ScrollViewer Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Margin="14,0,0,0">
+                <StackPanel x:Name="PlayerPanel">
+
+                    <!-- ── TASK-08: Tier Hero Card ─────────────────────── -->
+                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8">
+                        <StackPanel>
+                            <!-- tier badge row -->
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock x:Name="TierEmojiText" Text="🎮"
+                                           FontSize="26" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="TierNameText" Text="Rookie"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryText}"/>
+                                    <TextBlock x:Name="TierAvgText" Text="No sessions yet"
+                                               FontSize="11" Foreground="{DynamicResource SecondaryText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <!-- progress bar -->
+                            <ProgressBar x:Name="TierProgressBar"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         Height="6" Margin="0,0,0,4"
+                                         Foreground="{DynamicResource AccentBrush}"
+                                         Background="{DynamicResource SeparatorBrush}"
+                                         BorderThickness="0"/>
+                            <TextBlock x:Name="TierNextGoalText"
+                                       Text="Complete your first session"
+                                       FontSize="10" Foreground="{DynamicResource SecondaryText}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── TASK-09: Streak Card ────────────────────────── -->
+                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="TRAINING STREAK"
+                                       FontSize="9" FontWeight="Bold"                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="StreakValueText" Text="0"
+                                           FontSize="32" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryText}"
+                                           Margin="0,0,6,0"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock x:Name="StreakFlameText" Text="🔥"
+                                               FontSize="18"/>
+                                    <TextBlock Text="days" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                            <TextBlock x:Name="BestStreakText"
+                                       Text="Best: 0 days"
+                                       FontSize="11" Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── TASK-10: Daily Challenge Card ──────────────── -->
+                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8"
+                            Cursor="Hand" MouseDown="DailyChallenge_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="DAILY CHALLENGE"
+                                           FontSize="9" FontWeight="Bold"                                           Foreground="{DynamicResource AccentBrush}"/>
+                                <TextBlock x:Name="ChallengeStatusBadge" Text=" · ⚡ Active"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryText}"/>
+                            </StackPanel>
+                            <TextBlock x:Name="ChallengeDescText"
+                                       Text="Loading challenge..."
+                                       FontSize="12" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       TextWrapping="Wrap" Margin="0,0,0,8"/>
+                            <Button x:Name="ChallengeAcceptBtn"
+                                    Content="🎯  Accept Challenge"
+                                    Click="ChallengeAccept_Click"
+                                    Background="{DynamicResource AccentBrush}"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    Padding="10,5" Cursor="Hand"
+                                    HorizontalAlignment="Stretch"/>
+                            <TextBlock x:Name="ChallengeDoneText"
+                                       Text="✓  Completed today!"
+                                       FontSize="12" FontWeight="Bold"
+                                       Foreground="#4CAF50"
+                                       Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── TASK-11: Achievement Badge Row ─────────────── -->
+                    <Border Style="{StaticResource StatCardStyle}"
+                            Cursor="Hand" MouseDown="AchievementPanel_Click">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal"
+                                        Margin="0,0,0,8">
+                                <TextBlock Text="ACHIEVEMENTS"
+                                           FontSize="9" FontWeight="Bold"                                           Foreground="{DynamicResource SecondaryText}"/>
+                                <TextBlock x:Name="AchievementCountText"
+                                           Text="  0 / 29"
+                                           FontSize="9"
+                                           Foreground="{DynamicResource AccentBrush}"
+                                           FontWeight="Bold"/>
+                            </StackPanel>
+                            <!-- recent badge emojis -->
+                            <ItemsControl x:Name="AchievementBadges">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border ToolTip="{Binding Name}"
+                                                Margin="2" Padding="4,2"
+                                                Background="{DynamicResource SeparatorBrush}"
+                                                CornerRadius="4">
+                                            <TextBlock Text="{Binding Emoji}" FontSize="16"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock x:Name="AchievementEmptyText"
+                                       Text="Complete drills to earn achievements"
+                                       FontSize="10" Foreground="{DynamicResource SecondaryText}"
+                                       TextWrapping="Wrap" Visibility="Collapsed"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            </Grid><!-- end stats+panel grid -->
 
         </Grid>
 

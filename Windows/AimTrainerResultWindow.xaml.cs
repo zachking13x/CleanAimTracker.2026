@@ -1,6 +1,7 @@
 using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -12,6 +13,7 @@ namespace CleanAimTracker.Windows
     {
         private readonly AimTrainerResult _result;
         private readonly bool _isReplay;
+        private List<Achievement>? _newlyUnlocked;
 
         /// <param name="result">The drill result to display.</param>
         /// <param name="isReplay">True when opened via "Last Report" — hides Play Again, changes title.</param>
@@ -29,6 +31,12 @@ namespace CleanAimTracker.Windows
 
             PopulateStats(result);
             _ = LoadCoachingAsync(result);
+
+            if (!isReplay)
+            {
+                _ = EvaluateAchievementsAsync(result);
+                _ = LoadPersonalBestsAsync(result);
+            }
         }
 
         /// <summary>Opens the most recent coaching report from storage, or shows a message if none exists.</summary>
@@ -49,11 +57,139 @@ namespace CleanAimTracker.Windows
             win.Show();
         }
 
+        // ── Achievement + daily challenge evaluation ──────────────────
+        private async Task EvaluateAchievementsAsync(AimTrainerResult result)
+        {
+            try
+            {
+                var settings   = SettingsService.Load();
+                var allResults = await Task.Run(() => AimTrainerStorage.LoadAll());
+
+                // Daily challenge — TryComplete increments settings.ChallengesCompleted on success
+                var challenge = DailyChallengeService.GetToday();
+                DailyChallengeService.TryComplete(challenge, result, settings);
+
+                _newlyUnlocked = await Task.Run(() =>
+                    AchievementService.EvaluateAfterSession(
+                        result,
+                        allResults,
+                        settings.CurrentStreak,
+                        settings.ChallengesCompleted));
+
+                // TASK-13: show AchievementUnlockWindow when achievements are newly unlocked
+                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        var popup = new AchievementUnlockWindow(_newlyUnlocked) { Owner = this };
+                        popup.ShowDialog();
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Achievement evaluation failed", ex);
+            }
+        }
+
+        // ── TASK-16 + TASK-17: Personal Bests + Top 5 ────────────────
+        private async Task LoadPersonalBestsAsync(AimTrainerResult result)
+        {
+            try
+            {
+                var all = await Task.Run(() => AimTrainerStorage.LoadAll());
+
+                // ── TASK-16: PB badges ────────────────────────────────────
+                var same = all.Where(r => r.Scenario == result.Scenario).ToList();
+
+                bool isBestScore    = same.Count == 0 || result.Score        >= same.Max(r => r.Score);
+                bool isBestAccuracy = same.Count == 0 || result.Accuracy     >= same.Max(r => r.Accuracy);
+                bool isBestStreak   = same.Count == 0 || result.MaxStreak    >= same.Max(r => r.MaxStreak);
+                bool isBestReaction = result.BestReactionMs > 0 &&
+                                      (same.Count == 0 ||
+                                       result.BestReactionMs <= same.Where(r => r.BestReactionMs > 0)
+                                                                    .Select(r => r.BestReactionMs)
+                                                                    .DefaultIfEmpty(double.MaxValue)
+                                                                    .Min());
+
+                Dispatcher.Invoke(() =>
+                {
+                    PBBadgesPanel.Children.Clear();
+                    void AddBadge(string label, string bg)
+                    {
+                        var b = new Border
+                        {
+                            Background  = new System.Windows.Media.SolidColorBrush(
+                                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(bg)),
+                            CornerRadius = new CornerRadius(6),
+                            Padding      = new Thickness(10, 4, 10, 4),
+                            Margin       = new Thickness(0, 0, 8, 0),
+                        };
+                        b.Child = new TextBlock
+                        {
+                            Text       = label,
+                            FontSize   = 11,
+                            FontWeight = FontWeights.Bold,
+                            Foreground = System.Windows.Media.Brushes.White,
+                        };
+                        PBBadgesPanel.Children.Add(b);
+                    }
+
+                    if (isBestScore)    AddBadge("🏆 New Best Score!",    "#1B5E20");
+                    if (isBestAccuracy) AddBadge("🎯 Best Accuracy!",     "#0D47A1");
+                    if (isBestReaction) AddBadge("⚡ Best Reaction!",     "#E65100");
+                    if (isBestStreak)   AddBadge("🔥 Best Streak!",       "#4A148C");
+
+                    PBBadgesPanel.Visibility = PBBadgesPanel.Children.Count > 0
+                        ? Visibility.Visible : Visibility.Collapsed;
+                });
+
+                // ── TASK-17: Top 5 by score for this scenario ─────────────
+                var top5 = all
+                    .Where(r => r.Scenario == result.Scenario)
+                    .OrderByDescending(r => r.Score)
+                    .Take(5)
+                    .Select((r, i) => new Top5Row
+                    {
+                        RankDisplay     = $"#{i + 1}",
+                        DateDisplay     = r.Timestamp.ToString("MMM d"),
+                        AccuracyDisplay = $"{r.Accuracy:F0}%",
+                        ReactionDisplay = r.AvgReactionMs > 0 ? $"{r.AvgReactionMs:F0}ms" : "—",
+                        ScoreDisplay    = r.Score.ToString("N0"),
+                    })
+                    .ToList();
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (top5.Count > 1)  // only show if there's more than 1 session to compare
+                    {
+                        Top5HeaderText.Text    = $"TOP {top5.Count} — {result.Scenario.ToUpperInvariant()}";
+                        Top5List.ItemsSource   = top5;
+                        Top5Panel.Visibility   = Visibility.Visible;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Personal bests load failed", ex);
+            }
+        }
+
+        private class Top5Row
+        {
+            public string RankDisplay     { get; set; } = "";
+            public string DateDisplay     { get; set; } = "";
+            public string AccuracyDisplay { get; set; } = "";
+            public string ReactionDisplay { get; set; } = "";
+            public string ScoreDisplay    { get; set; } = "";
+        }
+
         // ── Populate stats immediately ────────────────────────────────
         private void PopulateStats(AimTrainerResult r)
         {
             ScoreText.Text        = r.Score.ToString("N0");
-            ScenarioBadgeText.Text = $"{r.Scenario}  •  {r.Difficulty}  •  {r.DurationSeconds}s";
+            string variantPart = string.IsNullOrEmpty(r.SubVariant) ? "" : $"  •  {r.SubVariant}";
+            ScenarioBadgeText.Text = $"{r.Scenario}{variantPart}  •  {r.Difficulty}  •  {r.DurationSeconds}s";
 
             AccuracyText.Text    = $"{r.Accuracy:F0}%";
             AvgReactionText.Text = $"{r.AvgReactionMs:F0}ms";

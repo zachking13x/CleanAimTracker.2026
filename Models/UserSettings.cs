@@ -33,5 +33,9 @@
         public int CurrentStreak { get; set; } = 0;
         public int BestStreakDays { get; set; } = 0;
         public DateTime LastSessionDate { get; set; } = DateTime.MinValue;
+
+        // Daily challenge tracking
+        public DateTime LastChallengeDate   { get; set; } = DateTime.MinValue;
+        public int      ChallengesCompleted { get; set; } = 0;
     }
 }

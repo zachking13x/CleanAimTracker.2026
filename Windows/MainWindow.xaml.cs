@@ -731,6 +731,9 @@ namespace CleanAimTracker.Windows
             new WeeklyReportWindow { Owner = this }.Show();
         }
 
+        private void NavAchievements_Click(object sender, RoutedEventArgs e)
+            => new AchievementsWindow { Owner = this }.ShowDialog();
+
         private void ThemeToggle_Click(object sender, RoutedEventArgs e)
         {
             var settings = SettingsService.Load();
@@ -937,8 +940,139 @@ namespace CleanAimTracker.Windows
                 TierText.Text = $"{tier.Emoji} {tier.Name}";
                 TierText.Foreground = new System.Windows.Media.SolidColorBrush(
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));
+
+                // TASK-12: Session context line
+                string dayName = DateTime.Today.DayOfWeek.ToString();
+                int todayCount = today.Count;
+                SessionContextText.Text = todayCount > 0
+                    ? $"{dayName} · {todayCount} session{(todayCount == 1 ? "" : "s")} today"
+                    : $"{dayName} · No sessions yet today";
+
+                LoadPlayerPanel(all);
             }
             catch { /* ignore if no data */ }
+        }
+
+        // ── TASK-08–11: Player Panel ──────────────────────────────────────
+        private void LoadPlayerPanel(System.Collections.Generic.IEnumerable<SessionSummary> sessions)
+        {
+            try
+            {
+                var list = sessions.ToList();
+                double avgQuality = list.Count > 0
+                    ? list.Average(s => s.OverallQualityScore)
+                    : 0;
+
+                // ── TASK-08: Tier Hero Card ──────────────────────────────
+                var tier = ProgressionService.GetTier(list);
+                TierEmojiText.Text = tier.Emoji;
+                TierNameText.Text  = tier.Name;
+                TierAvgText.Text   = list.Count > 0
+                    ? $"Avg quality: {avgQuality:F0} pts"
+                    : "No sessions yet";
+                TierNextGoalText.Text = tier.NextGoal;
+                TierProgressBar.Value = CalculateTierProgress(avgQuality, tier.Name) * 100;
+
+                var tierColor = new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));
+                TierNameText.Foreground = tierColor;
+                TierProgressBar.Foreground = tierColor;
+
+                // ── TASK-09: Streak Card ──────────────────────────────────
+                var (currentStreak, bestStreak) = StreakService.GetStreakInfo();
+                StreakValueText.Text = currentStreak.ToString();
+                BestStreakText.Text  = $"Best: {bestStreak} days";
+                StreakFlameText.Text = currentStreak switch
+                {
+                    >= 30 => "🔥🔥🔥",
+                    >= 14 => "🔥🔥",
+                    >= 3  => "🔥",
+                    _     => "💤",
+                };
+                StreakValueText.Foreground = currentStreak >= 7
+                    ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Orange)
+                    : (System.Windows.Media.Brush)FindResource("PrimaryText");
+
+                // ── TASK-10: Daily Challenge Card ─────────────────────────
+                var settings  = SettingsService.Load();
+                var challenge = DailyChallengeService.GetToday();
+                bool done     = DailyChallengeService.IsTodayComplete(settings);
+                ChallengeDescText.Text = challenge.ShortDesc;
+                if (done)
+                {
+                    ChallengeStatusBadge.Text     = " · ✓ Done";
+                    ChallengeStatusBadge.Foreground = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromRgb(76, 175, 80));
+                    ChallengeAcceptBtn.Visibility  = Visibility.Collapsed;
+                    ChallengeDoneText.Visibility   = Visibility.Visible;
+                }
+                else
+                {
+                    ChallengeStatusBadge.Text      = " · ⚡ Active";
+                    ChallengeStatusBadge.Foreground = (System.Windows.Media.Brush)FindResource("SecondaryText");
+                    ChallengeAcceptBtn.Visibility  = Visibility.Visible;
+                    ChallengeDoneText.Visibility   = Visibility.Collapsed;
+                }
+
+                // ── TASK-11: Achievement Badge Row ────────────────────────
+                var unlocked = AchievementService.LoadUnlocked();
+                AchievementCountText.Text = $"  {unlocked.Count} / {AchievementService.GetTotalCount()}";
+                if (unlocked.Count > 0)
+                {
+                    AchievementBadges.ItemsSource   = unlocked
+                        .OrderByDescending(a => a.UnlockedAt)
+                        .Take(10)
+                        .ToList();
+                    AchievementBadges.Visibility    = Visibility.Visible;
+                    AchievementEmptyText.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    AchievementBadges.Visibility    = Visibility.Collapsed;
+                    AchievementEmptyText.Visibility = Visibility.Visible;
+                }
+            }
+            catch { /* non-critical */ }
+        }
+
+        private static double CalculateTierProgress(double avg, string tierName) => tierName switch
+        {
+            "Rookie"  => avg >= 40 ? 1.0 : Math.Max(0, avg / 40.0),
+            "Bronze"  => avg >= 55 ? 1.0 : Math.Max(0, (avg - 40) / 15.0),
+            "Silver"  => avg >= 70 ? 1.0 : Math.Max(0, (avg - 55) / 15.0),
+            "Gold"    => avg >= 82 ? 1.0 : Math.Max(0, (avg - 70) / 12.0),
+            "Elite"   => 1.0,
+            _         => 0,
+        };
+
+        private void DailyChallenge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var settings  = SettingsService.Load();
+            var challenge = DailyChallengeService.GetToday();
+            bool done     = DailyChallengeService.IsTodayComplete(settings);
+            string status = done ? "✓ Completed" : "⚡ Active";
+            MessageBox.Show(
+                $"{challenge.Description}\n\nStatus: {status}\n\nComplete this drill in Aim Trainer to earn the challenge reward.",
+                "Daily Challenge",
+                MessageBoxButton.OK,
+                MessageBoxImage.None);
+        }
+
+        private void ChallengeAccept_Click(object sender, RoutedEventArgs e)
+        {
+            var challenge = DailyChallengeService.GetToday();
+            MessageBox.Show(
+                $"Challenge: {challenge.Description}\n\nSet Aim Trainer to {challenge.Scenario} · {challenge.Difficulty} and complete a drill to earn it.",
+                "Accept Challenge",
+                MessageBoxButton.OK,
+                MessageBoxImage.None);
+            // Open Aim Trainer
+            OpenAimTrainer_Click(sender, e);
+        }
+
+        private void AchievementPanel_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            NavAchievements_Click(sender, e);
         }
 
         private void ResetDisplaysToIdle()

@@ -50,95 +50,155 @@
                 </Grid>
             </Border>
 
-            <!-- Session list -->
-            <ScrollViewer Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          Padding="20 16">
-                <ItemsControl x:Name="HistoryList">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="10"
-                                    Background="{DynamicResource CardBackground}"
-                                    BorderBrush="#1AFFFFFF"
-                                    BorderThickness="1"
-                                    Padding="16 14"
-                                    Margin="0 0 0 10"
-                                    Cursor="Hand">
-                                <Border.Style>
-                                    <Style TargetType="Border">
-                                        <Style.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter Property="BorderBrush" Value="#3300D4FF"/>
-                                                <Setter Property="Background" Value="{DynamicResource CardBackgroundAlt}"/>
-                                            </Trigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </Border.Style>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+            <!-- Tab body -->
+            <TabControl Grid.Row="1"
+                        Background="{DynamicResource AppBackground}"
+                        BorderThickness="0"
+                        Padding="0">
 
-                                    <StackPanel Grid.Column="0">
-                                        <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:MMM dd, yyyy  •  h:mm tt}'}"
-                                                   Foreground="{DynamicResource MutedText}"
-                                                   FontSize="11"/>
+                <!-- ── Tab 1: History ────────────────────────────────── -->
+                <TabItem Header="History">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                        <ItemsControl x:Name="HistoryList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10"
+                                            Background="{DynamicResource CardBackground}"
+                                            BorderBrush="#1AFFFFFF"
+                                            BorderThickness="1"
+                                            Padding="16,14"
+                                            Margin="0,0,0,10"
+                                            Cursor="Hand">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter Property="BorderBrush" Value="#3300D4FF"/>
+                                                        <Setter Property="Background" Value="{DynamicResource CardBackgroundAlt}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:MMM dd, yyyy  •  h:mm tt}'}"
+                                                           Foreground="{DynamicResource MutedText}" FontSize="11"/>
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <TextBlock Text="{Binding Scenario}"
+                                                               FontSize="15" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource PrimaryText}"/>
+                                                    <TextBlock Text=" · " Foreground="{DynamicResource MutedText}" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Difficulty}"
+                                                               Foreground="{DynamicResource MutedText}" FontSize="13"/>
+                                                </StackPanel>
+                                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                    <TextBlock Text="{Binding Accuracy, StringFormat='{}{0:F0}% acc'}"
+                                                               Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,14,0"/>
+                                                    <TextBlock Text="{Binding AvgReactionMs, StringFormat='{}{0:F0}ms avg'}"
+                                                               Foreground="{DynamicResource LabelText}" FontSize="12" Margin="0,0,14,0"/>
+                                                    <TextBlock Text="{Binding MaxStreak, StringFormat='{}streak {0}'}"
+                                                               Foreground="{DynamicResource LabelText}" FontSize="12"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding Score, StringFormat='{}{0:N0}'}"
+                                                           FontSize="28" FontWeight="Black"
+                                                           Foreground="{DynamicResource AccentBrush}"
+                                                           HorizontalAlignment="Center"/>
+                                                <TextBlock Text="pts" Foreground="{DynamicResource MutedText}"
+                                                           FontSize="10" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                                <Button Content="Details"
+                                                        HorizontalAlignment="Center"
+                                                        Padding="10,4" FontSize="11"
+                                                        Background="Transparent"
+                                                        Foreground="{DynamicResource AccentBrush}"
+                                                        BorderThickness="1"
+                                                        BorderBrush="{DynamicResource AccentBrush}"
+                                                        Cursor="Hand"
+                                                        Tag="{Binding}"
+                                                        Click="ViewDetails_Click"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </TabItem>
 
-                                        <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                                            <TextBlock Text="{Binding Scenario}"
-                                                       FontSize="15" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource PrimaryText}"/>
-                                            <TextBlock Text=" · " Foreground="{DynamicResource MutedText}" FontSize="13"/>
-                                            <TextBlock Text="{Binding Difficulty}"
-                                                       Foreground="{DynamicResource MutedText}"
-                                                       FontSize="13"/>
-                                        </StackPanel>
+                <!-- ── Tab 2: Personal Bests ─────────────────────────── -->
+                <TabItem Header="Personal Bests">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,16">
+                        <StackPanel>
+                            <TextBlock Text="Best result per scenario · all time"
+                                       FontSize="11" Foreground="{DynamicResource MutedText}"
+                                       Margin="0,0,0,14"/>
+                            <ItemsControl x:Name="PersonalBestList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border CornerRadius="10"
+                                                Background="{DynamicResource CardBackground}"
+                                                Padding="16,14"
+                                                Margin="0,0,0,10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <!-- Rank badge -->
+                                                <Border Grid.Column="0"
+                                                        Background="{DynamicResource SeparatorBrush}"
+                                                        CornerRadius="6"
+                                                        Padding="8,4"
+                                                        Margin="0,0,12,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding ScenarioEmoji}"
+                                                               FontSize="22" VerticalAlignment="Center"/>
+                                                </Border>
+                                                <!-- Scenario + stats -->
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Scenario}"
+                                                               FontSize="14" FontWeight="Bold"
+                                                               Foreground="{DynamicResource PrimaryText}"/>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                        <TextBlock Text="{Binding BestAccuracy, StringFormat='{}{0:F0}% acc'}"
+                                                                   FontSize="12" Foreground="{DynamicResource LabelText}"
+                                                                   Margin="0,0,12,0"/>
+                                                        <TextBlock Text="{Binding BestReaction, StringFormat='{}{0:F0}ms best'}"
+                                                                   FontSize="12" Foreground="{DynamicResource LabelText}"
+                                                                   Margin="0,0,12,0"/>
+                                                        <TextBlock Text="{Binding BestStreak, StringFormat='{}streak {0}'}"
+                                                                   FontSize="12" Foreground="{DynamicResource LabelText}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding AchievedOn, StringFormat='{}{0:MMM dd, yyyy}'}"
+                                                               FontSize="10" Foreground="{DynamicResource MutedText}"
+                                                               Margin="0,2,0,0"/>
+                                                </StackPanel>
+                                                <!-- Best score -->
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                                    <TextBlock Text="{Binding BestScore, StringFormat='{}{0:N0}'}"
+                                                               FontSize="26" FontWeight="Black"
+                                                               Foreground="{DynamicResource AccentBrush}"
+                                                               HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="pts" FontSize="10"
+                                                               Foreground="{DynamicResource MutedText}"
+                                                               HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
 
-                                        <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
-                                            <TextBlock Text="{Binding Accuracy, StringFormat='{}{0:F0}% acc'}"
-                                                       Foreground="{DynamicResource LabelText}"
-                                                       FontSize="12" Margin="0 0 14 0"/>
-                                            <TextBlock Text="{Binding AvgReactionMs, StringFormat='{}{0:F0}ms avg'}"
-                                                       Foreground="{DynamicResource LabelText}"
-                                                       FontSize="12" Margin="0 0 14 0"/>
-                                            <TextBlock Text="{Binding MaxStreak, StringFormat='{}streak {0}'}"
-                                                       Foreground="{DynamicResource LabelText}"
-                                                       FontSize="12"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <!-- Score + View button -->
-                                    <StackPanel Grid.Column="1"
-                                                VerticalAlignment="Center"
-                                                HorizontalAlignment="Right">
-                                        <TextBlock Text="{Binding Score, StringFormat='{}{0:N0}'}"
-                                                   FontSize="28" FontWeight="Black"
-                                                   Foreground="{DynamicResource AccentBrush}"
-                                                   HorizontalAlignment="Center"/>
-                                        <TextBlock Text="pts"
-                                                   Foreground="{DynamicResource MutedText}"
-                                                   FontSize="10"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0 0 0 8"/>
-                                        <Button Content="Details"
-                                                HorizontalAlignment="Center"
-                                                Padding="10 4"
-                                                FontSize="11"
-                                                Background="Transparent"
-                                                Foreground="{DynamicResource AccentBrush}"
-                                                BorderThickness="1"
-                                                BorderBrush="{DynamicResource AccentBrush}"
-                                                Cursor="Hand"
-                                                Tag="{Binding}"
-                                                Click="ViewDetails_Click"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            </TabControl>
 
             <!-- Footer -->
             <Border Grid.Row="2"

@@ -135,6 +135,7 @@ namespace CleanAimTracker.Windows
             _timer.Tick += Timer_Tick;
 
             LoadTodayStats();
+            CheckWhatsNew();
 
             // TASK-09: If user clicked "Hit Start" in onboarding, auto-start a 90s baseline session
             this.Loaded += MainWindow_Loaded;
@@ -901,6 +902,41 @@ namespace CleanAimTracker.Windows
             };
         }
 
+        // ── What's New banner ─────────────────────────────────────────────
+        private void CheckWhatsNew()
+        {
+            try
+            {
+                string current  = System.Reflection.Assembly.GetExecutingAssembly()
+                                      .GetName().Version?.ToString(3) ?? "";   // "1.0.32"
+                var    settings = SettingsService.Load();
+
+                if (settings.LastVersionSeen == current) return;
+
+                WhatsNewVersionText.Text = $"What's new in v{current}";
+                WhatsNewBodyText.Text    = GetWhatsNewText(current);
+                WhatsNewBanner.Visibility = Visibility.Visible;
+
+                settings.LastVersionSeen = current;
+                SettingsService.Save(settings);
+            }
+            catch { /* non-critical */ }
+        }
+
+        private static string GetWhatsNewText(string version) => version switch
+        {
+            "1.0.32" => "Player Panel with tier, streak, and daily challenges · " +
+                        "29 achievements with unlock popups · " +
+                        "Personal Bests tab in history · " +
+                        "Scenario-aware coaching benchmarks · " +
+                        "Clean game profile names in dropdown",
+            _        => "Bug fixes and performance improvements.",
+        };
+
+        private void WhatsNewDismiss_Click(object sender, RoutedEventArgs e)
+            => WhatsNewBanner.Visibility = Visibility.Collapsed;
+
+        // ── Today's stats ─────────────────────────────────────────────────
         private void LoadTodayStats()
         {
             try
@@ -1045,7 +1081,14 @@ namespace CleanAimTracker.Windows
             _         => 0,
         };
 
+        // Card MouseDown and Accept button both call the same logic
         private void DailyChallenge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+            => LaunchDailyChallenge();
+
+        private void DailyChallenge_Click(object sender, RoutedEventArgs e)
+            => LaunchDailyChallenge();
+
+        private void LaunchDailyChallenge()
         {
             var settings  = SettingsService.Load();
             var challenge = DailyChallengeService.GetToday();
@@ -1084,18 +1127,6 @@ namespace CleanAimTracker.Windows
 
             trainer.PreSelectScenario(challenge.Scenario, challenge.Difficulty);
             trainer.Show();
-        }
-
-        private void ChallengeAccept_Click(object sender, RoutedEventArgs e)
-        {
-            var challenge = DailyChallengeService.GetToday();
-            MessageBox.Show(
-                $"Challenge: {challenge.Description}\n\nSet Aim Trainer to {challenge.Scenario} · {challenge.Difficulty} and complete a drill to earn it.",
-                "Accept Challenge",
-                MessageBoxButton.OK,
-                MessageBoxImage.None);
-            // Open Aim Trainer
-            OpenAimTrainer_Click(sender, e);
         }
 
         private void AchievementPanel_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)

@@ -96,8 +96,8 @@ namespace CleanAimTracker.Services
             return sessionCount switch
             {
                 3  => "You've completed 3 sessions! Pro unlocks AI coaching, full history, and export.",
-                10 => "10 sessions in — you're building real habits! Unlock Pro to track your full journey.",
-                25 => "25 sessions! You're seriously committed. Pro gives you everything: trends, AI coaching, and more.",
+                10 => $"10 sessions in — you're building real habits! You have {FreeSessions - 10} free sessions left. After that, Pro keeps your history, AI coaching, and trends going.",
+                25 => $"25 sessions! You're seriously committed. {FreeSessions - 25} free sessions left — Pro gives you unlimited sessions, AI coaching, and full trend history.",
                 _  => ""
             };
         }

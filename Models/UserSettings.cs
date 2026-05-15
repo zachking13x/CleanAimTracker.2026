@@ -19,9 +19,7 @@
         // Profile system
         public string SelectedProfile { get; set; } = "";
 
-        // Trial system
-        public bool TrialActive { get; set; } = true;
-        public int TrialDaysRemaining { get; set; } = 7;
+        // Overlay position
         public double OverlayLeft { get; set; } = -1;
         public double OverlayTop { get; set; } = -1;
 
@@ -37,5 +35,8 @@
         // Daily challenge tracking
         public DateTime LastChallengeDate   { get; set; } = DateTime.MinValue;
         public int      ChallengesCompleted { get; set; } = 0;
+
+        // Update banner — tracks last version the user has seen the What's New banner for
+        public string LastVersionSeen { get; set; } = "";
     }
 }

@@ -347,12 +347,57 @@
         <!-- ═══════════════════════════════════════════════ -->
         <Grid Grid.Column="1" Margin="14,12,14,12">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>  <!-- Row 0: What's New banner -->
+                <RowDefinition Height="Auto"/>  <!-- Row 1: Controls card -->
+                <RowDefinition Height="*"/>     <!-- Row 2: Stats + Player panel -->
             </Grid.RowDefinitions>
 
+            <!-- WHAT'S NEW BANNER -->
+            <Border x:Name="WhatsNewBanner"
+                    Grid.Row="0"
+                    Background="#1A00D4FF"
+                    BorderBrush="#3300D4FF"
+                    BorderThickness="0,0,0,1"
+                    Padding="16,10"
+                    Margin="0,0,0,10"
+                    Visibility="Collapsed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="🆕 "
+                               FontSize="14"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock x:Name="WhatsNewVersionText"
+                                   Text="What's new in v1.0.32"
+                                   FontSize="12" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock x:Name="WhatsNewBodyText"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="2"
+                            Content="✕"
+                            Click="WhatsNewDismiss_Click"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="{DynamicResource SecondaryText}"
+                            FontSize="13"
+                            Padding="8,4"
+                            Cursor="Hand"
+                            VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
             <!-- CONTROLS CARD -->
-            <Border Grid.Row="0"
+            <Border Grid.Row="1"
                     Background="{DynamicResource CardBackground}"
                     CornerRadius="12"
                     Padding="20,14"
@@ -476,8 +521,8 @@
                 </StackPanel>
             </Border>
 
-            <!-- STATS GRID + PLAYER PANEL (side-by-side, Row 1) -->
-            <Grid Grid.Row="1">
+            <!-- STATS GRID + PLAYER PANEL (side-by-side, Row 2) -->
+            <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="240"/>
@@ -887,7 +932,7 @@
                                        TextWrapping="Wrap" Margin="0,0,0,8"/>
                             <Button x:Name="ChallengeAcceptBtn"
                                     Content="🎯  Accept Challenge"
-                                    Click="ChallengeAccept_Click"
+                                    Click="DailyChallenge_Click"
                                     Background="{DynamicResource AccentBrush}"
                                     Foreground="White"
                                     BorderThickness="0"

@@ -47,6 +47,17 @@ namespace CleanAimTracker.Windows
         private string _adaptiveWeakSpot = "Flicking";
         private string _variant = "Smooth";
 
+        // TASK-04: Per-scenario accent colors (R,G,B)
+        private static readonly Dictionary<string, (byte R, byte G, byte B)> ScenarioColors = new()
+        {
+            ["Tracking"]  = (0x00, 0xD4, 0xFF),
+            ["Flicking"]  = (0xFF, 0xD7, 0x00),
+            ["Precision"] = (0x00, 0xFF, 0x9D),
+            ["Switching"] = (0xFF, 0x6B, 0x35),
+            ["Adaptive"]  = (0x9B, 0x59, 0xB6),
+            ["WarmUp"]    = (0x00, 0xC8, 0x53),
+        };
+
         // Onboarding mode
         private bool _isOnboarding = false;
         public event Action? OnboardingSessionCompleted;
@@ -163,13 +174,10 @@ namespace CleanAimTracker.Windows
             var parent = ScenarioBtn_Tracking.Parent as StackPanel;
             if (parent != null)
             {
-                foreach (var child in parent.Children.OfType<Border>())
-                    child.Background = Brushes.Transparent;
-
                 var match = parent.Children.OfType<Border>()
                                   .FirstOrDefault(b => b.Tag?.ToString() == scenario);
                 if (match != null)
-                    match.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0xE5, 0xFF));
+                    ApplyScenarioSelection(match);
             }
 
             _scenario          = scenario;
@@ -205,12 +213,31 @@ namespace CleanAimTracker.Windows
                 _          => _scenario,
             };
 
-            foreach (var child in ((StackPanel)btn.Parent).Children.OfType<Border>())
-                child.Background = Brushes.Transparent;
-
-            btn.Background = new SolidColorBrush(Color.FromArgb(0x1A, 0x00, 0xE5, 0xFF));
-
+            ApplyScenarioSelection(btn);
             UpdateVariantCombo(_scenario);
+        }
+
+        // TASK-04: Highlight selected scenario card with its per-scenario color
+        private void ApplyScenarioSelection(Border selected)
+        {
+            if (selected.Parent is not StackPanel parent) return;
+
+            // Reset all cards to dim border, transparent background
+            foreach (var child in parent.Children.OfType<Border>())
+            {
+                string tag = child.Tag?.ToString() ?? "";
+                if (ScenarioColors.TryGetValue(tag, out var c))
+                    child.BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, c.R, c.G, c.B));
+                child.Background = Brushes.Transparent;
+            }
+
+            // Highlight selected with full-opacity border + subtle background tint
+            string selTag = selected.Tag?.ToString() ?? "";
+            if (ScenarioColors.TryGetValue(selTag, out var sc))
+            {
+                selected.BorderBrush = new SolidColorBrush(Color.FromArgb(0xCC, sc.R, sc.G, sc.B));
+                selected.Background  = new SolidColorBrush(Color.FromArgb(0x22, sc.R, sc.G, sc.B));
+            }
         }
 
         private void DifficultyCombo_Changed(object sender, SelectionChangedEventArgs e)

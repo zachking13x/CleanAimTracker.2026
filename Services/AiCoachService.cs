@@ -310,16 +310,17 @@ namespace CleanAimTracker.Services
                     {
                         if (c.TrackerCmPer360.Value < 20)
                         {
-                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — that's too low for Precision. " +
-                                     "At that range you physically cannot make the micro-adjustments small targets require. " +
-                                     "This is a settings problem, not a skill problem. Use the Recommend screen to find your optimal range.");
+                            list.Add($"Your sensitivity is too high for Precision — your mouse only travels " +
+                                     $"{c.TrackerCmPer360.Value:F1} cm per full turn, which makes micro-adjustments " +
+                                     "on small targets physically very difficult. This is a settings problem, not a skill problem. " +
+                                     "Lower your in-game sensitivity and retest.");
                             break;
                         }
                         else if (c.TrackerCmPer360.Value > 55)
                         {
-                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — that's too high for Precision. " +
-                                     "You are overshooting small targets because the cursor moves too far per hand movement. " +
-                                     "Lower your sensitivity and retest.");
+                            list.Add($"Your sensitivity is too low for Precision — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
+                                     "your cursor moves too little per hand movement, making it hard to snap onto small targets quickly. " +
+                                     "Raise your in-game sensitivity and retest.");
                             break;
                         }
                     }
@@ -327,14 +328,16 @@ namespace CleanAimTracker.Services
                     {
                         if (c.TrackerCmPer360.Value < 15)
                         {
-                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — too low to smoothly follow moving targets. " +
-                                     "Tracking rewards fluid wrist movement, which is nearly impossible at this sensitivity range.");
+                            list.Add($"Your sensitivity is too high for Tracking — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
+                                     "fluid wrist movement is nearly impossible. Lower your in-game sensitivity so your mouse " +
+                                     "travels further across the pad per turn.");
                             break;
                         }
                         else if (c.TrackerCmPer360.Value > 65)
                         {
-                            list.Add($"Your sensitivity is {c.TrackerCmPer360.Value:F1}cm/360 — too high for consistent Tracking. " +
-                                     "Small hand movements translate to large cursor jumps, making smooth tracking very difficult.");
+                            list.Add($"Your sensitivity is too low for Tracking — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
+                                     "small hand movements cause large cursor jumps, making smooth follow-through very difficult. " +
+                                     "Raise your in-game sensitivity slightly.");
                             break;
                         }
                     }
@@ -421,14 +424,14 @@ namespace CleanAimTracker.Services
                 case "Precision":
                     if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value < 20)
                     {
-                        tips.Add($"Your primary fix is sensitivity — at {c.TrackerCmPer360.Value:F1}cm/360 you need more cm/360 " +
-                                 "to make precise micro-adjustments. Use the Recommend screen to find your target range, " +
+                        tips.Add($"Your primary fix is to lower your in-game sensitivity — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
+                                 "micro-adjustments on small targets are physically very hard. Use the Recommend screen to find your target range, " +
                                  "then retest Precision at the new setting before drawing conclusions about your skill level.");
                     }
                     else if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value > 55)
                     {
-                        tips.Add($"Lower your sensitivity first — at {c.TrackerCmPer360.Value:F1}cm/360 small targets will always feel " +
-                                 "unpredictable. Get into the 25-50cm range and your Precision accuracy will improve immediately.");
+                        tips.Add($"Lower your in-game sensitivity first — at {c.TrackerCmPer360.Value:F1} cm per full turn small targets " +
+                                 "will always feel unpredictable. Aim for the 25–50 cm range and your Precision accuracy will improve immediately.");
                     }
                     else
                     {

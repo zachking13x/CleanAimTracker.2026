@@ -56,6 +56,10 @@ namespace CleanAimTracker.Services
         public static bool IsTodayComplete(UserSettings settings) =>
             settings.LastChallengeDate.Date == DateTime.Today;
 
+        /// <summary>Convenience overload — loads settings internally.</summary>
+        public static bool HasCompletedToday() =>
+            IsTodayComplete(SettingsService.Load());
+
         /// <summary>
         /// Checks whether <paramref name="result"/> satisfies <paramref name="challenge"/>.
         /// If so, increments ChallengesCompleted, stamps LastChallengeDate, saves settings,

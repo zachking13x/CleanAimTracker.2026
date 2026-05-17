@@ -211,13 +211,37 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="NavBorder" Background="{TemplateBinding Background}" CornerRadius="0" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="Center"/>
-                        </Border>
+                        <Grid>
+                            <!-- Left cyan accent bar — visible when Tag="Active" -->
+                            <Rectangle x:Name="ActiveBar"
+                                       Width="3"
+                                       Fill="Transparent"
+                                       HorizontalAlignment="Left"
+                                       VerticalAlignment="Stretch"/>
+                            <Border x:Name="NavBorder"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="0"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="NavBorder" Property="Background" Value="#252525"/>
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+                            </Trigger>
+                            <!-- 5D: Active nav item — left cyan bar + gradient background -->
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="NavBorder" Property="Background">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
+                                            <GradientStop Color="#001F2D" Offset="0"/>
+                                            <GradientStop Color="Transparent" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ActiveBar" Property="Fill" Value="#00D4FF"/>
                                 <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -261,6 +285,28 @@
             <ColumnDefinition Width="180"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
+
+        <!-- ═══════════════════════════════════════════════ -->
+        <!-- 5A: ANIMATED BACKGROUND ATMOSPHERE             -->
+        <!-- ═══════════════════════════════════════════════ -->
+        <Canvas x:Name="AtmosphereCanvas"
+                Grid.ColumnSpan="2"
+                IsHitTestVisible="False"
+                Panel.ZIndex="-1"
+                Opacity="0.07">
+            <Ellipse Width="400" Height="400"
+                     Canvas.Left="-100" Canvas.Top="-100">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#00D4FF" Offset="0"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+                <Ellipse.RenderTransform>
+                    <TranslateTransform x:Name="AtmosphereTransform"/>
+                </Ellipse.RenderTransform>
+            </Ellipse>
+        </Canvas>
 
         <!-- ═══════════════════════════════════════════════ -->
         <!-- LEFT SIDEBAR                                    -->
@@ -313,7 +359,7 @@
 
                 <!-- NAV BUTTONS -->
                 <StackPanel DockPanel.Dock="Top">
-                    <Button Content="🏠  Home" Click="NavHome_Click" Style="{StaticResource NavButtonStyle}"/>
+                    <Button Content="🏠  Home" Click="NavHome_Click" Style="{StaticResource NavButtonStyle}" Tag="Active"/>
                     <Button x:Name="NavHistoryBtn"
                             Content="📊  History" Click="NavHistory_Click" Style="{StaticResource NavButtonStyle}"/>
                     <Button x:Name="AimTrainerNavBtn"
@@ -532,9 +578,10 @@
             <UniformGrid Grid.Column="0" Columns="3" Rows="2" SnapsToDevicePixels="True">
 
                 <!-- ── Row 1, Col 1: Movement ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
                     <StackPanel>
-                        <TextBlock Text="Movement" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Movement" Style="{StaticResource SectionHeaderText}"
+                                   Foreground="#00D4FF" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -545,13 +592,15 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="dX / dY" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Raw mouse delta — the X and Y axis movement your mouse reported each poll cycle."/>
-                                <TextBlock x:Name="DxDyText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="DxDyText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00D4FF"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Total Distance" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Total raw mouse units moved this session. Higher means more physical mouse movement overall."/>
-                                <TextBlock x:Name="TotalDistanceText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="TotalDistanceText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00D4FF"/>
                             </StackPanel>
                         </Grid>
 
@@ -564,9 +613,22 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="cm/360" Style="{StaticResource LabelTextStyle}"
-                                           ToolTip="Centimeters of physical desk movement for one full 360° spin in-game. Lower = faster/twitchier. Higher = slower/more precise. Most players prefer 20–50 cm/360."/>
-                                <TextBlock x:Name="CmPer360Text" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <!-- Primary: game sensitivity -->
+                                <TextBlock x:Name="SensDisplayLabel"
+                                           Text="Sensitivity"
+                                           Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="Your equivalent in-game sensitivity for the selected game profile. Change your game's sensitivity to this number."/>
+                                <TextBlock x:Name="SensDisplayText"
+                                           Text="--"
+                                           Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00D4FF"/>
+                                <!-- Secondary: cm/360 for context -->
+                                <TextBlock x:Name="CmPer360Text"
+                                           Text="--"
+                                           FontSize="10"
+                                           Foreground="{DynamicResource MutedText}"
+                                           Margin="0,-8,0,8"
+                                           ToolTip="Centimeters of physical desk movement for one full 360° turn. Most players prefer 20–50 cm/360."/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
@@ -583,9 +645,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 2: Velocity ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#FF8C00" BorderThickness="0,2,0,0">
                     <StackPanel>
-                        <TextBlock Text="Velocity" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Velocity" Style="{StaticResource SectionHeaderText}"
+                                   Foreground="#FF8C00" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -595,12 +658,14 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Speed" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="SpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Current" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="CurrentSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="CurrentSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
                         </Grid>
 
@@ -614,12 +679,14 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Peak" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="PeakSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="PeakSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Average" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="AverageSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="AverageSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
                         </Grid>
 
@@ -634,20 +701,23 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Mouse Movements Per Second — how actively your mouse was moving this session."/>
-                                <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Micro-movements per second over the last 1-second window — indicates aim tremor or active micro-adjustment patterns."/>
-                                <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FF8C00"/>
                             </StackPanel>
                         </Grid>
 
                         <StackPanel>
                             <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"
                                        ToolTip="Largest sudden velocity change this session — high values mean fast, explosive flick shots."/>
-                            <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                            <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                       Foreground="#FF8C00"/>
                         </StackPanel>
 
                         <!-- Verdict line -->
@@ -659,9 +729,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 3: Flicks ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#FFD700" BorderThickness="0,2,0,0">
                     <StackPanel>
-                        <TextBlock Text="Flicks" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Flicks" Style="{StaticResource SectionHeaderText}"
+                                   Foreground="#FFD700" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -671,12 +742,14 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="FlicksCountText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="FlicksCountText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FFD700"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Small Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="SmallFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SmallFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FFD700"/>
                             </StackPanel>
                         </Grid>
 
@@ -690,22 +763,25 @@
 
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Large Flicks" Style="{StaticResource LabelTextStyle}"/>
-                                <TextBlock x:Name="LargeFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="LargeFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FFD700"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Fast movements that start from near-stillness — indicates reactive, instinctive aim from a stationary position."/>
-                                <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#FFD700"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- ── Row 2, Col 1: Aim Quality ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#00FF9D" BorderThickness="0,2,0,0">
                     <StackPanel>
-                        <TextBlock Text="Aim Quality" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Aim Quality" Style="{StaticResource SectionHeaderText}"
+                                   Foreground="#00FF9D" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -716,13 +792,15 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Composite aim score 0–100 based on smoothness, control, and correction consistency. 70+ is solid; 85+ is elite."/>
-                                <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00FF9D"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How fluid and continuous your movement is. High = fewer jerky direction changes. Aim for 65+."/>
-                                <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00FF9D"/>
                             </StackPanel>
                         </Grid>
 
@@ -737,13 +815,15 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How aggressively you correct your aim. Very high (80+) may mean you're overshooting targets; very low (&lt;20) may mean slow, hesitant adjustments."/>
-                                <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00FF9D"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How steady your aim is during slow movement or pauses. Higher is better for tracking scenarios."/>
-                                <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                                <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                           Foreground="#00FF9D"/>
                             </StackPanel>
                         </Grid>
 
@@ -756,24 +836,28 @@
                 </Border>
 
                 <!-- ── Row 2, Col 2: Advanced Metrics ── -->
-                <Border Style="{StaticResource StatCardStyle}">
+                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#9B59B6" BorderThickness="0,2,0,0">
                     <StackPanel>
-                        <TextBlock Text="Advanced Metrics" Style="{StaticResource SectionHeaderText}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Advanced Metrics" Style="{StaticResource SectionHeaderText}"
+                                   Foreground="#9B59B6" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Angle Change" Style="{StaticResource LabelTextStyle}"/>
-                        <TextBlock x:Name="AngleChangeText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="AngleChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                   Foreground="#9B59B6"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Rapid involuntary micro-movements that aren't intentional aim. High jitter can indicate grip tension, fatigue, or sensitivity set too high."/>
-                        <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                   Foreground="#9B59B6"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Active movement events per second across the full session — how busy your aim is over time."/>
-                        <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"/>
+                        <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"
+                                   Foreground="#9B59B6"/>
 
                         <!-- Verdict line -->
                         <TextBlock x:Name="SmoothnessVerdictText" Text=""
@@ -829,8 +913,9 @@
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,10"/>
 
-                        <!-- Quick Launch button -->
-                        <Button Content="🎯  Start Training"
+                        <!-- Quick Launch button — 5E: gentle breathing pulse -->
+                        <Button x:Name="StartTrainingBtn"
+                                Content="🎯  Start Training"
                                 Click="OpenAimTrainer_Click"
                                 Background="{DynamicResource AccentBrush}"
                                 Foreground="White"
@@ -838,7 +923,24 @@
                                 FontSize="13" FontWeight="SemiBold"
                                 Padding="12,8"
                                 Cursor="Hand"
-                                HorizontalAlignment="Stretch"/>
+                                HorizontalAlignment="Stretch">
+                            <Button.Triggers>
+                                <EventTrigger RoutedEvent="Button.Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                            <DoubleAnimation
+                                                Storyboard.TargetProperty="Opacity"
+                                                From="1.0" To="0.75"
+                                                Duration="0:0:1.5">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <SineEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Button.Triggers>
+                        </Button>
 
                         <!-- Session context line -->
                         <TextBlock x:Name="SessionContextText"
@@ -859,6 +961,26 @@
                           HorizontalScrollBarVisibility="Disabled"
                           Margin="14,0,0,0">
                 <StackPanel x:Name="PlayerPanel">
+
+                    <!-- ── TASK-03: WHAT TO DO NEXT HINT (first 5 sessions) ── -->
+                    <Border x:Name="NextActionHint"
+                            Background="#0A1F0A"
+                            BorderBrush="#2ECC71"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,10"
+                            Margin="0,0,0,8"
+                            Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="👇 " FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="NextActionHintText"
+                                       Text="Try today's challenge to earn your first achievement!"
+                                       FontSize="12"
+                                       Foreground="#2ECC71"
+                                       TextWrapping="Wrap"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
 
                     <!-- ── TASK-08: Tier Hero Card ─────────────────────── -->
                     <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8">
@@ -914,32 +1036,111 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- ── TASK-10: Daily Challenge Card ──────────────── -->
-                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8"
-                            Cursor="Hand" MouseDown="DailyChallenge_Click">
-                        <StackPanel>
+                    <!-- ── TASK-02 + TASK-10: Daily Challenge Card ────── -->
+                    <Border x:Name="DailyChallengeCardBorder"
+                            Margin="0,0,0,8"
+                            CornerRadius="12"
+                            Cursor="Hand"
+                            MouseDown="DailyChallenge_Click"
+                            SnapsToDevicePixels="True">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#0D1F2D" Offset="0"/>
+                                <GradientStop Color="#0A1A28" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Border.BorderBrush>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                <GradientStop Color="#00D4FF" Offset="0"/>
+                                <GradientStop Color="#0066AA" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.BorderBrush>
+                        <Border.BorderThickness>
+                            <Thickness>1.5</Thickness>
+                        </Border.BorderThickness>
+                        <Border.Effect>
+                            <DropShadowEffect Color="#00D4FF" BlurRadius="12"
+                                              ShadowDepth="0" Opacity="0.2"/>
+                        </Border.Effect>
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Effect">
+                                            <Setter.Value>
+                                                <DropShadowEffect Color="#00D4FF" BlurRadius="20"
+                                                                  ShadowDepth="0" Opacity="0.45"/>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+
+                        <StackPanel Margin="14,12">
+                            <!-- Header row -->
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <TextBlock Text="⚡ " FontSize="12" VerticalAlignment="Center"/>
                                 <TextBlock Text="DAILY CHALLENGE"
-                                           FontSize="9" FontWeight="Bold"                                           Foreground="{DynamicResource AccentBrush}"/>
-                                <TextBlock x:Name="ChallengeStatusBadge" Text=" · ⚡ Active"
-                                           FontSize="9" FontWeight="Bold"
-                                           Foreground="{DynamicResource SecondaryText}"/>
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="#00D4FF"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock x:Name="ChallengeStatusBadge"
+                                           Text=" · Active"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="#7AABBB"
+                                           VerticalAlignment="Center"/>
                             </StackPanel>
+
+                            <!-- Challenge description -->
                             <TextBlock x:Name="ChallengeDescText"
                                        Text="Loading challenge..."
-                                       FontSize="12" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource PrimaryText}"
-                                       TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                       FontSize="13" FontWeight="SemiBold"
+                                       Foreground="White"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"/>
+
+                            <!-- Start button -->
                             <Button x:Name="ChallengeAcceptBtn"
-                                    Content="🎯  Accept Challenge"
+                                    Content="▶  Start Challenge"
                                     Click="DailyChallenge_Click"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Foreground="White"
+                                    Foreground="Black"
                                     BorderThickness="0"
-                                    Padding="10,5" Cursor="Hand"
-                                    HorizontalAlignment="Stretch"/>
+                                    FontSize="12" FontWeight="Bold"
+                                    Padding="12,7"
+                                    Cursor="Hand"
+                                    HorizontalAlignment="Stretch">
+                                <Button.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                        <GradientStop Color="#00D4FF" Offset="0"/>
+                                        <GradientStop Color="#0099CC" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Button.Background>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Opacity" Value="0.88"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+
+                            <!-- Completed state -->
                             <TextBlock x:Name="ChallengeDoneText"
-                                       Text="✓  Completed today!"
+                                       Text="✓  Completed today — come back tomorrow!"
                                        FontSize="12" FontWeight="Bold"
                                        Foreground="#4CAF50"
                                        Visibility="Collapsed"/>

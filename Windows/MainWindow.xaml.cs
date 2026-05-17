@@ -7,10 +7,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Threading;
 
 namespace CleanAimTracker.Windows
@@ -143,6 +146,9 @@ namespace CleanAimTracker.Windows
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // 5A: Start subtle background atmosphere drift
+            StartAtmosphereAnimation();
+
             var settings = SettingsService.Load();
             if (settings.OnboardingAutoStart)
             {
@@ -513,7 +519,31 @@ namespace CleanAimTracker.Windows
             DxDyText.Text = "dX: 0  dY: 0";
 
             double cm360 = CalculateCmPer360();
-            CmPer360Text.Text = $"{cm360:F2}";
+
+            // Show game sensitivity as primary display
+            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0)
+            {
+                double gameSens = 914.4 / (cm360 * _dpi * _selectedProfile.YawPerCount);
+                if (!double.IsNaN(gameSens) && !double.IsInfinity(gameSens) && gameSens > 0)
+                {
+                    SensDisplayText.Text  = $"{gameSens:F4}";
+                    SensDisplayLabel.Text = $"{_selectedProfile.Name} Sensitivity";
+                }
+                else
+                {
+                    SensDisplayText.Text  = "--";
+                    SensDisplayLabel.Text = "Sensitivity";
+                }
+            }
+            else
+            {
+                // No profile / yaw — fall back to cm/360 as primary
+                SensDisplayText.Text  = $"{cm360:F2}";
+                SensDisplayLabel.Text = "Sensitivity";
+            }
+
+            // Always show cm/360 as secondary context
+            CmPer360Text.Text = cm360 > 0 ? $"{cm360:F1} cm/360" : "--";
 
             try
             {
@@ -553,11 +583,16 @@ namespace CleanAimTracker.Windows
         private void PopulateTrackerInterpretations(SessionSummary s)
         {
             // Movement / cm/360 verdict
-            string movementVerdict = s.CmPer360 < 20
-                ? $"cm/360 is low ({s.CmPer360:F1}) — sensitivity may be limiting micro-adjustment."
-                : s.CmPer360 > 60
-                ? $"cm/360 is high ({s.CmPer360:F1}) — consider lowering sensitivity for more control."
-                : $"cm/360 is in a good range ({s.CmPer360:F1}).";
+            string movementVerdict;
+            if (s.CmPer360 < 20)
+                movementVerdict = $"Your sensitivity is very high — small movements cause large cursor jumps. " +
+                                  $"Consider lowering it to bring cm/360 above 20 (currently {s.CmPer360:F1} cm/360).";
+            else if (s.CmPer360 > 60)
+                movementVerdict = $"Your sensitivity is very low — large mouse movements needed to turn. " +
+                                  $"This can limit reaction speed (currently {s.CmPer360:F1} cm/360).";
+            else
+                movementVerdict = $"Your sensitivity is in a good range — {s.CmPer360:F1} cm/360. " +
+                                  $"Consistent with smooth aim control.";
 
             // Velocity consistency verdict
             string velocityVerdict = s.AverageVelocity > 0 && s.PeakVelocity > 0
@@ -861,7 +896,9 @@ namespace CleanAimTracker.Windows
         private void OpenAimTrainer_Click(object sender, RoutedEventArgs e)
         {
             // TASK-14: Aim Trainer is free — it's a core value driver
-            new AimTrainerWindow { Owner = this }.Show();
+            var trainer = new AimTrainerWindow { Owner = this };
+            trainer.Closed += (s, args) => Dispatcher.Invoke(() => LoadTodayStats(animatePanel: true));
+            trainer.Show();
         }
 
         private void ViewLastCoachReport_Click(object sender, RoutedEventArgs e)
@@ -937,13 +974,18 @@ namespace CleanAimTracker.Windows
             => WhatsNewBanner.Visibility = Visibility.Collapsed;
 
         // ── Today's stats ─────────────────────────────────────────────────
-        private void LoadTodayStats()
+        private void LoadTodayStats(bool animatePanel = false)
         {
             try
             {
                 var all = SessionStorage.LoadAll();
                 var today = all.Where(s => s.Timestamp.Date == DateTime.Today).ToList();
-                TodaySessionsText.Text = today.Count.ToString();
+
+                // 5F: animate session count after a session, static on load
+                if (animatePanel)
+                    AnimateSessionsCount(today.Count);
+                else
+                    TodaySessionsText.Text = today.Count.ToString();
 
                 // Streak: count consecutive days going backwards from today
                 int streak = 0;
@@ -984,13 +1026,14 @@ namespace CleanAimTracker.Windows
                     ? $"{dayName} · {todayCount} session{(todayCount == 1 ? "" : "s")} today"
                     : $"{dayName} · No sessions yet today";
 
-                LoadPlayerPanel(all);
+                LoadPlayerPanel(all, animatePanel);
             }
             catch { /* ignore if no data */ }
         }
 
         // ── TASK-08–11: Player Panel ──────────────────────────────────────
-        private void LoadPlayerPanel(System.Collections.Generic.IEnumerable<SessionSummary> sessions)
+        private void LoadPlayerPanel(System.Collections.Generic.IEnumerable<SessionSummary> sessions,
+                                     bool animate = false)
         {
             try
             {
@@ -1007,7 +1050,8 @@ namespace CleanAimTracker.Windows
                     ? $"Avg quality: {avgQuality:F0} pts"
                     : "No sessions yet";
                 TierNextGoalText.Text = tier.NextGoal;
-                TierProgressBar.Value = CalculateTierProgress(avgQuality, tier.Name) * 100;
+                double progressPct = CalculateTierProgress(avgQuality, tier.Name) * 100;
+                if (!animate) TierProgressBar.Value = progressPct;  // animation handles it when animate=true
 
                 var tierColor = new System.Windows.Media.SolidColorBrush(
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));
@@ -1016,7 +1060,7 @@ namespace CleanAimTracker.Windows
 
                 // ── TASK-09: Streak Card ──────────────────────────────────
                 var (currentStreak, bestStreak) = StreakService.GetStreakInfo();
-                StreakValueText.Text = currentStreak.ToString();
+                if (!animate) StreakValueText.Text = currentStreak.ToString();  // animation handles it
                 BestStreakText.Text  = $"Best: {bestStreak} days";
                 StreakFlameText.Text = currentStreak switch
                 {
@@ -1036,18 +1080,18 @@ namespace CleanAimTracker.Windows
                 ChallengeDescText.Text = challenge.ShortDesc;
                 if (done)
                 {
-                    ChallengeStatusBadge.Text     = " · ✓ Done";
+                    ChallengeStatusBadge.Text       = " · ✓ Done";
                     ChallengeStatusBadge.Foreground = new System.Windows.Media.SolidColorBrush(
                         System.Windows.Media.Color.FromRgb(76, 175, 80));
-                    ChallengeAcceptBtn.Visibility  = Visibility.Collapsed;
-                    ChallengeDoneText.Visibility   = Visibility.Visible;
+                    ChallengeAcceptBtn.Visibility   = Visibility.Collapsed;
+                    ChallengeDoneText.Visibility    = Visibility.Visible;
                 }
                 else
                 {
-                    ChallengeStatusBadge.Text      = " · ⚡ Active";
+                    ChallengeStatusBadge.Text       = " · ⚡ Active";
                     ChallengeStatusBadge.Foreground = (System.Windows.Media.Brush)FindResource("SecondaryText");
-                    ChallengeAcceptBtn.Visibility  = Visibility.Visible;
-                    ChallengeDoneText.Visibility   = Visibility.Collapsed;
+                    ChallengeAcceptBtn.Visibility   = Visibility.Visible;
+                    ChallengeDoneText.Visibility    = Visibility.Collapsed;
                 }
 
                 // ── TASK-11: Achievement Badge Row ────────────────────────
@@ -1067,6 +1111,32 @@ namespace CleanAimTracker.Windows
                     AchievementBadges.Visibility    = Visibility.Collapsed;
                     AchievementEmptyText.Visibility = Visibility.Visible;
                 }
+
+                // ── TASK-03: Next action hint (first 5 sessions) ──────────
+                int sessionCount = AimTrainerStorage.LoadAll().Count;
+                if (sessionCount == 0)
+                {
+                    NextActionHint.Visibility = Visibility.Visible;
+                    NextActionHintText.Text   = "Hit Start Training below to begin your first drill!";
+                }
+                else if (sessionCount < 5 && !DailyChallengeService.HasCompletedToday())
+                {
+                    NextActionHint.Visibility = Visibility.Visible;
+                    NextActionHintText.Text   = "Try today's challenge to earn your first achievement!";
+                }
+                else if (sessionCount < 5)
+                {
+                    NextActionHint.Visibility = Visibility.Visible;
+                    NextActionHintText.Text   = $"Session {sessionCount} done — start another drill to build your streak!";
+                }
+                else
+                {
+                    NextActionHint.Visibility = Visibility.Collapsed;
+                }
+
+                // ── TASK-01: Trigger celebration animations post-session ───
+                if (animate)
+                    AnimatePlayerPanelAfterSession(currentStreak, progressPct);
             }
             catch { /* non-critical */ }
         }
@@ -1107,22 +1177,27 @@ namespace CleanAimTracker.Windows
 
             trainer.Closed += (s, args) =>
             {
-                var latestResults = AimTrainerStorage.LoadAll();
-                if (latestResults.Count > 0)
+                Dispatcher.Invoke(() =>
                 {
-                    var latest        = latestResults.OrderByDescending(r => r.Timestamp).First();
-                    var freshSettings = SettingsService.Load();
-                    bool completed    = DailyChallengeService.TryComplete(challenge, latest, freshSettings);
+                    var latestResults = AimTrainerStorage.LoadAll();
+                    bool completed    = false;
+                    if (latestResults.Count > 0)
+                    {
+                        var latest        = latestResults.OrderByDescending(r => r.Timestamp).First();
+                        var freshSettings = SettingsService.Load();
+                        completed = DailyChallengeService.TryComplete(challenge, latest, freshSettings);
+                    }
+                    // Refresh with animations
+                    LoadTodayStats(animatePanel: true);
                     if (completed)
                     {
-                        LoadPlayerPanel(SessionStorage.LoadAll());
                         MessageBox.Show(
                             "Challenge complete! Well done.",
                             "Daily Challenge",
                             MessageBoxButton.OK,
                             MessageBoxImage.Information);
                     }
-                }
+                });
             };
 
             trainer.PreSelectScenario(challenge.Scenario, challenge.Difficulty);
@@ -1138,7 +1213,9 @@ namespace CleanAimTracker.Windows
         {
             DxDyText.Text                = "--";
             TotalDistanceText.Text       = "--";
-            CmPer360Text.Text            = "--";
+            CmPer360Text.Text             = "--";
+            SensDisplayText.Text          = "--";
+            SensDisplayLabel.Text         = "Sensitivity";
             SpeedText.Text               = "--";
             CurrentSpeedText.Text        = "--";
             PeakSpeedText.Text           = "--";
@@ -1180,6 +1257,120 @@ namespace CleanAimTracker.Windows
         {
             _rawInput.Stop();
             base.OnClosed(e);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TASK-01: Post-session celebration animations
+        // ─────────────────────────────────────────────────────────────
+        private void AnimatePlayerPanelAfterSession(int newStreak, double tierProgressPct)
+        {
+            AnimateCountUp(StreakValueText, 0, newStreak, duration: 800);
+            AnimateProgressBar(TierProgressBar, 0, tierProgressPct, duration: 1000);
+            if (!DailyChallengeService.HasCompletedToday())
+                FlashCard(DailyChallengeCardBorder, color: "#00D4FF", times: 2);
+        }
+
+        private void AnimateCountUp(System.Windows.Controls.TextBlock target, int from, int to, int duration)
+        {
+            int steps = Math.Abs(to - from);
+            if (steps == 0) { target.Text = to.ToString(); return; }
+
+            var timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(duration / Math.Max(steps, 1))
+            };
+            int current = from;
+            timer.Tick += (s, e) =>
+            {
+                current++;
+                target.Text = current.ToString();
+                if (current >= to) timer.Stop();
+            };
+            timer.Start();
+        }
+
+        private void AnimateProgressBar(System.Windows.Controls.ProgressBar bar,
+                                        double from, double to, int duration)
+        {
+            var anim = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(duration))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            bar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, anim);
+        }
+
+        private async void FlashCard(Border card, string color, int times)
+        {
+            var glowColor = (System.Windows.Media.Color)
+                System.Windows.Media.ColorConverter.ConvertFromString(color);
+
+            for (int i = 0; i < times; i++)
+            {
+                card.Effect = new DropShadowEffect
+                {
+                    Color = glowColor, BlurRadius = 20, ShadowDepth = 0, Opacity = 0.8
+                };
+                await Task.Delay(300);
+                card.Effect = new DropShadowEffect
+                {
+                    Color = System.Windows.Media.Colors.Black,
+                    BlurRadius = 8, ShadowDepth = 0, Opacity = 0.35
+                };
+                await Task.Delay(200);
+            }
+            // Restore the cyan glow the card always has
+            card.Effect = new DropShadowEffect
+            {
+                Color = glowColor, BlurRadius = 12, ShadowDepth = 0, Opacity = 0.2
+            };
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TASK-05A: Atmosphere background drift animation
+        // ─────────────────────────────────────────────────────────────
+        private void StartAtmosphereAnimation()
+        {
+            var xAnim = new DoubleAnimation(0, 80, TimeSpan.FromSeconds(8))
+            {
+                AutoReverse      = true,
+                RepeatBehavior   = RepeatBehavior.Forever,
+                EasingFunction   = new SineEase()
+            };
+            var yAnim = new DoubleAnimation(0, 40, TimeSpan.FromSeconds(12))
+            {
+                AutoReverse      = true,
+                RepeatBehavior   = RepeatBehavior.Forever,
+                EasingFunction   = new SineEase()
+            };
+            AtmosphereTransform.BeginAnimation(System.Windows.Media.TranslateTransform.XProperty, xAnim);
+            AtmosphereTransform.BeginAnimation(System.Windows.Media.TranslateTransform.YProperty, yAnim);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TASK-05F: Animated sessions-today counter
+        // ─────────────────────────────────────────────────────────────
+        private void AnimateSessionsCount(int newCount)
+        {
+            TodaySessionsText.Text = newCount.ToString();
+
+            TodaySessionsText.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+            TodaySessionsText.RenderTransform = new System.Windows.Media.ScaleTransform();
+
+            var scaleAnim = new DoubleAnimation(1.0, 1.3, TimeSpan.FromMilliseconds(150))
+            {
+                AutoReverse = true
+            };
+            ((System.Windows.Media.ScaleTransform)TodaySessionsText.RenderTransform)
+                .BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, scaleAnim);
+            ((System.Windows.Media.ScaleTransform)TodaySessionsText.RenderTransform)
+                .BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, scaleAnim);
+
+            TodaySessionsText.Foreground = new System.Windows.Media.SolidColorBrush(
+                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#00D4FF"));
+
+            Task.Delay(350).ContinueWith(_ => Dispatcher.Invoke(() =>
+                TodaySessionsText.Foreground =
+                    (System.Windows.Media.Brush)FindResource("PrimaryText")));
         }
     }
 }

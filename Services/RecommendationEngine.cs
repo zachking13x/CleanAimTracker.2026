@@ -349,15 +349,17 @@ namespace CleanAimTracker.Services
             double max = p.RecommendedCm360Max > min ? p.RecommendedCm360Max : min + 20.0;
 
             if (current <= 0)
-                return $"Unable to evaluate cm/360. Recommended range is {min:F0}–{max:F0} cm.";
+                return $"Not enough data to evaluate sensitivity. Recommended mouse travel range is {min:F0}–{max:F0} cm per full turn.";
 
             if (current < min)
-                return $"Your cm/360 ({current:F1}) is below the recommended range ({min:F0}–{max:F0}).";
+                return $"Your sensitivity is too high for this scenario — your mouse only travels {current:F1} cm per full turn. " +
+                       $"The recommended range is {min:F0}–{max:F0} cm. Lowering your in-game sensitivity will help.";
 
             if (current > max)
-                return $"Your cm/360 ({current:F1}) is above the recommended range ({min:F0}–{max:F0}).";
+                return $"Your sensitivity is too low for this scenario — your mouse travels {current:F1} cm per full turn. " +
+                       $"The recommended range is {min:F0}–{max:F0} cm. Raising your in-game sensitivity will help.";
 
-            return $"Your cm/360 ({current:F1}) is within the recommended range.";
+            return $"Your sensitivity is in the right range — {current:F1} cm per full turn fits this scenario well.";
         }
 
         private static string BuildOverallVerdict(SensitivityRecommendation rec)

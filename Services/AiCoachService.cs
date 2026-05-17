@@ -275,7 +275,12 @@ namespace CleanAimTracker.Services
             else if (c.ReactionGrade == "good")
                 list.Add($"{r.AvgReactionMs:F0}ms average reaction is competitive. You're in the range where pros operate.");
             else if (!c.IsFirstSession && c.ReactionDelta < -20)
-                list.Add($"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms faster than last session — your reads are getting sharper.");
+            {
+                if (c.ReactionGrade == "slow")
+                    list.Add($"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms from last session — real progress. Your average is still {r.AvgReactionMs:F0}ms, so there's more room to go, but the direction is right.");
+                else
+                    list.Add($"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms faster than last session — your reads are getting sharper.");
+            }
 
             if (c.StreakGrade == "elite")
                 list.Add($"A streak of {r.MaxStreak} is exceptional — it shows you can maintain focus and rhythm under pressure.");
@@ -359,9 +364,26 @@ namespace CleanAimTracker.Services
                     }
                     else
                     {
-                        list.Add(c.ReactionGrade == "slow"
-                            ? $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction."
-                            : $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) is {r.AvgReactionMs - r.BestReactionMs:F0}ms — your ceiling is higher than your average suggests.");
+                        string reactionMsg;
+                        if (c.ReactionGrade == "slow")
+                        {
+                            if (!c.IsFirstSession && c.ReactionDelta < -20)
+                                reactionMsg = $"Your {r.AvgReactionMs:F0}ms reaction is still on the slower side, but you're heading in the right direction — {Math.Abs(c.ReactionDelta):F0}ms faster than last session. Keep focusing on anticipation over raw speed.";
+                            else
+                                reactionMsg = $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction.";
+                        }
+                        else
+                        {
+                            reactionMsg = $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) is {r.AvgReactionMs - r.BestReactionMs:F0}ms — your ceiling is higher than your average suggests.";
+                        }
+
+                        // Scenario context — slow reaction means different things in different modes
+                        if (r.Scenario == "Adaptive" && c.ReactionGrade == "slow")
+                            reactionMsg += " Note: Adaptive targets your weakest areas specifically — slower reactions here are expected until your overall mechanics improve.";
+                        else if (r.Scenario == "Precision" && c.ReactionGrade == "slow")
+                            reactionMsg += " In Precision, patience matters more than speed — a measured click on a small target beats a fast miss every time.";
+
+                        list.Add(reactionMsg);
                     }
                     break;
                 case "streak":

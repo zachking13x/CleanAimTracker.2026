@@ -92,9 +92,9 @@ namespace CleanAimTracker.Services
 
             rec.RecommendedSensitivity = sens;
 
-            // Sensitivity range (±3%)
-            rec.RecommendedSensitivityMin = Math.Round(sens * 0.97, 4);
-            rec.RecommendedSensitivityMax = Math.Round(sens * 1.03, 4);
+            // Sensitivity range (±5%)
+            rec.RecommendedSensitivityMin = Math.Round(sens * 0.95, 4);
+            rec.RecommendedSensitivityMax = Math.Round(sens * 1.05, 4);
 
             // ══════════════════════════════════════════════════════
             // 5. MUSCLE MEMORY PROTECTION
@@ -238,22 +238,80 @@ namespace CleanAimTracker.Services
 
         private static double DetermineTargetCm360(SessionSummary s, GameProfile p, SensitivityRecommendation rec)
         {
-            double min = p.RecommendedCm360Min > 0 ? p.RecommendedCm360Min : 20.0;
-            double max = p.RecommendedCm360Max > min ? p.RecommendedCm360Max : min + 20.0;
+            double min    = p.RecommendedCm360Min > 0 ? p.RecommendedCm360Min : 20.0;
+            double max    = p.RecommendedCm360Max > min ? p.RecommendedCm360Max : min + 20.0;
             double proAvg = p.ProAverageCm360 > 0 ? p.ProAverageCm360 : (min + max) / 2.0;
+            double current = s.CmPer360 > 0 ? s.CmPer360 : (min + max) / 2.0;
 
-            double target = proAvg;
+            // If session was too short for reliable diagnostics, return current cm/360
+            // clamped to the profile range — do not recommend a change on bad data
+            if (s.SessionSeconds < 45)
+                return Math.Round(Math.Clamp(current, min, max), 1);
 
-            if (rec.JitterScore < 50) target += 5;
-            if (rec.SmoothnessScore < 40) target += 3;
-            if (rec.FlickControlScore < 40 && s.LargeFlickCount > s.SmallFlickCount) target += 4;
+            // ── Step 1: Determine the ideal direction ──────────────────────────
+            // Signs suggest the user needs MORE cm/360 (lower sensitivity)
+            bool needsHigher =
+                rec.JitterScore < 50 ||          // High jitter = sensitivity too high
+                rec.SmoothnessScore < 40 ||      // Low smoothness = too twitchy
+                (rec.FlickControlScore < 40 &&
+                 s.LargeFlickCount > s.SmallFlickCount); // Overshooting on flicks
 
-            if (rec.ConsistencyScore > 80 && rec.SmoothnessScore > 70)
+            // Signs suggest the user needs LESS cm/360 (higher sensitivity)
+            bool needsLower =
+                rec.ConsistencyScore > 85 &&     // Very consistent already
+                rec.SmoothnessScore > 80 &&      // Smooth already
+                current > max;                   // And they are above the recommended range
+
+            // If already in the good range and performing well — stay put
+            bool alreadyGood =
+                current >= min && current <= max &&
+                rec.SmoothnessScore >= 60 &&
+                rec.ConsistencyScore >= 60;
+
+            if (alreadyGood)
             {
-                if (s.CmPer360 >= min && s.CmPer360 <= max)
-                    target = s.CmPer360;
+                // Small refinement only — stay close to current
+                double refinement = current;
+                if (rec.JitterScore < 50) refinement = Math.Min(current + 2.0, max);
+                if (rec.SmoothnessScore > 80 && rec.ConsistencyScore > 80)
+                    refinement = current; // Perfect, do not change
+                return Math.Round(Math.Clamp(refinement, min, max), 1);
             }
 
+            // ── Step 2: Calculate target with gradual stepping ─────────────────
+            // Never recommend more than 20% change from current in one session
+            double maxStep = current * 0.20;
+            double target;
+
+            if (needsHigher && !needsLower)
+            {
+                // User needs more cm/360 (lower sensitivity)
+                // Step toward min of recommended range first, then toward proAvg
+                double stepTarget = current < min
+                    ? Math.Min(current + maxStep, min)     // Step toward min
+                    : Math.Min(current + maxStep, proAvg); // Already in range, nudge toward pro
+                target = stepTarget;
+            }
+            else if (needsLower && !needsHigher)
+            {
+                // User needs less cm/360 (higher sensitivity)
+                double stepTarget = current > max
+                    ? Math.Max(current - maxStep, max)     // Step toward max
+                    : Math.Max(current - maxStep, proAvg); // In range, nudge toward pro
+                target = stepTarget;
+            }
+            else
+            {
+                // Mixed signals or no clear direction — step gently toward proAvg
+                if (current < proAvg)
+                    target = Math.Min(current + Math.Min(maxStep, (proAvg - current) * 0.4), proAvg);
+                else if (current > proAvg)
+                    target = Math.Max(current - Math.Min(maxStep, (current - proAvg) * 0.4), proAvg);
+                else
+                    target = current;
+            }
+
+            // ── Step 3: Clamp to profile limits and round ──────────────────────
             target = Math.Round(target, 1);
             target = Math.Clamp(target, min, max);
 
@@ -321,45 +379,64 @@ namespace CleanAimTracker.Services
             if (recommended <= 0)
                 return "Unable to determine an optimal sensitivity based on the current data.";
 
-            double pct = 0;
+            double pct = current > 0
+                ? Math.Abs(recommended - current) / current * 100.0
+                : 100.0;
 
-            if (current > 0)
-            {
-                pct = Math.Abs(recommended - current) / current * 100.0;
-            }
-            else
-            {
-                pct = 100.0;
-            }
+            if (double.IsNaN(pct) || double.IsInfinity(pct)) pct = 100.0;
 
-            if (double.IsNaN(pct) || double.IsInfinity(pct))
-                pct = 100.0;
+            if (pct < 3)
+                return "Your sensitivity is already at the recommended value.";
 
-            if (pct < 5)
-                return "Your sensitivity is already close to optimal.";
+            if (pct < 8)
+                return current > recommended
+                    ? $"Minor adjustment: lower sensitivity from {current:F4} to {recommended:F4}."
+                    : $"Minor adjustment: raise sensitivity from {current:F4} to {recommended:F4}.";
 
             return current > recommended
-                ? $"Lower sensitivity from {current:F3} to {recommended:F3} ({pct:F0}% decrease)."
-                : $"Raise sensitivity from {current:F3} to {recommended:F3} ({pct:F0}% increase).";
+                ? $"Lower your sensitivity from {current:F4} to {recommended:F4} — " +
+                  $"this is a {pct:F0}% change. Give yourself a few sessions to adjust."
+                : $"Raise your sensitivity from {current:F4} to {recommended:F4} — " +
+                  $"this is a {pct:F0}% change. Give yourself a few sessions to adjust.";
         }
 
         private static string BuildCm360Verdict(double current, double target, GameProfile p)
         {
-            double min = p.RecommendedCm360Min > 0 ? p.RecommendedCm360Min : 20.0;
-            double max = p.RecommendedCm360Max > min ? p.RecommendedCm360Max : min + 20.0;
+            double min    = p.RecommendedCm360Min > 0 ? p.RecommendedCm360Min : 20.0;
+            double max    = p.RecommendedCm360Max > min ? p.RecommendedCm360Max : min + 20.0;
+            double proAvg = p.ProAverageCm360 > 0 ? p.ProAverageCm360 : (min + max) / 2.0;
 
             if (current <= 0)
-                return $"Not enough data to evaluate sensitivity. Recommended mouse travel range is {min:F0}–{max:F0} cm per full turn.";
+                return $"Not enough data to evaluate sensitivity. " +
+                       $"Recommended mouse travel range for {p.Name} is {min:F0}–{max:F0} cm per full turn.";
 
-            if (current < min)
-                return $"Your sensitivity is too high for this scenario — your mouse only travels {current:F1} cm per full turn. " +
-                       $"The recommended range is {min:F0}–{max:F0} cm. Lowering your in-game sensitivity will help.";
+            bool inRange = current >= min && current <= max;
+            bool targetMatchesCurrent = Math.Abs(target - current) < 1.5;
 
-            if (current > max)
-                return $"Your sensitivity is too low for this scenario — your mouse travels {current:F1} cm per full turn. " +
-                       $"The recommended range is {min:F0}–{max:F0} cm. Raising your in-game sensitivity will help.";
+            if (targetMatchesCurrent && inRange)
+                return $"Your sensitivity is in a good range at {current:F1} cm/360. " +
+                       $"No change needed — focus on consistency.";
 
-            return $"Your sensitivity is in the right range — {current:F1} cm per full turn fits this scenario well.";
+            if (targetMatchesCurrent && !inRange)
+            {
+                string direction = current < min ? "a bit low" : "a bit high";
+                return $"Your sensitivity is {direction} at {current:F1} cm/360. " +
+                       $"The recommended range for {p.Name} is {min:F0}–{max:F0} cm/360.";
+            }
+
+            // Gradual change recommendation
+            double changePct = Math.Abs(target - current) / current * 100.0;
+            string changeDir = target > current ? "increase" : "decrease";
+
+            string verdict = $"Recommended change: {changeDir} from {current:F1} to {target:F1} cm/360 " +
+                             $"({changePct:F0}% adjustment).";
+
+            // Add long-term goal if target is not yet at pro average
+            if (Math.Abs(target - proAvg) > 3.0 && !inRange)
+                verdict += $" Long-term target for {p.Name} is around {proAvg:F0} cm/360 " +
+                           $"— get there gradually over several sessions.";
+
+            return verdict;
         }
 
         private static string BuildOverallVerdict(SensitivityRecommendation rec)

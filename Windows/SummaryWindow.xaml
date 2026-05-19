@@ -331,6 +331,74 @@
                            Visibility="Collapsed"/>
             </Border>
 
+            <!-- SESSION COACH -->
+            <Border Background="{DynamicResource CardBackground}"
+                    CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                <StackPanel>
+
+                    <!-- Header -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="🤖 " FontSize="14" VerticalAlignment="Center"/>
+                        <TextBlock Text="SESSION COACH"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Headline -->
+                    <TextBlock x:Name="CoachHeadlineText"
+                               FontSize="13" FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryText}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,10"/>
+
+                    <!-- Observations -->
+                    <TextBlock Text="WHAT I NOTICED"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="{DynamicResource MutedText}"
+                               Margin="0,0,0,6"/>
+                    <ItemsControl x:Name="CoachObservationsList" Margin="0,0,0,10">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource SecondaryText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,6"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Suggestions -->
+                    <TextBlock Text="WHAT TO WORK ON"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="{DynamicResource MutedText}"
+                               Margin="0,0,0,6"/>
+                    <ItemsControl x:Name="CoachSuggestionsList" Margin="0,0,0,10">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource SecondaryText}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,6"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Next drill -->
+                    <TextBlock Text="SUGGESTED NEXT DRILL"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="#00D4FF"
+                               Margin="0,0,0,6"/>
+                    <TextBlock x:Name="CoachNextDrillText"
+                               FontSize="12" FontStyle="Italic"
+                               Foreground="#00D4FF"
+                               TextWrapping="Wrap"/>
+
+                </StackPanel>
+            </Border>
+
             <!-- TASK-18: Action buttons -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,12,0,0">
                 <Button Content="▶ Start Another"

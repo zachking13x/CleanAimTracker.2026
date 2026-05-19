@@ -24,6 +24,7 @@ namespace CleanAimTracker.Windows
             LoadSummary();
             LoadComparison();
             LoadStreakMessage();   // TASK-16
+            LoadTrackerCoach();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -231,6 +232,29 @@ namespace CleanAimTracker.Windows
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        private void LoadTrackerCoach()
+        {
+            try
+            {
+                var history = SessionStorage.LoadAll()
+                    .Where(h => h.Timestamp < _s.Timestamp)
+                    .OrderByDescending(h => h.Timestamp)
+                    .Take(10)
+                    .ToList();
+
+                var report = TrackerCoachService.Analyze(_s, history);
+
+                CoachHeadlineText.Text             = report.Headline;
+                CoachObservationsList.ItemsSource  = report.Observations;
+                CoachSuggestionsList.ItemsSource   = report.Suggestions;
+                CoachNextDrillText.Text            = report.NextDrillSuggestion;
+            }
+            catch
+            {
+                CoachHeadlineText.Text = "Coach unavailable for this session.";
+            }
         }
 
         // TASK-18: Start Another Session

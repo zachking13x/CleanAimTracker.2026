@@ -313,6 +313,27 @@
                                         <TextBlock x:Name="NextDrillText"
                                                    Foreground="{DynamicResource PrimaryText}"
                                                    FontSize="13" TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="NextDrillReasonText"
+                                                   FontSize="11"
+                                                   Foreground="{DynamicResource MutedText}"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="NextDrillFocusCueText"
+                                                   FontSize="11"
+                                                   Foreground="#00D4FF"
+                                                   FontStyle="Italic"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,8"/>
+                                        <Button x:Name="StartPrescribedDrillBtn"
+                                                Content="▶  Start This Drill"
+                                                Visibility="Collapsed"
+                                                Click="StartPrescribedDrill_Click"
+                                                Background="{DynamicResource AccentBrush}"
+                                                Foreground="Black"
+                                                FontWeight="Bold"
+                                                BorderThickness="0"
+                                                Padding="12,7"
+                                                HorizontalAlignment="Left"/>
                                     </StackPanel>
                                 </Border>
 

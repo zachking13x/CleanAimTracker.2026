@@ -11,5 +11,6 @@ namespace CleanAimTracker.Models
         public List<string> Advice { get; set; } = new();
         public string NextDrillSuggestion { get; set; } = "";
         public string MotivationalClose { get; set; } = "";
+        public DrillPrescription? Prescription { get; set; }
     }
 }

@@ -16,16 +16,16 @@
 
     <Window.Resources>
 
-        <!-- Stat card -->
+        <!-- Stat card — spec: CornerRadius 12, Layer 1 shadow -->
         <Style x:Key="StatCardStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="10"/>
-            <Setter Property="Margin" Value="5"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="20,16"/>
+            <Setter Property="Margin" Value="4"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="0" Opacity="0.35"/>
+                    <DropShadowEffect Color="#000000" BlurRadius="8" ShadowDepth="2" Opacity="0.4"/>
                 </Setter.Value>
             </Setter>
             <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
@@ -38,38 +38,34 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Effect">
                         <Setter.Value>
-                            <DropShadowEffect Color="#00E5FF" BlurRadius="12" ShadowDepth="0" Opacity="0.25"/>
-                        </Setter.Value>
-                    </Setter>
-                    <Setter Property="RenderTransform">
-                        <Setter.Value>
-                            <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                            <DropShadowEffect Color="#000000" BlurRadius="16" ShadowDepth="4" Opacity="0.5"/>
                         </Setter.Value>
                     </Setter>
                 </Trigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Section header -->
+        <!-- Section header — card title -->
         <Style x:Key="SectionHeaderText" TargetType="TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
             <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-
-        <!-- Label text -->
-        <Style x:Key="LabelTextStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource MutedText}"/>
-            <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Margin" Value="0 0 0 2"/>
-        </Style>
-
-        <!-- Value text -->
-        <Style x:Key="ValueTextStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
-            <Setter Property="FontSize" Value="18"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Margin" Value="0 0 0 10"/>
+        </Style>
+
+        <!-- Label text — spec: 10px, SemiBold, TextMuted -->
+        <Style x:Key="LabelTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+
+        <!-- Value text — spec: 20px, Black weight, TextPrimary -->
+        <Style x:Key="ValueTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
         </Style>
 
         <!-- Modern ComboBox -->
@@ -198,26 +194,35 @@
             </Style.Triggers>
         </Style>
 
-        <!-- Nav Button Style -->
+        <!-- Nav Button Style — spec: 200px sidebar, 40px items, 16px padding,
+             14px TextSecondary inactive, TextPrimary SemiBold active,
+             3px AccentPrimary left bar active, BgElevated active bg,
+             0.04 opacity hover tint -->
         <Style x:Key="NavButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource MutedText}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextSecondary}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="18,11"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Height" Value="40"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Normal"/>
             <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid>
-                            <!-- Left cyan accent bar — visible when Tag="Active" -->
+                            <!-- Left accent bar — 3px, AccentPrimary when active -->
                             <Rectangle x:Name="ActiveBar"
                                        Width="3"
                                        Fill="Transparent"
                                        HorizontalAlignment="Left"
                                        VerticalAlignment="Stretch"/>
+                            <!-- Hover tint layer -->
+                            <Border x:Name="HoverLayer"
+                                    Background="Transparent"
+                                    CornerRadius="0"/>
                             <Border x:Name="NavBorder"
                                     Background="{TemplateBinding Background}"
                                     CornerRadius="0"
@@ -228,21 +233,17 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="NavBorder" Property="Background" Value="#252525"/>
-                                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+                                <Setter TargetName="HoverLayer" Property="Background" Value="#0AFFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
                             </Trigger>
-                            <!-- 5D: Active nav item — left cyan bar + gradient background -->
+                            <!-- Active nav item — left cyan bar + BgElevated bg + SemiBold -->
                             <Trigger Property="Tag" Value="Active">
-                                <Setter TargetName="NavBorder" Property="Background">
-                                    <Setter.Value>
-                                        <LinearGradientBrush StartPoint="0,0.5" EndPoint="1,0.5">
-                                            <GradientStop Color="#001F2D" Offset="0"/>
-                                            <GradientStop Color="Transparent" Offset="1"/>
-                                        </LinearGradientBrush>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter TargetName="ActiveBar" Property="Fill" Value="#00D4FF"/>
-                                <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
+                                <Setter TargetName="NavBorder" Property="Background"
+                                        Value="{StaticResource BgElevated}"/>
+                                <Setter TargetName="ActiveBar" Property="Fill"
+                                        Value="{StaticResource AccentPrimary}"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -282,7 +283,7 @@
     <!-- ROOT: Sidebar + Main -->
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="180"/>
+            <ColumnDefinition Width="200"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -312,7 +313,9 @@
         <!-- LEFT SIDEBAR                                    -->
         <!-- ═══════════════════════════════════════════════ -->
         <Border Grid.Column="0"
-                Background="{DynamicResource CardBackground}"
+                Background="{StaticResource BgBase}"
+                BorderBrush="{StaticResource BorderSubtle}"
+                BorderThickness="0,0,1,0"
                 SnapsToDevicePixels="True">
             <DockPanel>
 
@@ -578,7 +581,7 @@
             <UniformGrid Grid.Column="0" Columns="3" Rows="2" SnapsToDevicePixels="True">
 
                 <!-- ── Row 1, Col 1: Movement ── -->
-                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgCyan}" BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Movement" Style="{StaticResource SectionHeaderText}"
                                    Foreground="#00D4FF" Margin="0,0,0,8"/>
@@ -645,10 +648,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 2: Velocity ── -->
-                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#FF8C00" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="#FFB347" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Velocity" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#FF8C00" Margin="0,0,0,8"/>
+                                   Foreground="#FFB347" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -659,13 +662,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Speed" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="SpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Current" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="CurrentSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
                         </Grid>
 
@@ -680,13 +683,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Peak" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="PeakSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Average" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="AverageSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
                         </Grid>
 
@@ -702,14 +705,14 @@
                                 <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Mouse Movements Per Second — how actively your mouse was moving this session."/>
                                 <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Micro-movements per second over the last 1-second window — indicates aim tremor or active micro-adjustment patterns."/>
                                 <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FF8C00"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
                         </Grid>
 
@@ -717,7 +720,7 @@
                             <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"
                                        ToolTip="Largest sudden velocity change this session — high values mean fast, explosive flick shots."/>
                             <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                       Foreground="#FF8C00"/>
+                                       Foreground="#FFB347"/>
                         </StackPanel>
 
                         <!-- Verdict line -->
@@ -729,10 +732,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 3: Flicks ── -->
-                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#FFD700" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="#FFB347" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Flicks" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#FFD700" Margin="0,0,0,8"/>
+                                   Foreground="#FFB347" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -743,13 +746,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="FlicksCountText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFD700"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Small Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="SmallFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFD700"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
                         </Grid>
 
@@ -764,24 +767,24 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Large Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="LargeFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFD700"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Fast movements that start from near-stillness — indicates reactive, instinctive aim from a stationary position."/>
                                 <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFD700"/>
+                                           Foreground="#FFB347"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- ── Row 2, Col 1: Aim Quality ── -->
-                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#00FF9D" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgGreen}" BorderBrush="#00E5A0" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Aim Quality" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#00FF9D" Margin="0,0,0,8"/>
+                                   Foreground="#00E5A0" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -793,14 +796,14 @@
                                 <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Composite aim score 0–100 based on smoothness, control, and correction consistency. 70+ is solid; 85+ is elite."/>
                                 <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00FF9D"/>
+                                           Foreground="#00E5A0"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How fluid and continuous your movement is. High = fewer jerky direction changes. Aim for 65+."/>
                                 <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00FF9D"/>
+                                           Foreground="#00E5A0"/>
                             </StackPanel>
                         </Grid>
 
@@ -816,14 +819,14 @@
                                 <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How aggressively you correct your aim. Very high (80+) may mean you're overshooting targets; very low (&lt;20) may mean slow, hesitant adjustments."/>
                                 <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00FF9D"/>
+                                           Foreground="#00E5A0"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How steady your aim is during slow movement or pauses. Higher is better for tracking scenarios."/>
                                 <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00FF9D"/>
+                                           Foreground="#00E5A0"/>
                             </StackPanel>
                         </Grid>
 
@@ -836,28 +839,28 @@
                 </Border>
 
                 <!-- ── Row 2, Col 2: Advanced Metrics ── -->
-                <Border Style="{StaticResource StatCardStyle}" BorderBrush="#9B59B6" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgPurple}" BorderBrush="#A855F7" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Advanced Metrics" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#9B59B6" Margin="0,0,0,8"/>
+                                   Foreground="#A855F7" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Angle Change" Style="{StaticResource LabelTextStyle}"/>
                         <TextBlock x:Name="AngleChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#9B59B6"/>
+                                   Foreground="#A855F7"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Rapid involuntary micro-movements that aren't intentional aim. High jitter can indicate grip tension, fatigue, or sensitivity set too high."/>
                         <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#9B59B6"/>
+                                   Foreground="#A855F7"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Active movement events per second across the full session — how busy your aim is over time."/>
                         <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#9B59B6"/>
+                                   Foreground="#A855F7"/>
 
                         <!-- Verdict line -->
                         <TextBlock x:Name="SmoothnessVerdictText" Text=""
@@ -961,6 +964,76 @@
                           HorizontalScrollBarVisibility="Disabled"
                           Margin="14,0,0,0">
                 <StackPanel x:Name="PlayerPanel">
+
+                    <!-- ── COACH REPORT BANNER: appears after 45s+ session ends ── -->
+                    <Border x:Name="CoachReportBanner"
+                            Background="#1400D4FF"
+                            BorderBrush="#4400D4FF"
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="12,10"
+                            Margin="0,0,0,8"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📋 " FontSize="12" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Session complete"
+                                               FontSize="11" FontWeight="Bold"
+                                               Foreground="#00D4FF"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock Text="View your coaching report"
+                                           FontSize="10"
+                                           Foreground="{DynamicResource SecondaryText}"
+                                           Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1"
+                                    Content="Open →"
+                                    Click="CoachReportBannerBtn_Click"
+                                    Height="28"
+                                    Padding="10,6"
+                                    Margin="0"
+                                    FontSize="11" FontWeight="Bold"
+                                    Cursor="Hand"
+                                    VerticalAlignment="Center">
+                                <Button.Background>
+                                    <SolidColorBrush Color="#00D4FF"/>
+                                </Button.Background>
+                                <Button.Foreground>
+                                    <SolidColorBrush Color="Black"/>
+                                </Button.Foreground>
+                                <Button.BorderThickness>
+                                    <Thickness>0</Thickness>
+                                </Button.BorderThickness>
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="{TemplateBinding Background}"
+                                                            CornerRadius="6"
+                                                            Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"/>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter Property="Opacity" Value="0.85"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+                    </Border>
 
                     <!-- ── TASK-03: WHAT TO DO NEXT HINT (first 5 sessions) ── -->
                     <Border x:Name="NextActionHint"

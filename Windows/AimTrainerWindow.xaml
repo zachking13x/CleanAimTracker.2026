@@ -110,7 +110,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="280"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -119,7 +119,7 @@
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="#1AFFFFFF"
                 BorderThickness="0 0 1 0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer VerticalScrollBarVisibility="Visible">
                 <StackPanel Margin="16">
 
                     <!-- Logo / Title -->
@@ -136,194 +136,257 @@
                     <TextBlock Text="SCENARIO" FontSize="10" FontWeight="SemiBold"
                                Foreground="{DynamicResource MutedText}" Margin="0 0 0 8"/>
 
-                    <!-- TRACKING — cyan, difficulty 2/4 -->
+                    <!-- TRACKING — #00D4FF, difficulty 2/4 -->
                     <Border x:Name="ScenarioBtn_Tracking"
                             Tag="Tracking"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,5"
+                            CornerRadius="12" Margin="0,0,0,6"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="#2200D4FF"
-                            BorderBrush="#CC00D4FF" BorderThickness="1.5">
-                        <Grid>
+                            BorderBrush="#00D4FF" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#070F14" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="44"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="👁️" FontSize="22"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Tracking" Foreground="White"
-                                           FontSize="13" FontWeight="Bold"/>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1E00D4FF" VerticalAlignment="Center">
+                                <TextBlock Text="👁️" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Tracking" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
                                 <TextBlock Text="Follow moving targets — builds fluid mouse control"
-                                           Foreground="#7A8A99" FontSize="10" TextWrapping="Wrap"
-                                           Margin="0,2,0,0"/>
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="SKILL" FontSize="7" Foreground="#7A8A99"
-                                           HorizontalAlignment="Center" Margin="0,0,0,3"/>
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#00D4FF"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#00D4FF"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00D4FF"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00D4FF"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- FLICKING — yellow/gold, difficulty 3/4 -->
+                    <!-- FLICKING — #FFB347, difficulty 3/4 -->
                     <Border x:Name="ScenarioBtn_Flicking"
                             Tag="Flicking"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,5"
+                            CornerRadius="12" Margin="0,0,0,6"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="Transparent"
-                            BorderBrush="#66FFD700" BorderThickness="1.5">
-                        <Grid>
+                            BorderBrush="#FFB347" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#100D07" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="44"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="⚡" FontSize="22"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Flicking" Foreground="White"
-                                           FontSize="13" FontWeight="Bold"/>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1EFFB347" VerticalAlignment="Center">
+                                <TextBlock Text="⚡" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Flicking" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
                                 <TextBlock Text="Snap to new targets instantly — builds reaction speed"
-                                           Foreground="#7A8A99" FontSize="10" TextWrapping="Wrap"
-                                           Margin="0,2,0,0"/>
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="SKILL" FontSize="7" Foreground="#7A8A99"
-                                           HorizontalAlignment="Center" Margin="0,0,0,3"/>
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FFD700"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FFD700"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FFD700"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FFB347"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FFB347"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FFB347"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- PRECISION — green, difficulty 2/4 -->
+                    <!-- PRECISION — #00E5A0, difficulty 2/4 -->
                     <Border x:Name="ScenarioBtn_Precision"
                             Tag="Precision"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,5"
+                            CornerRadius="12" Margin="0,0,0,6"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="Transparent"
-                            BorderBrush="#6600FF9D" BorderThickness="1.5">
-                        <Grid>
+                            BorderBrush="#00E5A0" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#071410" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="44"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="🎯" FontSize="22"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Precision" Foreground="White"
-                                           FontSize="13" FontWeight="Bold"/>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1E00E5A0" VerticalAlignment="Center">
+                                <TextBlock Text="🎯" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Precision" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
                                 <TextBlock Text="Click small static targets — builds micro-adjustment"
-                                           Foreground="#7A8A99" FontSize="10" TextWrapping="Wrap"
-                                           Margin="0,2,0,0"/>
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="SKILL" FontSize="7" Foreground="#7A8A99"
-                                           HorizontalAlignment="Center" Margin="0,0,0,3"/>
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#00FF9D"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#00FF9D"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00E5A0"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00E5A0"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- SWITCHING — orange, difficulty 4/4 -->
+                    <!-- SWITCHING — #FF6B35, difficulty 4/4 -->
                     <Border x:Name="ScenarioBtn_Switching"
                             Tag="Switching"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,5"
+                            CornerRadius="12" Margin="0,0,0,6"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="Transparent"
-                            BorderBrush="#66FF6B35" BorderThickness="1.5">
-                        <Grid>
+                            BorderBrush="#FF6B35" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#100906" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="44"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="🔀" FontSize="22"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Switching" Foreground="White"
-                                           FontSize="13" FontWeight="Bold"/>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1EFF6B35" VerticalAlignment="Center">
+                                <TextBlock Text="🔀" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Switching" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
                                 <TextBlock Text="Multi-target speed — builds target acquisition"
-                                           Foreground="#7A8A99" FontSize="10" TextWrapping="Wrap"
-                                           Margin="0,2,0,0"/>
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="SKILL" FontSize="7" Foreground="#7A8A99"
-                                           HorizontalAlignment="Center" Margin="0,0,0,3"/>
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FF6B35"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FF6B35"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FF6B35"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- ADAPTIVE — purple, difficulty 3/4 -->
+                    <!-- ADAPTIVE — #A855F7, difficulty 3/4 -->
                     <Border x:Name="ScenarioBtn_Adaptive"
                             Tag="Adaptive"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,5"
+                            CornerRadius="12" Margin="0,0,0,6"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="Transparent"
-                            BorderBrush="#669B59B6" BorderThickness="1.5">
-                        <Grid>
+                            BorderBrush="#A855F7" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#0E0714" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="44"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="🧠" FontSize="22"
-                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                <TextBlock Text="Adaptive" Foreground="{DynamicResource AccentBrush}"
-                                           FontSize="13" FontWeight="Bold"/>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1EA855F7" VerticalAlignment="Center">
+                                <TextBlock Text="🧠" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Adaptive" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
                                 <TextBlock Text="Targets your weak spots — personalized training"
-                                           Foreground="#7A8A99" FontSize="10" TextWrapping="Wrap"
-                                           Margin="0,2,0,0"/>
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
                             </StackPanel>
                             <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                <TextBlock Text="SKILL" FontSize="7" Foreground="#7A8A99"
-                                           HorizontalAlignment="Center" Margin="0,0,0,3"/>
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#9B59B6"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#9B59B6"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#9B59B6"/>
-                                    <Ellipse Width="7" Height="7" Margin="2,0" Fill="#2A3A44"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#A855F7"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#A855F7"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#A855F7"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
                                 </StackPanel>
                             </StackPanel>
                         </Grid>
                     </Border>
 
-                    <!-- WARM-UP — green, special routine -->
+                    <!-- WARM-UP — #00C853, special routine -->
                     <Border x:Name="ScenarioBtn_WarmUp"
                             Tag="WarmUp"
-                            CornerRadius="10" Padding="12,10" Margin="0,0,0,16"
+                            CornerRadius="12" Margin="0,0,0,16"
                             Cursor="Hand" MouseDown="ScenarioBtn_Click"
-                            Background="Transparent"
-                            BorderBrush="#3300C853" BorderThickness="1.5">
-                        <StackPanel>
-                            <TextBlock Text="☀️  Daily Warm-Up" Foreground="LightGreen"
-                                       FontSize="13" FontWeight="SemiBold"/>
-                            <TextBlock Text="4 × 60s guided routine" Foreground="#888"
-                                       FontSize="10" Margin="0,2,0,0"/>
-                        </StackPanel>
+                            BorderBrush="#00C853" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#07130A" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1E00C853" VerticalAlignment="Center">
+                                <TextBlock Text="☀️" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <TextBlock Text="Daily Warm-Up" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
+                                <TextBlock Text="4 × 60s guided routine"
+                                           Foreground="#8A9BAE" FontSize="10"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Variant -->
@@ -508,35 +571,140 @@
 
             <!-- Canvas + onboarding hint wrapper -->
             <Grid Grid.Row="1">
+
+                <!-- TASK-3D: Timer bar — 4px accent line draining at top of drill area -->
+                <Border Height="4" VerticalAlignment="Top"
+                        CornerRadius="0" Panel.ZIndex="10"
+                        IsHitTestVisible="False">
+                    <Border.Background>
+                        <SolidColorBrush Color="#0A0A0A" Opacity="0.8"/>
+                    </Border.Background>
+                    <Border x:Name="TimerBarFill"
+                            HorizontalAlignment="Left"
+                            Background="{StaticResource AccentPrimary}"
+                            CornerRadius="0"
+                            Width="0"/>
+                </Border>
+
+                <!-- TASK-3A: Main drill canvas with grid background -->
                 <Canvas x:Name="TargetCanvas"
-                        Background="#0A0A0A"
                         Cursor="Cross"
                         MouseDown="Canvas_MouseDown"
                         ClipToBounds="True">
-
-                    <!-- Crosshair dot -->
-                    <Ellipse x:Name="CenterDot"
-                             Width="6" Height="6"
-                             Fill="#44FFFFFF"
-                             IsHitTestVisible="False"/>
+                    <Canvas.Background>
+                        <DrawingBrush TileMode="Tile"
+                                      Viewport="0,0,50,50" ViewportUnits="Absolute">
+                            <DrawingBrush.Drawing>
+                                <DrawingGroup>
+                                    <GeometryDrawing Brush="#07090E">
+                                        <GeometryDrawing.Geometry>
+                                            <RectangleGeometry Rect="0,0,50,50"/>
+                                        </GeometryDrawing.Geometry>
+                                    </GeometryDrawing>
+                                    <GeometryDrawing Brush="#0AFFFFFF">
+                                        <GeometryDrawing.Geometry>
+                                            <GeometryGroup>
+                                                <RectangleGeometry Rect="0,0,50,1"/>
+                                                <RectangleGeometry Rect="0,0,1,50"/>
+                                            </GeometryGroup>
+                                        </GeometryDrawing.Geometry>
+                                    </GeometryDrawing>
+                                </DrawingGroup>
+                            </DrawingBrush.Drawing>
+                        </DrawingBrush>
+                    </Canvas.Background>
+                    <!-- Subtle radial vignette — focus the center zone -->
+                    <Canvas.OpacityMask>
+                        <RadialGradientBrush RadiusX="0.75" RadiusY="0.75">
+                            <GradientStop Color="White"    Offset="0"/>
+                            <GradientStop Color="White"    Offset="0.7"/>
+                            <GradientStop Color="#E0FFFFFF" Offset="1.0"/>
+                        </RadialGradientBrush>
+                    </Canvas.OpacityMask>
 
                     <!-- Idle message -->
                     <StackPanel x:Name="IdleMessage"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center">
                         <TextBlock Text="SELECT A SCENARIO AND PRESS START"
-                                   Foreground="#333"
+                                   Foreground="#3A3A3A"
                                    FontSize="16"
                                    FontWeight="Bold"
                                    HorizontalAlignment="Center"/>
                         <TextBlock Text="or press SPACE"
-                                   Foreground="#222"
+                                   Foreground="#2A2A2A"
                                    FontSize="12"
                                    HorizontalAlignment="Center"
                                    Margin="0 8 0 0"/>
                     </StackPanel>
-
                 </Canvas>
+
+                <!-- TASK-3E: Crosshair overlay — separate Canvas so ClearTargets never removes it -->
+                <Canvas IsHitTestVisible="False" Panel.ZIndex="5">
+                    <!-- Ring -->
+                    <Ellipse x:Name="CrosshairRing"
+                             Width="14" Height="14"
+                             Stroke="#B2FFFFFF" StrokeThickness="1"
+                             Fill="Transparent"
+                             IsHitTestVisible="False"/>
+                    <!-- Top arm -->
+                    <Rectangle x:Name="CrosshairTop"
+                               Width="1.5" Height="6"
+                               Fill="#B2FFFFFF"
+                               IsHitTestVisible="False"/>
+                    <!-- Bottom arm -->
+                    <Rectangle x:Name="CrosshairBottom"
+                               Width="1.5" Height="6"
+                               Fill="#B2FFFFFF"
+                               IsHitTestVisible="False"/>
+                    <!-- Left arm -->
+                    <Rectangle x:Name="CrosshairLeft"
+                               Width="6" Height="1.5"
+                               Fill="#B2FFFFFF"
+                               IsHitTestVisible="False"/>
+                    <!-- Right arm -->
+                    <Rectangle x:Name="CrosshairRight"
+                               Width="6" Height="1.5"
+                               Fill="#B2FFFFFF"
+                               IsHitTestVisible="False"/>
+                </Canvas>
+
+                <!-- TASK-3F: Live stats overlay — top-right corner during drill -->
+                <StackPanel x:Name="LiveStatsOverlay"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,16,16,0"
+                            Panel.ZIndex="10"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="ACC  "
+                                   FontSize="10" FontWeight="SemiBold"
+                                   Foreground="#608A9BAE"/>
+                        <TextBlock x:Name="CanvasAccText"
+                                   Text="—"
+                                   FontSize="12" FontWeight="Black"
+                                   Foreground="#CC00E5A0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="STK  "
+                                   FontSize="10" FontWeight="SemiBold"
+                                   Foreground="#608A9BAE"/>
+                        <TextBlock x:Name="CanvasStreakText"
+                                   Text="—"
+                                   FontSize="12" FontWeight="Black"
+                                   Foreground="#CCF5C842"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="HIT  "
+                                   FontSize="10" FontWeight="SemiBold"
+                                   Foreground="#608A9BAE"/>
+                        <TextBlock x:Name="CanvasHitsText"
+                                   Text="—"
+                                   FontSize="12" FontWeight="Black"
+                                   Foreground="#CCF0F4F8"/>
+                    </StackPanel>
+                </StackPanel>
 
                 <!-- Onboarding hint — shown only during the first session -->
                 <TextBlock x:Name="OnboardingHintText"

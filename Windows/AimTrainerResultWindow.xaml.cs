@@ -276,7 +276,20 @@ namespace CleanAimTracker.Windows
             WeaknessesList.ItemsSource = report.Weaknesses;
             AdviceList.ItemsSource     = report.Advice;
 
-            NextDrillText.Text    = report.NextDrillSuggestion;
+            if (report.Prescription != null)
+            {
+                NextDrillText.Text = $"{report.Prescription.Scenario} • {report.Prescription.Difficulty}" +
+                                     (report.Prescription.SubVariant != "Standard"
+                                         ? $" • {report.Prescription.SubVariant}" : "");
+                NextDrillReasonText.Text   = report.Prescription.Reason;
+                NextDrillFocusCueText.Text = $"Focus cue: {report.Prescription.FocusCue}";
+                StartPrescribedDrillBtn.Visibility = Visibility.Visible;
+                StartPrescribedDrillBtn.Tag = report.Prescription;
+            }
+            else
+            {
+                NextDrillText.Text = report.NextDrillSuggestion;
+            }
             MotivationalText.Text = report.MotivationalClose;
         }
 
@@ -291,6 +304,20 @@ namespace CleanAimTracker.Windows
             else
             {
                 Close();
+            }
+        }
+
+        private void StartPrescribedDrill_Click(object sender, RoutedEventArgs e)
+        {
+            if (StartPrescribedDrillBtn.Tag is Models.DrillPrescription prescription)
+            {
+                Close();
+                if (Application.Current.MainWindow is MainWindow main)
+                {
+                    var trainer = new AimTrainerWindow { Owner = main };
+                    trainer.PreSelectScenario(prescription.Scenario, prescription.Difficulty);
+                    trainer.Show();
+                }
             }
         }
 

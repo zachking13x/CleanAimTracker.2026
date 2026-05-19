@@ -62,6 +62,11 @@ namespace CleanAimTracker.Windows
 
         public bool HasAdsScopeSection => AdsScopeLines.Count > 0;
 
+        public double ConfidenceRatio => _rec.Confidence / 100.0;
+
+        public string RecommendedSensitivityRange =>
+            $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public RecommendationWindow(SensitivityRecommendation rec)

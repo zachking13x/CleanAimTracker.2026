@@ -6,25 +6,69 @@
          Deeper blacks, better contrast, consistent radii
     ═══════════════════════════════════════════════════════════ -->
 
-    <!-- Backgrounds -->
-    <SolidColorBrush x:Key="AppBackground"       Color="#141414"/>
-    <SolidColorBrush x:Key="CardBackground"       Color="#1E1E1E"/>
-    <SolidColorBrush x:Key="CardBackgroundAlt"    Color="#252525"/>
+    <!-- ── SPEC-ALIGNED COLOR PALETTE ──────────────────────────────── -->
+
+    <!-- Background layers — three distinct layers, never collapse -->
+    <Color x:Key="BgBaseColor">#07090C</Color>
+    <Color x:Key="BgSurfaceColor">#0D1117</Color>
+    <Color x:Key="BgElevatedColor">#131B24</Color>
+    <Color x:Key="BgOverlayColor">#1A2332</Color>
+    <SolidColorBrush x:Key="BgBase"     Color="{StaticResource BgBaseColor}"/>
+    <SolidColorBrush x:Key="BgSurface"  Color="{StaticResource BgSurfaceColor}"/>
+    <SolidColorBrush x:Key="BgElevated" Color="{StaticResource BgElevatedColor}"/>
+    <SolidColorBrush x:Key="BgOverlay"  Color="{StaticResource BgOverlayColor}"/>
+
+    <!-- Accent colors — each scenario has one assigned accent -->
+    <Color x:Key="AccentPrimaryColor">#00D4FF</Color>
+    <Color x:Key="AccentWarmColor">#FFB347</Color>
+    <Color x:Key="AccentGreenColor">#00E5A0</Color>
+    <Color x:Key="AccentOrangeColor">#FF6B35</Color>
+    <Color x:Key="AccentPurpleColor">#A855F7</Color>
+    <Color x:Key="AccentGoldColor">#F5C842</Color>
+    <SolidColorBrush x:Key="AccentPrimary" Color="{StaticResource AccentPrimaryColor}"/>
+    <SolidColorBrush x:Key="AccentWarm"    Color="{StaticResource AccentWarmColor}"/>
+    <SolidColorBrush x:Key="AccentGreen"   Color="{StaticResource AccentGreenColor}"/>
+    <SolidColorBrush x:Key="AccentOrange"  Color="{StaticResource AccentOrangeColor}"/>
+    <SolidColorBrush x:Key="AccentPurple"  Color="{StaticResource AccentPurpleColor}"/>
+    <SolidColorBrush x:Key="AccentGold"    Color="{StaticResource AccentGoldColor}"/>
+
+    <!-- Text — four weights of importance; never pure white -->
+    <Color x:Key="TextPrimaryColor">#F0F4F8</Color>
+    <Color x:Key="TextSecondaryColor">#8A9BAE</Color>
+    <Color x:Key="TextMutedColor">#4A5A6A</Color>
+    <SolidColorBrush x:Key="TextPrimary"   Color="{StaticResource TextPrimaryColor}"/>
+    <SolidColorBrush x:Key="TextSecondary" Color="{StaticResource TextSecondaryColor}"/>
+    <SolidColorBrush x:Key="TextMuted"     Color="{StaticResource TextMutedColor}"/>
+
+    <!-- Borders -->
+    <SolidColorBrush x:Key="BorderSubtle" Color="#0FFFFFFF"/>
+
+    <!-- Metric card tinted backgrounds — each card tinted toward its accent -->
+    <SolidColorBrush x:Key="CardBgCyan"   Color="#070F14"/>
+    <SolidColorBrush x:Key="CardBgAmber"  Color="#0F0C07"/>
+    <SolidColorBrush x:Key="CardBgGreen"  Color="#07100D"/>
+    <SolidColorBrush x:Key="CardBgPurple" Color="#0D0714"/>
+
+    <!-- ── LEGACY ALIASES — keep for backward compatibility ─────────── -->
+    <!-- Color values updated to match spec; existing DynamicResource refs still work -->
+    <SolidColorBrush x:Key="AppBackground"       Color="#07090C"/>
+    <SolidColorBrush x:Key="CardBackground"       Color="#0D1117"/>
+    <SolidColorBrush x:Key="CardBackgroundAlt"    Color="#131B24"/>
     <SolidColorBrush x:Key="BannerBackground"     Color="#0D2233"/>
 
     <!-- Text -->
-    <SolidColorBrush x:Key="PrimaryText"          Color="#F0F0F0"/>
-    <SolidColorBrush x:Key="SecondaryText"        Color="#B0B0B0"/>
-    <SolidColorBrush x:Key="MutedText"            Color="#666666"/>
-    <SolidColorBrush x:Key="LabelText"            Color="#999999"/>
+    <SolidColorBrush x:Key="PrimaryText"          Color="#F0F4F8"/>
+    <SolidColorBrush x:Key="SecondaryText"        Color="#8A9BAE"/>
+    <SolidColorBrush x:Key="MutedText"            Color="#4A5A6A"/>
+    <SolidColorBrush x:Key="LabelText"            Color="#8A9BAE"/>
 
     <!-- Accent — clean cyan -->
     <SolidColorBrush x:Key="AccentBrush"          Color="#00D4FF"/>
     <SolidColorBrush x:Key="AccentDark"           Color="#0099BB"/>
     <SolidColorBrush x:Key="AccentSubtle"         Color="#0A1A22"/>
     <SolidColorBrush x:Key="WarningBrush"         Color="#FF6B35"/>
-    <SolidColorBrush x:Key="SuccessBrush"         Color="#4CAF50"/>
-    <SolidColorBrush x:Key="GoldBrush"            Color="#FFD700"/>
+    <SolidColorBrush x:Key="SuccessBrush"         Color="#00E5A0"/>
+    <SolidColorBrush x:Key="GoldBrush"            Color="#F5C842"/>
     <SolidColorBrush x:Key="DangerBrush"          Color="#EF5350"/>
 
     <!-- Input controls -->
@@ -156,6 +200,74 @@
     <!-- ── SCROLLVIEWER ───────────────────────────────────────── -->
     <Style TargetType="ScrollViewer">
         <Setter Property="Background" Value="Transparent"/>
+    </Style>
+
+    <!-- ══════════════════════════════════════════════════════════════
+         SPEC COMPONENT STYLES — MetricCard, Label, Value, PrimaryButton
+         Reference: DESIGN_SPEC.md Component Specifications
+    ══════════════════════════════════════════════════════════════ -->
+
+    <!-- Standard metric card -->
+    <Style x:Key="MetricCardStyle" TargetType="Border">
+        <Setter Property="CornerRadius"    Value="12"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush"     Value="{StaticResource BorderSubtle}"/>
+        <Setter Property="Padding"         Value="20,16"/>
+        <Setter Property="Effect">
+            <Setter.Value>
+                <DropShadowEffect Color="#000000" BlurRadius="8"
+                                  ShadowDepth="2" Opacity="0.4"/>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Metric label — 10px, SemiBold, TextMuted, UPPERCASE -->
+    <Style x:Key="MetricLabelStyle" TargetType="TextBlock">
+        <Setter Property="FontSize"   Value="10"/>
+        <Setter Property="FontWeight" Value="SemiBold"/>
+        <Setter Property="Foreground" Value="{StaticResource TextMuted}"/>
+        <Setter Property="Margin"     Value="0,0,0,4"/>
+    </Style>
+
+    <!-- Metric value — 20px, Black weight, TextPrimary -->
+    <Style x:Key="MetricValueStyle" TargetType="TextBlock">
+        <Setter Property="FontSize"   Value="20"/>
+        <Setter Property="FontWeight" Value="Black"/>
+        <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+    </Style>
+
+    <!-- Primary action button — AccentPrimary bg, black text, 8px radius -->
+    <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+        <Setter Property="Background"       Value="{StaticResource AccentPrimary}"/>
+        <Setter Property="Foreground"       Value="#000000"/>
+        <Setter Property="FontWeight"       Value="Bold"/>
+        <Setter Property="FontSize"         Value="13"/>
+        <Setter Property="BorderThickness"  Value="0"/>
+        <Setter Property="Cursor"           Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="8" Padding="14,9">
+                        <ContentPresenter HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.88"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="0.97" ScaleY="0.97"
+                                                    CenterX="0.5" CenterY="0.5"/>
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>

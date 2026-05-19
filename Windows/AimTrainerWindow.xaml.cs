@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
@@ -38,23 +39,20 @@ namespace CleanAimTracker.Windows
         // Score (kept at window level)
         private int _score;
 
-        // UI flash timer
-        private readonly DispatcherTimer _flashTimer = new();
-
         // Scenario selection
         private string _scenario = "Tracking";
         private string _difficulty = "Medium";
         private string _adaptiveWeakSpot = "Flicking";
         private string _variant = "Smooth";
 
-        // TASK-04: Per-scenario accent colors (R,G,B)
+        // Per-scenario accent colors — matches DESIGN_SPEC.md
         private static readonly Dictionary<string, (byte R, byte G, byte B)> ScenarioColors = new()
         {
-            ["Tracking"]  = (0x00, 0xD4, 0xFF),
-            ["Flicking"]  = (0xFF, 0xD7, 0x00),
-            ["Precision"] = (0x00, 0xFF, 0x9D),
-            ["Switching"] = (0xFF, 0x6B, 0x35),
-            ["Adaptive"]  = (0x9B, 0x59, 0xB6),
+            ["Tracking"]  = (0x00, 0xD4, 0xFF),   // AccentPrimary
+            ["Flicking"]  = (0xFF, 0xB3, 0x47),   // AccentWarm
+            ["Precision"] = (0x00, 0xE5, 0xA0),   // AccentGreen
+            ["Switching"] = (0xFF, 0x6B, 0x35),   // AccentOrange
+            ["Adaptive"]  = (0xA8, 0x55, 0xF7),   // AccentPurple
             ["WarmUp"]    = (0x00, 0xC8, 0x53),
         };
 
@@ -105,14 +103,11 @@ namespace CleanAimTracker.Windows
             _updateTimer.Interval = TimeSpan.FromMilliseconds(16);
             _updateTimer.Tick += UpdateScenario_Tick;
 
-            _flashTimer.Interval = TimeSpan.FromMilliseconds(80);
-            _flashTimer.Tick += (_, _) =>
+            TargetCanvas.SizeChanged += (_, _) =>
             {
-                TargetCanvas.Background = new SolidColorBrush(Color.FromRgb(10, 10, 10));
-                _flashTimer.Stop();
+                PositionCrosshair();
+                UpdateTimerBar();
             };
-
-            TargetCanvas.SizeChanged += (_, _) => PositionCenterDot();
 
             LoadAdaptiveWeakSpot();
         }
@@ -217,26 +212,33 @@ namespace CleanAimTracker.Windows
             UpdateVariantCombo(_scenario);
         }
 
-        // TASK-04: Highlight selected scenario card with its per-scenario color
+        // Highlight selected scenario card — restores gradient on deselect, adds glow on select
         private void ApplyScenarioSelection(Border selected)
         {
             if (selected.Parent is not StackPanel parent) return;
 
-            // Reset all cards to dim border, transparent background
+            // Reset all: restore XAML gradient background, clear glow, dim accent bar
             foreach (var child in parent.Children.OfType<Border>())
             {
+                child.ClearValue(Border.BackgroundProperty);
+                child.ClearValue(UIElement.EffectProperty);
                 string tag = child.Tag?.ToString() ?? "";
                 if (ScenarioColors.TryGetValue(tag, out var c))
-                    child.BorderBrush = new SolidColorBrush(Color.FromArgb(0x66, c.R, c.G, c.B));
-                child.Background = Brushes.Transparent;
+                    child.BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, c.R, c.G, c.B));
             }
 
-            // Highlight selected with full-opacity border + subtle background tint
+            // Selected: brighten left accent bar + glow shadow
             string selTag = selected.Tag?.ToString() ?? "";
             if (ScenarioColors.TryGetValue(selTag, out var sc))
             {
-                selected.BorderBrush = new SolidColorBrush(Color.FromArgb(0xCC, sc.R, sc.G, sc.B));
-                selected.Background  = new SolidColorBrush(Color.FromArgb(0x22, sc.R, sc.G, sc.B));
+                selected.BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, sc.R, sc.G, sc.B));
+                selected.Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    Color       = Color.FromRgb(sc.R, sc.G, sc.B),
+                    BlurRadius  = 16,
+                    ShadowDepth = 0,
+                    Opacity     = 0.5
+                };
             }
         }
 
@@ -321,6 +323,10 @@ namespace CleanAimTracker.Windows
             StartStopBtn.Content = "■  Stop Drill";
             StartStopBtn.Background = new SolidColorBrush(Color.FromRgb(180, 40, 40));
 
+            // TASK-3D+3F: Reset timer bar colour and show canvas overlay
+            TimerBarFill.Background = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF));
+            LiveStatsOverlay.Visibility = Visibility.Visible;
+
             ClearTargets();
             UpdateLiveStats();
 
@@ -386,6 +392,8 @@ namespace CleanAimTracker.Windows
 
             IdleMessage.Visibility         = Visibility.Visible;
             WarmUpRoundText.Visibility     = Visibility.Collapsed;
+            LiveStatsOverlay.Visibility    = Visibility.Collapsed;
+            TimerBarFill.Width             = 0;
             UpdateTimerDisplay();
 
             if (_isWarmupMode)
@@ -480,28 +488,101 @@ namespace CleanAimTracker.Windows
             if (hit)
             {
                 _score += 100;
-                FlashHit();
+                PlayHitEffect(pos);
             }
             else
             {
-                FlashMiss();
+                PlayMissEffect(pos);
             }
 
             UpdateLiveStats();
         }
 
-        private void FlashHit()
+        // TASK-3C: Hit feedback — 3 expanding rings at the click point
+        private void PlayHitEffect(Point pos)
         {
-            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(25, 0, 255, 100));
-            _flashTimer.Stop();
-            _flashTimer.Start();
+            if (!ScenarioColors.TryGetValue(_scenario, out var sc))
+                sc = ((byte)0x00, (byte)0xD4, (byte)0xFF);
+            var ringColor = Color.FromArgb(180, sc.R, sc.G, sc.B);
+
+            for (int i = 0; i < 3; i++)
+            {
+                int    delay     = i * 30;
+                double startSize = 20;
+                var ring = new Ellipse
+                {
+                    Width            = startSize,
+                    Height           = startSize,
+                    Stroke           = new SolidColorBrush(ringColor),
+                    StrokeThickness  = 1.5,
+                    Fill             = Brushes.Transparent,
+                    IsHitTestVisible = false
+                };
+                Canvas.SetLeft(ring, pos.X - startSize / 2);
+                Canvas.SetTop (ring, pos.Y - startSize / 2);
+                TargetCanvas.Children.Add(ring);
+
+                var expandW = new DoubleAnimation(startSize, startSize * 2.2,
+                    TimeSpan.FromMilliseconds(200))
+                {
+                    BeginTime      = TimeSpan.FromMilliseconds(delay),
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                var expandH  = expandW.Clone();
+                var fadeRing = new DoubleAnimation(1.0, 0.0,
+                    TimeSpan.FromMilliseconds(200))
+                { BeginTime = TimeSpan.FromMilliseconds(delay) };
+
+                ring.BeginAnimation(FrameworkElement.WidthProperty,   expandW);
+                ring.BeginAnimation(FrameworkElement.HeightProperty,  expandH);
+                ring.BeginAnimation(UIElement.OpacityProperty,        fadeRing);
+
+                var cleanup = new DispatcherTimer
+                    { Interval = TimeSpan.FromMilliseconds(delay + 220) };
+                cleanup.Tick += (s, _) =>
+                {
+                    ((DispatcherTimer)s!).Stop();
+                    TargetCanvas.Children.Remove(ring);
+                };
+                cleanup.Start();
+            }
         }
 
-        private void FlashMiss()
+        // TASK-3C: Miss feedback — small red ring at click point
+        private void PlayMissEffect(Point pos)
         {
-            TargetCanvas.Background = new SolidColorBrush(Color.FromArgb(20, 255, 60, 60));
-            _flashTimer.Stop();
-            _flashTimer.Start();
+            var ring = new Ellipse
+            {
+                Width            = 20,
+                Height           = 20,
+                Stroke           = new SolidColorBrush(Color.FromArgb(200, 220, 50, 50)),
+                StrokeThickness  = 1.5,
+                Fill             = Brushes.Transparent,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(ring, pos.X - 10);
+            Canvas.SetTop (ring, pos.Y - 10);
+            TargetCanvas.Children.Add(ring);
+
+            var expand = new DoubleAnimation(20, 36,
+                TimeSpan.FromMilliseconds(200))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            var expandH = expand.Clone();
+            var fade    = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(200));
+
+            ring.BeginAnimation(FrameworkElement.WidthProperty,   expand);
+            ring.BeginAnimation(FrameworkElement.HeightProperty,  expandH);
+            ring.BeginAnimation(UIElement.OpacityProperty,        fade);
+
+            var cleanup = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
+            cleanup.Tick += (s, _) =>
+            {
+                ((DispatcherTimer)s!).Stop();
+                TargetCanvas.Children.Remove(ring);
+            };
+            cleanup.Start();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -519,38 +600,69 @@ namespace CleanAimTracker.Windows
                 TimerText.Foreground = Brushes.OrangeRed;
             else
                 TimerText.Foreground = Brushes.White;
+
+            UpdateTimerBar();
+        }
+
+        // TASK-3D: Update visual timer bar
+        private void UpdateTimerBar()
+        {
+            if (!_uiReady || TimerBarFill == null) return;
+
+            if (!_isRunning || _durationSeconds <= 0)
+            {
+                TimerBarFill.Width = 0;
+                return;
+            }
+
+            double maxW = Math.Max(0, TargetCanvas.ActualWidth);
+            double ratio = Math.Clamp((double)_secondsLeft / _durationSeconds, 0, 1);
+            TimerBarFill.Width = maxW * ratio;
+
+            // Turn orange in final 10 seconds
+            TimerBarFill.Background = _secondsLeft <= 10
+                ? new SolidColorBrush(Color.FromRgb(0xFF, 0x6B, 0x35))  // AccentOrange
+                : new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)); // AccentPrimary
         }
 
         private void UpdateLiveStats()
         {
             if (_scenarioInstance == null)
             {
-                LiveHitsText.Text = "0";
-                LiveMissesText.Text = "0";
-                LiveScoreText.Text = _score.ToString("N0");
+                LiveHitsText.Text     = "0";
+                LiveMissesText.Text   = "0";
+                LiveScoreText.Text    = _score.ToString("N0");
                 LiveAccuracyText.Text = "--";
                 LiveReactionText.Text = "--";
-                StreakText.Text = "0";
+                StreakText.Text       = "0";
+                // Canvas overlay reset
+                CanvasAccText.Text    = "—";
+                CanvasStreakText.Text  = "—";
+                CanvasHitsText.Text   = "—";
                 return;
             }
 
-            int hits = _scenarioInstance.Hits;
+            int hits   = _scenarioInstance.Hits;
             int misses = _scenarioInstance.Misses;
-            int total = hits + misses;
+            int total  = hits + misses;
 
-            LiveHitsText.Text = hits.ToString();
+            LiveHitsText.Text   = hits.ToString();
             LiveMissesText.Text = misses.ToString();
-            LiveScoreText.Text = _score.ToString("N0");
+            LiveScoreText.Text  = _score.ToString("N0");
 
-            LiveAccuracyText.Text = total > 0
-                ? $"{(hits * 100.0 / total):F0}%"
-                : "--";
+            string accStr = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "--";
+            LiveAccuracyText.Text = accStr;
 
             LiveReactionText.Text = _scenarioInstance.AvgReactionMs > 0
                 ? $"{_scenarioInstance.AvgReactionMs:F0}ms"
                 : "--";
 
             StreakText.Text = _scenarioInstance.MaxStreak.ToString();
+
+            // TASK-3F: Canvas overlay
+            CanvasAccText.Text   = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "—";
+            CanvasStreakText.Text = _scenarioInstance.MaxStreak.ToString();
+            CanvasHitsText.Text  = hits.ToString();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -682,10 +794,32 @@ namespace CleanAimTracker.Windows
             TargetCanvas.Children.Clear();
         }
 
-        private void PositionCenterDot()
+        // TASK-3E: Position crosshair elements (in the separate crosshair overlay Canvas)
+        private void PositionCrosshair()
         {
-            Canvas.SetLeft(CenterDot, TargetCanvas.ActualWidth / 2 - 3);
-            Canvas.SetTop(CenterDot, TargetCanvas.ActualHeight / 2 - 3);
+            if (!_uiReady) return;
+            double cx = TargetCanvas.ActualWidth  / 2;
+            double cy = TargetCanvas.ActualHeight / 2;
+
+            // Ring (14×14 centered)
+            Canvas.SetLeft(CrosshairRing, cx - 7);
+            Canvas.SetTop (CrosshairRing, cy - 7);
+
+            // Top arm: 1.5 wide × 6 tall, 2px gap above ring
+            Canvas.SetLeft(CrosshairTop, cx - 0.75);
+            Canvas.SetTop (CrosshairTop, cy - 7 - 2 - 6);   // cy - 15
+
+            // Bottom arm: starts 9px below center
+            Canvas.SetLeft(CrosshairBottom, cx - 0.75);
+            Canvas.SetTop (CrosshairBottom, cy + 7 + 2);     // cy + 9
+
+            // Left arm: 6 wide × 1.5 tall, 2px gap left of ring
+            Canvas.SetLeft(CrosshairLeft, cx - 7 - 2 - 6);  // cx - 15
+            Canvas.SetTop (CrosshairLeft, cy - 0.75);
+
+            // Right arm: starts 9px right of center
+            Canvas.SetLeft(CrosshairRight, cx + 7 + 2);     // cx + 9
+            Canvas.SetTop (CrosshairRight, cy - 0.75);
         }
 
         private void ViewHistory_Click(object sender, RoutedEventArgs e)

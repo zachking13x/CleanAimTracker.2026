@@ -81,6 +81,11 @@ namespace CleanAimTracker.Windows
         private double _dpi = 800;
         private double _sensitivity = 1.0;
 
+        // COACH REPORT BANNER — pending session saved on Stop, consumed by banner or Summary button
+        private SessionSummary? _pendingSessionSummary;
+        private SensitivityRecommendation? _pendingRec;
+        private StreakService.StreakResult? _pendingStreak;
+
         public event Action? StatsUpdated;
 
         // Live stat properties for the overlay to read
@@ -508,6 +513,12 @@ namespace CleanAimTracker.Windows
         // START / STOP
         public void StartButton_Click(object sender, RoutedEventArgs e)
         {
+            // Dismiss any pending coach report banner from the previous session
+            CoachReportBanner.Visibility = Visibility.Collapsed;
+            _pendingSessionSummary = null;
+            _pendingRec            = null;
+            _pendingStreak         = null;
+
             if (double.TryParse(DpiInput.Text, out double dpi)) _dpi = dpi;
             if (double.TryParse(SensitivityInput.Text, out double sens)) _sensitivity = sens;
 
@@ -578,6 +589,77 @@ namespace CleanAimTracker.Windows
             // TASK-11: Populate plain-English verdicts if session was long enough
             if (_sessionSeconds >= 10)
                 PopulateTrackerInterpretations(BuildSessionSummary());
+
+            // Always save sessions >= 10s; show banner when >= 45s
+            if (_sessionSeconds >= 10)
+                TrySaveAndShowCoachBanner();
+        }
+
+        private void TrySaveAndShowCoachBanner()
+        {
+            // ── Step 1: Save the session — always, for any session >= 10s ──────
+            try
+            {
+                _pendingSessionSummary = BuildSessionSummary();
+                SessionStorage.SaveSession(_pendingSessionSummary);
+                _pendingStreak = StreakService.UpdateStreak();
+                LoadTodayStats();
+                UpdateTrialBanner();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to save session on Stop", ex);
+                _pendingSessionSummary = null;
+                _pendingStreak         = null;
+                return;   // nothing saved — nothing else to do
+            }
+
+            // ── Step 2: Compute recommendation and show banner ─────────────────
+            // A failure here must NOT lose the already-saved session data.
+            try
+            {
+                _pendingRec = RecommendationEngine.Analyze(_pendingSessionSummary, _selectedProfile);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to compute sensitivity recommendation", ex);
+                // _pendingSessionSummary is intentionally kept alive so the
+                // Summary button can still open SummaryWindow without a rec.
+                _pendingRec = null;
+            }
+
+            // Show the banner regardless of whether rec succeeded.
+            // If rec is null the click handler will try again on demand.
+            CoachReportBanner.Visibility = Visibility.Visible;
+        }
+
+        private void CoachReportBannerBtn_Click(object sender, RoutedEventArgs e)
+        {
+            CoachReportBanner.Visibility = Visibility.Collapsed;
+            if (_pendingSessionSummary == null) return;
+
+            var summary = _pendingSessionSummary;
+            var streak  = _pendingStreak;
+            var rec     = _pendingRec;
+            _pendingSessionSummary = null;
+            _pendingRec            = null;
+            _pendingStreak         = null;
+
+            // If rec wasn't computed on Stop (e.g. profile issue), try once more now.
+            if (rec == null && _selectedProfile != null)
+            {
+                try { rec = RecommendationEngine.Analyze(summary, _selectedProfile); }
+                catch (Exception ex) { LogService.Error("On-demand rec failed", ex); }
+            }
+
+            if (rec != null)
+                new SummaryWindow(summary, rec, streak) { Owner = this }.Show();
+            else
+                MessageBox.Show(
+                    "Session saved! Select a game profile and click Recommend to see your sensitivity analysis.",
+                    "Session Complete",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
         }
 
         private void PopulateTrackerInterpretations(SessionSummary s)
@@ -623,6 +705,12 @@ namespace CleanAimTracker.Windows
 
         public void ResetButton_Click(object sender, RoutedEventArgs e)
         {
+            // Dismiss any pending coach report banner
+            CoachReportBanner.Visibility = Visibility.Collapsed;
+            _pendingSessionSummary = null;
+            _pendingRec            = null;
+            _pendingStreak         = null;
+
             _isTracking = false;
             _timer.Stop();
             RecordingPanel.Visibility = Visibility.Collapsed;
@@ -798,6 +886,22 @@ namespace CleanAimTracker.Windows
 
         private void OpenSummary_Click(object sender, RoutedEventArgs e)
         {
+            // If the session was already saved via the Stop → banner path, use it directly
+            // to avoid double-saving the same session.
+            if (_pendingSessionSummary != null && _pendingRec != null)
+            {
+                CoachReportBanner.Visibility = Visibility.Collapsed;
+                var pendingSummary = _pendingSessionSummary;
+                var pendingRec     = _pendingRec;
+                var pendingStreak  = _pendingStreak;
+                _pendingSessionSummary = null;
+                _pendingRec            = null;
+                _pendingStreak         = null;
+                new SummaryWindow(pendingSummary, pendingRec, pendingStreak) { Owner = this }.Show();
+                MaybeShowValueMoment();
+                return;
+            }
+
             // TASK-14: Basic summary is always free
             if (_sessionSeconds < 60)
             {
@@ -837,6 +941,11 @@ namespace CleanAimTracker.Windows
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
             new SummaryWindow(summary, rec, streakResult) { Owner = this }.Show();
 
+            MaybeShowValueMoment();
+        }
+
+        private void MaybeShowValueMoment()
+        {
             // TASK-11: Value moment — show upgrade nudge at sessions 3, 10, 25
             if (!TrialService.IsFullVersion())
             {

@@ -137,122 +137,119 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- LEFT COLUMN (bound to rec) -->
-                        <StackPanel Grid.Column="0"
-                                    Margin="0,0,10,0">
+                        <!-- LEFT COLUMN -->
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
 
-                            <!-- Sensitivity -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
+                            <!-- HERO CARD: Recommended Sensitivity -->
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Background="{StaticResource CardBgCyan}"
+                                    BorderBrush="#00D4FF" BorderThickness="0,2,0,0"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="Sensitivity"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
-
+                                    <TextBlock Text="RECOMMENDED SENSITIVITY"
+                                               Style="{StaticResource MetricLabelStyle}"/>
                                     <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="18"
-                                               FontWeight="Bold"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- DPI -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="DPI"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
-
-                                    <TextBlock Text="{Binding RecommendedDPI}"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="18"
-                                               FontWeight="Bold"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- cm/360 -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="cm/360 (Your Real Sensitivity)"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
-
-                                    <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F2}}"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="18"
-                                               FontWeight="Bold"/>
-
-                                    <TextBlock Text="{Binding Cm360Verdict}"
+                                               FontSize="40" FontWeight="Black"
+                                               Foreground="#00D4FF"
+                                               Margin="0,4,0,6"/>
+                                    <TextBlock Text="{Binding RecommendedSensitivityRange}"
                                                Foreground="{DynamicResource SecondaryText}"
-                                               FontSize="12"/>
+                                               FontSize="11"/>
+                                    <TextBlock Text="{Binding SensVerdict}"
+                                               Foreground="{DynamicResource SecondaryText}"
+                                               FontSize="11" FontStyle="Italic"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Confidence -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="Confidence"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
+                            <!-- DPI + cm/360 row -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="{Binding Confidence, StringFormat={}{0}%}"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="18"
-                                               FontWeight="Bold"/>
+                                <!-- DPI -->
+                                <Border Grid.Column="0"
+                                        Style="{StaticResource MetricCardStyle}"
+                                        Background="{StaticResource CardBgCyan}"
+                                        BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="DPI" Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="{Binding RecommendedDPI}"
+                                                   Style="{StaticResource MetricValueStyle}"
+                                                   Foreground="#00D4FF"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- YOUR SENSITIVITY (cm/360) -->
+                                <Border Grid.Column="2"
+                                        Style="{StaticResource MetricCardStyle}"
+                                        Background="{StaticResource CardBgCyan}"
+                                        BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="YOUR SENSITIVITY" Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
+                                                   Style="{StaticResource MetricValueStyle}"
+                                                   Foreground="#00D4FF"/>
+                                        <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F1} cm/360}"
+                                                   Foreground="{DynamicResource SecondaryText}"
+                                                   FontSize="11" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Confidence with visual bar -->
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Background="{StaticResource CardBgCyan}"
+                                    BorderBrush="#00D4FF" BorderThickness="0,2,0,0"
+                                    Margin="0,0,0,12">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,8">
+                                        <TextBlock Text="CONFIDENCE" Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="{Binding Confidence, StringFormat={}{0}%}"
+                                                   Foreground="#00D4FF"
+                                                   FontSize="13" FontWeight="Bold"
+                                                   HorizontalAlignment="Right"/>
+                                    </Grid>
+                                    <!-- 6px progress bar — ScaleTransform scales fill from left -->
+                                    <Border Height="6" CornerRadius="3"
+                                            Background="#131B24">
+                                        <Border Height="6" CornerRadius="3"
+                                                Background="#00D4FF"
+                                                RenderTransformOrigin="0,0.5">
+                                            <Border.RenderTransform>
+                                                <ScaleTransform ScaleX="{Binding ConfidenceRatio, ElementName=RootWindow}"/>
+                                            </Border.RenderTransform>
+                                        </Border>
+                                    </Border>
+                                    <TextBlock Text="{Binding Confidence, StringFormat={}Based on {0}% data confidence}"
+                                               Foreground="{DynamicResource SecondaryText}"
+                                               FontSize="11" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Border>
 
                             <!-- Explanation -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="Explanation"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
-
+                                    <TextBlock Text="ANALYSIS"
+                                               Style="{StaticResource MetricLabelStyle}"/>
                                     <TextBlock Text="{Binding Explanation}"
                                                TextWrapping="Wrap"
                                                Foreground="{DynamicResource SecondaryText}"
-                                               FontSize="13"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- Tips -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
-                                <StackPanel>
-                                    <TextBlock Text="Tips"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
-
+                                               FontSize="12" Margin="0,4,0,8"/>
+                                    <TextBlock Text="TIPS"
+                                               Style="{StaticResource MetricLabelStyle}"/>
                                     <ItemsControl ItemsSource="{Binding Tips}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <TextBlock TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource SecondaryText}">
-                                                    <Run Text="• " />
-                                                    <Run Text="{Binding ., Mode=OneWay}" />
+                                                           Foreground="{DynamicResource SecondaryText}"
+                                                           FontSize="12" Margin="0,0,0,4">
+                                                    <Run Text="• "/>
+                                                    <Run Text="{Binding ., Mode=OneWay}"/>
                                                 </TextBlock>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -267,16 +264,13 @@
                                     Margin="10,0,0,0">
 
                             <!-- Settings to Apply -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
 
-                                    <TextBlock Text="Settings to Apply"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="SETTINGS TO APPLY"
+                                               Style="{StaticResource MetricLabelStyle}"
+                                               Margin="0,0,0,8"/>
 
                                     <ItemsControl ItemsSource="{Binding GameSettingsLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
@@ -291,17 +285,14 @@
                             </Border>
 
                             <!-- ADS / Scope -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14"
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Margin="0,0,0,12"
                                     Visibility="{Binding HasAdsScopeSection, ElementName=RootWindow, Converter={StaticResource BoolToVisibilityConverter}}">
                                 <StackPanel>
 
-                                    <TextBlock Text="ADS / Scope Settings"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="ADS / SCOPE"
+                                               Style="{StaticResource MetricLabelStyle}"
+                                               Margin="0,0,0,8"/>
 
                                     <ItemsControl ItemsSource="{Binding AdsScopeLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
@@ -316,16 +307,13 @@
                             </Border>
 
                             <!-- Advanced -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
 
-                                    <TextBlock Text="Advanced Settings"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="ADVANCED"
+                                               Style="{StaticResource MetricLabelStyle}"
+                                               Margin="0,0,0,8"/>
 
                                     <ItemsControl ItemsSource="{Binding AdvancedLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
@@ -340,16 +328,13 @@
                             </Border>
 
                             <!-- Game Tips -->
-                            <Border Background="{DynamicResource CardBackground}"
-                                    CornerRadius="8"
-                                    Padding="14"
-                                    Margin="0,0,0,14">
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Margin="0,0,0,12">
                                 <StackPanel>
 
-                                    <TextBlock Text="Tips for This Game"
-                                               Foreground="{DynamicResource PrimaryText}"
-                                               FontSize="16"
-                                               FontWeight="SemiBold"/>
+                                    <TextBlock Text="TIPS FOR THIS GAME"
+                                               Style="{StaticResource MetricLabelStyle}"
+                                               Margin="0,0,0,8"/>
 
                                     <ItemsControl ItemsSource="{Binding GameTipsLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>

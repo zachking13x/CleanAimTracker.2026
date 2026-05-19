@@ -12,6 +12,24 @@
             <BitmapImage x:Key="AppLogo" UriSource="Assets/BCO.21dff569-623b-4839-b0ad-1cce7c533742.png"/>
             <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
+            <!--
+                ══════════════════════════════════════════════════════════════
+                DESIGN SYSTEM RESOURCES — from DESIGN_SPEC.md
+                Colors, brushes, and base styles are defined in DarkTheme.xaml
+                and merged above. Aliases kept here for discoverability.
+
+                Key resources available app-wide (defined in DarkTheme.xaml):
+                  Backgrounds : BgBase, BgSurface, BgElevated, BgOverlay
+                  Accents     : AccentPrimary, AccentWarm, AccentGreen,
+                                AccentOrange, AccentPurple, AccentGold
+                  Text        : TextPrimary, TextSecondary, TextMuted
+                  Card tints  : CardBgCyan, CardBgAmber, CardBgGreen, CardBgPurple
+                  Borders     : BorderSubtle
+                  Styles      : MetricCardStyle, MetricLabelStyle,
+                                MetricValueStyle, PrimaryButtonStyle
+                ══════════════════════════════════════════════════════════════
+            -->
+
             <Style x:Key="GlowButton" TargetType="Button">
                 <Setter Property="Background" Value="#222"/>
                 <Setter Property="Foreground" Value="White"/>

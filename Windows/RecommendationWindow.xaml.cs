@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,6 +11,32 @@ using System.Windows.Input;
 
 namespace CleanAimTracker.Windows
 {
+    /// <summary>
+    /// A parsed setting row — label on the left, value on the right.
+    /// Built from translator strings like "X-Axis Sensitivity: 40.0%".
+    /// </summary>
+    public sealed class SettingRow
+    {
+        public string Label    { get; }
+        public string Value    { get; }
+        public bool   HasValue => !string.IsNullOrEmpty(Value);
+
+        public SettingRow(string line)
+        {
+            int idx = line.IndexOf(": ");
+            if (idx >= 0 && idx < line.Length - 2)
+            {
+                Label = line[..idx];
+                Value = line[(idx + 2)..];
+            }
+            else
+            {
+                Label = line.TrimStart('•', ' ', '→');
+                Value = string.Empty;
+            }
+        }
+    }
+
     public partial class RecommendationWindow : Window, INotifyPropertyChanged
     {
         private readonly SensitivityRecommendation _rec;
@@ -60,7 +87,29 @@ namespace CleanAimTracker.Windows
             private set { _gameTipsLines = value; OnPropertyChanged(nameof(GameTipsLines)); }
         }
 
-        public bool HasAdsScopeSection => AdsScopeLines.Count > 0;
+        // ── Parsed row collections for styled label/value display ──────────
+        private List<SettingRow> _gameSettingRows = new();
+        public List<SettingRow> GameSettingRows
+        {
+            get => _gameSettingRows;
+            private set { _gameSettingRows = value; OnPropertyChanged(nameof(GameSettingRows)); }
+        }
+
+        private List<SettingRow> _adsScopeRows = new();
+        public List<SettingRow> AdsScopeRows
+        {
+            get => _adsScopeRows;
+            private set { _adsScopeRows = value; OnPropertyChanged(nameof(AdsScopeRows)); }
+        }
+
+        private List<SettingRow> _advancedRows = new();
+        public List<SettingRow> AdvancedRows
+        {
+            get => _advancedRows;
+            private set { _advancedRows = value; OnPropertyChanged(nameof(AdvancedRows)); }
+        }
+
+        public bool HasAdsScopeSection => AdsScopeRows.Count > 0;
 
         public double ConfidenceRatio => _rec.Confidence / 100.0;
 
@@ -102,19 +151,31 @@ namespace CleanAimTracker.Windows
             if (SelectedGame == null)
             {
                 GameSettingsLines = new();
-                AdsScopeLines = new();
-                AdvancedLines = new();
-                GameTipsLines = new();
+                AdsScopeLines     = new();
+                AdvancedLines     = new();
+                GameTipsLines     = new();
+                GameSettingRows   = new();
+                AdsScopeRows      = new();
+                AdvancedRows      = new();
                 OnPropertyChanged(nameof(HasAdsScopeSection));
                 return;
             }
 
             var view = SelectedGame.Translate(_rec);
 
+            // Keep raw lists for backward-compat bindings
             GameSettingsLines = view.GameSettingsLines;
-            AdsScopeLines = view.AdsScopeLines;
-            AdvancedLines = view.AdvancedLines;
-            GameTipsLines = view.GameTipsLines;
+            AdsScopeLines     = view.AdsScopeLines;
+            AdvancedLines     = view.AdvancedLines;
+            GameTipsLines     = view.GameTipsLines;
+
+            // Build parsed row collections for styled label/value display
+            GameSettingRows = view.GameSettingsLines
+                .Select(l => new SettingRow(l)).ToList();
+            AdsScopeRows    = view.AdsScopeLines
+                .Select(l => new SettingRow(l)).ToList();
+            AdvancedRows    = view.AdvancedLines
+                .Select(l => new SettingRow(l)).ToList();
 
             OnPropertyChanged(nameof(HasAdsScopeSection));
         }

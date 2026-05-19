@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sensitivity Recommendation"
         Width="900"
-        Height="650"
-        MinWidth="800"
-        MinHeight="550"
-        Background="{DynamicResource AppBackground}"
+        Height="660"
+        MinWidth="820"
+        MinHeight="560"
+        Background="{StaticResource BgBase}"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -15,20 +15,21 @@
         Icon="{StaticResource AppLogo}"
         x:Name="RootWindow">
 
-    <Border Background="{DynamicResource AppBackground}"
+    <Border Background="{StaticResource BgBase}"
             CornerRadius="8"
-            BorderBrush="#33000000"
+            BorderBrush="{StaticResource BorderSubtle}"
             BorderThickness="1">
         <Grid>
-
             <Grid.RowDefinitions>
                 <RowDefinition Height="40"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- TITLE BAR -->
+            <!-- ══════════════════════════════════════════ -->
+            <!-- TITLE BAR                                  -->
+            <!-- ══════════════════════════════════════════ -->
             <Grid Grid.Row="0"
-                  Background="#22252A"
+                  Background="{StaticResource BgSurface}"
                   MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -38,132 +39,135 @@
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0"
-                        Width="18"
-                        Height="18"
+                        Width="18" Height="18"
                         Margin="10,0,6,0"
                         VerticalAlignment="Center"
                         CornerRadius="3"
-                        Background="#00AFFF">
+                        Background="{StaticResource AccentPrimary}">
                     <TextBlock Text="CA"
-                               Foreground="White"
-                               FontSize="10"
-                               FontWeight="Bold"
+                               Foreground="Black"
+                               FontSize="10" FontWeight="Bold"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"/>
                 </Border>
 
                 <TextBlock Grid.Column="1"
                            VerticalAlignment="Center"
-                           Foreground="{DynamicResource PrimaryText}"
+                           Foreground="{StaticResource TextPrimary}"
                            FontSize="13"
-                           Text="Sensitivity Recommendation" />
+                           Text="Sensitivity Recommendation"/>
 
                 <Button Grid.Column="2"
-                        Width="32"
-                        Height="24"
+                        Width="32" Height="24"
                         Margin="0,0,4,0"
                         Click="Minimize_Click"
                         Background="Transparent"
-                        BorderThickness="0"
-                        Padding="0">
-                    <TextBlock Text="–"
-                               HorizontalAlignment="Center"
+                        BorderThickness="0" Padding="0">
+                    <TextBlock Text="–" HorizontalAlignment="Center"
                                VerticalAlignment="Center"
-                               Foreground="{DynamicResource PrimaryText}"
+                               Foreground="{StaticResource TextPrimary}"
                                FontSize="14"/>
                 </Button>
 
                 <Button Grid.Column="3"
-                        Width="32"
-                        Height="24"
+                        Width="32" Height="24"
                         Click="Close_Click"
                         Background="Transparent"
-                        BorderThickness="0"
-                        Padding="0">
-                    <TextBlock Text="✕"
-                               HorizontalAlignment="Center"
+                        BorderThickness="0" Padding="0">
+                    <TextBlock Text="✕" HorizontalAlignment="Center"
                                VerticalAlignment="Center"
-                               Foreground="{DynamicResource PrimaryText}"
+                               Foreground="{StaticResource TextPrimary}"
                                FontSize="12"/>
                 </Button>
             </Grid>
 
-            <!-- CONTENT -->
-            <Grid Grid.Row="1" Margin="16,10,16,16">
+            <!-- ══════════════════════════════════════════ -->
+            <!-- CONTENT                                    -->
+            <!-- ══════════════════════════════════════════ -->
+            <Grid Grid.Row="1" Margin="16,12,16,16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
-                <!-- HEADER -->
-                <Grid Grid.Row="0" Margin="0,0,0,10">
+                <!-- HEADER ROW: title + game picker -->
+                <Grid Grid.Row="0" Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Recommended Settings"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="22"
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="RECOMMENDED SETTINGS"
+                                   Style="{StaticResource MetricLabelStyle}"
+                                   Margin="0,0,0,2"/>
+                        <TextBlock Text="Sensitivity Recommendation"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="20" FontWeight="Bold"/>
+                    </StackPanel>
 
                     <StackPanel Grid.Column="1"
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center">
                         <TextBlock Text="Game:"
-                                   Foreground="{DynamicResource SecondaryText}"
-                                   Margin="0,0,6,0"/>
-
+                                   Foreground="{StaticResource TextSecondary}"
+                                   FontSize="11"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
                         <ComboBox x:Name="GameCombo"
                                   Width="200"
                                   ItemsSource="{Binding GameOptions, ElementName=RootWindow}"
                                   DisplayMemberPath="GameName"
-                                  Background="{DynamicResource CardBackground}"
-                                  Foreground="{DynamicResource PrimaryText}"
-                                  BorderBrush="#444"
-                                  Padding="4,2"
+                                  Background="{StaticResource BgSurface}"
+                                  Foreground="{StaticResource TextPrimary}"
+                                  BorderBrush="{StaticResource BorderSubtle}"
+                                  Padding="8,4"
                                   SelectionChanged="GameCombo_SelectionChanged"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- MAIN AREA -->
-                <ScrollViewer Grid.Row="1"
-                              VerticalScrollBarVisibility="Auto">
-                    <Grid Margin="0,0,0,10">
+                <!-- MAIN SCROLL AREA -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- LEFT COLUMN -->
-                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                        <!-- ══════════════════════════════════
+                             LEFT COLUMN
+                        ══════════════════════════════════ -->
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
 
-                            <!-- HERO CARD: Recommended Sensitivity -->
+                            <!-- HERO CARD — Recommended Sensitivity -->
                             <Border Style="{StaticResource MetricCardStyle}"
                                     Background="{StaticResource CardBgCyan}"
-                                    BorderBrush="#00D4FF" BorderThickness="0,2,0,0"
-                                    Margin="0,0,0,12">
+                                    BorderBrush="{StaticResource AccentPrimary}"
+                                    BorderThickness="0,2,0,0"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="RECOMMENDED SENSITIVITY"
                                                Style="{StaticResource MetricLabelStyle}"/>
+                                    <!-- 40px Black AccentPrimary — the dominant hero number -->
                                     <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
                                                FontSize="40" FontWeight="Black"
-                                               Foreground="#00D4FF"
-                                               Margin="0,4,0,6"/>
-                                    <TextBlock Text="{Binding RecommendedSensitivityRange}"
-                                               Foreground="{DynamicResource SecondaryText}"
-                                               FontSize="11"/>
+                                               Foreground="{StaticResource AccentPrimary}"
+                                               Margin="0,4,0,2"
+                                               SnapsToDevicePixels="True"/>
+                                    <TextBlock Text="{Binding RecommendedSensitivityRange, ElementName=RootWindow}"
+                                               Foreground="{StaticResource TextSecondary}"
+                                               FontSize="11"
+                                               Margin="0,0,0,4"/>
                                     <TextBlock Text="{Binding SensVerdict}"
-                                               Foreground="{DynamicResource SecondaryText}"
+                                               Foreground="{StaticResource TextSecondary}"
                                                FontSize="11" FontStyle="Italic"
-                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                               TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- DPI + cm/360 row -->
-                            <Grid Margin="0,0,0,12">
+                            <!-- DPI + YOUR SENSITIVITY row -->
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="8"/>
@@ -174,50 +178,67 @@
                                 <Border Grid.Column="0"
                                         Style="{StaticResource MetricCardStyle}"
                                         Background="{StaticResource CardBgCyan}"
-                                        BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                                        BorderBrush="{StaticResource AccentPrimary}"
+                                        BorderThickness="0,2,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="DPI" Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="DPI"
+                                                   Style="{StaticResource MetricLabelStyle}"/>
                                         <TextBlock Text="{Binding RecommendedDPI}"
                                                    Style="{StaticResource MetricValueStyle}"
-                                                   Foreground="#00D4FF"/>
+                                                   Foreground="{StaticResource AccentPrimary}"/>
+                                        <TextBlock Text="{Binding DpiVerdict}"
+                                                   Foreground="{StaticResource TextSecondary}"
+                                                   FontSize="10" FontStyle="Italic"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </Border>
 
-                                <!-- YOUR SENSITIVITY (cm/360) -->
+                                <!-- YOUR SENSITIVITY + cm/360 -->
                                 <Border Grid.Column="2"
                                         Style="{StaticResource MetricCardStyle}"
                                         Background="{StaticResource CardBgCyan}"
-                                        BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                                        BorderBrush="{StaticResource AccentPrimary}"
+                                        BorderThickness="0,2,0,0">
                                     <StackPanel>
-                                        <TextBlock Text="YOUR SENSITIVITY" Style="{StaticResource MetricLabelStyle}"/>
-                                        <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
+                                        <TextBlock Text="CM / 360"
+                                                   Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F1}}"
                                                    Style="{StaticResource MetricValueStyle}"
-                                                   Foreground="#00D4FF"/>
-                                        <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F1} cm/360}"
-                                                   Foreground="{DynamicResource SecondaryText}"
-                                                   FontSize="11" Margin="0,2,0,0"/>
+                                                   Foreground="{StaticResource AccentPrimary}"/>
+                                        <TextBlock Text="cm per full rotation"
+                                                   Foreground="{StaticResource TextMuted}"
+                                                   FontSize="10"
+                                                   Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding Cm360Verdict}"
+                                                   Foreground="{StaticResource TextSecondary}"
+                                                   FontSize="10" FontStyle="Italic"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>
                                 </Border>
                             </Grid>
 
-                            <!-- Confidence with visual bar -->
+                            <!-- CONFIDENCE CARD with progress bar -->
                             <Border Style="{StaticResource MetricCardStyle}"
                                     Background="{StaticResource CardBgCyan}"
-                                    BorderBrush="#00D4FF" BorderThickness="0,2,0,0"
-                                    Margin="0,0,0,12">
+                                    BorderBrush="{StaticResource AccentPrimary}"
+                                    BorderThickness="0,2,0,0"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
+                                    <!-- Label + percentage -->
                                     <Grid Margin="0,0,0,8">
-                                        <TextBlock Text="CONFIDENCE" Style="{StaticResource MetricLabelStyle}"/>
+                                        <TextBlock Text="CONFIDENCE"
+                                                   Style="{StaticResource MetricLabelStyle}"
+                                                   Margin="0"/>
                                         <TextBlock Text="{Binding Confidence, StringFormat={}{0}%}"
-                                                   Foreground="#00D4FF"
+                                                   Foreground="{StaticResource AccentPrimary}"
                                                    FontSize="13" FontWeight="Bold"
                                                    HorizontalAlignment="Right"/>
                                     </Grid>
-                                    <!-- 6px progress bar — ScaleTransform scales fill from left -->
+                                    <!-- 6px progress bar — spec: AccentPrimary fill, BgElevated track -->
                                     <Border Height="6" CornerRadius="3"
-                                            Background="#131B24">
+                                            Background="{StaticResource BgElevated}">
                                         <Border Height="6" CornerRadius="3"
-                                                Background="#00D4FF"
+                                                Background="{StaticResource AccentPrimary}"
                                                 RenderTransformOrigin="0,0.5">
                                             <Border.RenderTransform>
                                                 <ScaleTransform ScaleX="{Binding ConfidenceRatio, ElementName=RootWindow}"/>
@@ -225,32 +246,38 @@
                                         </Border>
                                     </Border>
                                     <TextBlock Text="{Binding Confidence, StringFormat={}Based on {0}% data confidence}"
-                                               Foreground="{DynamicResource SecondaryText}"
-                                               FontSize="11" Margin="0,6,0,0"/>
+                                               Foreground="{StaticResource TextSecondary}"
+                                               FontSize="10" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- Explanation -->
+                            <!-- ANALYSIS + TIPS -->
                             <Border Style="{StaticResource MetricCardStyle}"
-                                    Margin="0,0,0,12">
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
                                     <TextBlock Text="ANALYSIS"
                                                Style="{StaticResource MetricLabelStyle}"/>
                                     <TextBlock Text="{Binding Explanation}"
                                                TextWrapping="Wrap"
-                                               Foreground="{DynamicResource SecondaryText}"
-                                               FontSize="12" Margin="0,4,0,8"/>
+                                               Foreground="{StaticResource TextSecondary}"
+                                               FontSize="12" Margin="0,4,0,12"/>
+
                                     <TextBlock Text="TIPS"
                                                Style="{StaticResource MetricLabelStyle}"/>
                                     <ItemsControl ItemsSource="{Binding Tips}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource SecondaryText}"
-                                                           FontSize="12" Margin="0,0,0,4">
-                                                    <Run Text="• "/>
-                                                    <Run Text="{Binding ., Mode=OneWay}"/>
-                                                </TextBlock>
+                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                                    <TextBlock Text="→ "
+                                                               Foreground="{StaticResource AccentPrimary}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Top"/>
+                                                    <TextBlock Text="{Binding ., Mode=OneWay}"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{StaticResource TextSecondary}"
+                                                               FontSize="11"/>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -259,79 +286,133 @@
 
                         </StackPanel>
 
-                        <!-- RIGHT COLUMN (bound to window) -->
-                        <StackPanel Grid.Column="1"
-                                    Margin="10,0,0,0">
+                        <!-- ══════════════════════════════════
+                             RIGHT COLUMN
+                        ══════════════════════════════════ -->
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
 
-                            <!-- Settings to Apply -->
+                            <!-- SETTINGS TO APPLY — styled label/value rows -->
                             <Border Style="{StaticResource MetricCardStyle}"
-                                    Margin="0,0,0,12">
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
-
                                     <TextBlock Text="SETTINGS TO APPLY"
                                                Style="{StaticResource MetricLabelStyle}"
                                                Margin="0,0,0,8"/>
 
-                                    <ItemsControl ItemsSource="{Binding GameSettingsLines, ElementName=RootWindow}">
+                                    <ItemsControl ItemsSource="{Binding GameSettingRows, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}"
-                                                           Foreground="{DynamicResource SecondaryText}"/>
+                                                <Border Padding="0,6,0,6"
+                                                        BorderThickness="0,0,0,1"
+                                                        BorderBrush="{StaticResource BorderSubtle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Label}"
+                                                                   Foreground="{StaticResource TextSecondary}"
+                                                                   FontSize="11"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Value}"
+                                                                   Foreground="{StaticResource AccentPrimary}"
+                                                                   FontSize="11" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="12,0,0,0"/>
+                                                    </Grid>
+                                                </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-
                                 </StackPanel>
                             </Border>
 
-                            <!-- ADS / Scope -->
+                            <!-- ADS / SCOPE — styled rows, hidden when empty -->
                             <Border Style="{StaticResource MetricCardStyle}"
-                                    Margin="0,0,0,12"
-                                    Visibility="{Binding HasAdsScopeSection, ElementName=RootWindow, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8"
+                                    Visibility="{Binding HasAdsScopeSection, ElementName=RootWindow,
+                                                         Converter={StaticResource BoolToVisibilityConverter}}">
                                 <StackPanel>
-
                                     <TextBlock Text="ADS / SCOPE"
                                                Style="{StaticResource MetricLabelStyle}"
                                                Margin="0,0,0,8"/>
 
-                                    <ItemsControl ItemsSource="{Binding AdsScopeLines, ElementName=RootWindow}">
+                                    <ItemsControl ItemsSource="{Binding AdsScopeRows, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}"
-                                                           Foreground="{DynamicResource SecondaryText}"/>
+                                                <Border Padding="0,5,0,5"
+                                                        BorderThickness="0,0,0,1"
+                                                        BorderBrush="{StaticResource BorderSubtle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Label}"
+                                                                   Foreground="{StaticResource TextSecondary}"
+                                                                   FontSize="11"
+                                                                   TextWrapping="Wrap"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Value}"
+                                                                   Foreground="{StaticResource AccentPrimary}"
+                                                                   FontSize="11" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="12,0,0,0"/>
+                                                    </Grid>
+                                                </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-
                                 </StackPanel>
                             </Border>
 
-                            <!-- Advanced -->
+                            <!-- ADVANCED — styled rows -->
                             <Border Style="{StaticResource MetricCardStyle}"
-                                    Margin="0,0,0,12">
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
-
                                     <TextBlock Text="ADVANCED"
                                                Style="{StaticResource MetricLabelStyle}"
                                                Margin="0,0,0,8"/>
 
-                                    <ItemsControl ItemsSource="{Binding AdvancedLines, ElementName=RootWindow}">
+                                    <ItemsControl ItemsSource="{Binding AdvancedRows, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock Text="{Binding}"
-                                                           Foreground="{DynamicResource SecondaryText}"/>
+                                                <Border Padding="0,5,0,5"
+                                                        BorderThickness="0,0,0,1"
+                                                        BorderBrush="{StaticResource BorderSubtle}">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Label}"
+                                                                   Foreground="{StaticResource TextSecondary}"
+                                                                   FontSize="11"
+                                                                   VerticalAlignment="Center"/>
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding Value}"
+                                                                   Foreground="{StaticResource AccentPrimary}"
+                                                                   FontSize="11" FontWeight="SemiBold"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="12,0,0,0"/>
+                                                    </Grid>
+                                                </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
-
                                 </StackPanel>
                             </Border>
 
-                            <!-- Game Tips -->
+                            <!-- TIPS FOR THIS GAME — arrow bullet list -->
                             <Border Style="{StaticResource MetricCardStyle}"
-                                    Margin="0,0,0,12">
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8">
                                 <StackPanel>
-
                                     <TextBlock Text="TIPS FOR THIS GAME"
                                                Style="{StaticResource MetricLabelStyle}"
                                                Margin="0,0,0,8"/>
@@ -339,15 +420,78 @@
                                     <ItemsControl ItemsSource="{Binding GameTipsLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <TextBlock TextWrapping="Wrap"
-                                                           Foreground="{DynamicResource SecondaryText}">
-                                                    <Run Text="• " />
-                                                    <Run Text="{Binding ., Mode=OneWay}" />
-                                                </TextBlock>
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <TextBlock Text="→ "
+                                                               Foreground="{StaticResource AccentPrimary}"
+                                                               FontSize="11"
+                                                               VerticalAlignment="Top"/>
+                                                    <TextBlock Text="{Binding ., Mode=OneWay}"
+                                                               TextWrapping="Wrap"
+                                                               Foreground="{StaticResource TextSecondary}"
+                                                               FontSize="11"/>
+                                                </StackPanel>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+                                </StackPanel>
+                            </Border>
 
+                            <!-- CURRENT VS RECOMMENDED comparison -->
+                            <Border Style="{StaticResource MetricCardStyle}"
+                                    Background="{StaticResource BgSurface}"
+                                    Margin="0,0,0,8">
+                                <StackPanel>
+                                    <TextBlock Text="CURRENT vs RECOMMENDED"
+                                               Style="{StaticResource MetricLabelStyle}"
+                                               Margin="0,0,0,8"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Current -->
+                                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                            <TextBlock Text="CURRENT"
+                                                       Style="{StaticResource MetricLabelStyle}"
+                                                       Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding CurrentDPI, StringFormat={}{0} DPI}"
+                                                       Foreground="{StaticResource TextSecondary}"
+                                                       FontSize="11"/>
+                                            <TextBlock Text="{Binding CurrentSensitivity, StringFormat={}{0:F4} sens}"
+                                                       Foreground="{StaticResource TextSecondary}"
+                                                       FontSize="11"/>
+                                            <TextBlock Text="{Binding CurrentCm360, StringFormat={}{0:F1} cm/360}"
+                                                       Foreground="{StaticResource TextSecondary}"
+                                                       FontSize="11"/>
+                                        </StackPanel>
+
+                                        <!-- Recommended -->
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="RECOMMENDED"
+                                                       Style="{StaticResource MetricLabelStyle}"
+                                                       Margin="0,0,0,4"/>
+                                            <TextBlock Text="{Binding RecommendedDPI, StringFormat={}{0} DPI}"
+                                                       Foreground="{StaticResource AccentPrimary}"
+                                                       FontSize="11" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4} sens}"
+                                                       Foreground="{StaticResource AccentPrimary}"
+                                                       FontSize="11" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F1} cm/360}"
+                                                       Foreground="{StaticResource AccentPrimary}"
+                                                       FontSize="11" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Overall verdict -->
+                                    <Border Height="1"
+                                            Background="{StaticResource BorderSubtle}"
+                                            Margin="0,8,0,8"/>
+                                    <TextBlock Text="{Binding OverallVerdict}"
+                                               TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextSecondary}"
+                                               FontSize="11" FontStyle="Italic"/>
                                 </StackPanel>
                             </Border>
 
@@ -355,27 +499,33 @@
                     </Grid>
                 </ScrollViewer>
 
-                <!-- BUTTONS -->
+                <!-- FOOTER BUTTONS -->
                 <StackPanel Grid.Row="2"
                             Orientation="Horizontal"
                             HorizontalAlignment="Center"
-                            Margin="0,10,0,0">
+                            Margin="0,12,0,0">
 
                     <Button Content="Copy Settings"
                             Width="150"
-                            Margin="0,0,12,0"
-                            Style="{StaticResource GlowButton}"
+                            Margin="0,0,8,0"
+                            Style="{StaticResource PrimaryButtonStyle}"
                             Click="CopySettings_Click"/>
 
                     <Button Content="Copy Comparison"
                             Width="150"
-                            Margin="0,0,12,0"
-                            Style="{StaticResource GlowButton}"
+                            Margin="0,0,8,0"
+                            Background="{StaticResource BgElevated}"
+                            Foreground="{StaticResource TextPrimary}"
+                            BorderThickness="1"
+                            BorderBrush="{StaticResource BorderSubtle}"
                             Click="CopyComparison_Click"/>
 
                     <Button Content="Close"
-                            Width="150"
-                            Style="{StaticResource GlowButton}"
+                            Width="100"
+                            Background="{StaticResource BgElevated}"
+                            Foreground="{StaticResource TextPrimary}"
+                            BorderThickness="1"
+                            BorderBrush="{StaticResource BorderSubtle}"
                             Click="Close_Click"/>
                 </StackPanel>
 

@@ -581,10 +581,10 @@
             <UniformGrid Grid.Column="0" Columns="3" Rows="2" SnapsToDevicePixels="True">
 
                 <!-- ── Row 1, Col 1: Movement ── -->
-                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgCyan}" BorderBrush="#00D4FF" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgCyan}" BorderBrush="{StaticResource AccentPrimary}" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Movement" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#00D4FF" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource AccentPrimary}" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -596,14 +596,14 @@
                                 <TextBlock Text="dX / dY" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Raw mouse delta — the X and Y axis movement your mouse reported each poll cycle."/>
                                 <TextBlock x:Name="DxDyText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00D4FF"/>
+                                           Foreground="{StaticResource AccentPrimary}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Total Distance" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Total raw mouse units moved this session. Higher means more physical mouse movement overall."/>
                                 <TextBlock x:Name="TotalDistanceText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00D4FF"/>
+                                           Foreground="{StaticResource AccentPrimary}"/>
                             </StackPanel>
                         </Grid>
 
@@ -624,7 +624,7 @@
                                 <TextBlock x:Name="SensDisplayText"
                                            Text="--"
                                            Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00D4FF"/>
+                                           Foreground="{StaticResource AccentPrimary}"/>
                                 <!-- Secondary: cm/360 for context -->
                                 <TextBlock x:Name="CmPer360Text"
                                            Text="--"
@@ -648,10 +648,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 2: Velocity ── -->
-                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="#FFB347" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="{StaticResource AccentWarm}" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Velocity" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#FFB347" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource AccentWarm}" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -662,13 +662,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Speed" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="SpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Current" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="CurrentSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
                         </Grid>
 
@@ -683,13 +683,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Peak" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="PeakSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Average" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="AverageSpeedText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
                         </Grid>
 
@@ -705,14 +705,14 @@
                                 <TextBlock Text="MPS" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Mouse Movements Per Second — how actively your mouse was moving this session."/>
                                 <TextBlock x:Name="MpsText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Rolling Density" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Micro-movements per second over the last 1-second window — indicates aim tremor or active micro-adjustment patterns."/>
                                 <TextBlock x:Name="RollingDensityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
                         </Grid>
 
@@ -720,7 +720,7 @@
                             <TextBlock Text="Peak Vel Change" Style="{StaticResource LabelTextStyle}"
                                        ToolTip="Largest sudden velocity change this session — high values mean fast, explosive flick shots."/>
                             <TextBlock x:Name="PeakVelocityChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                       Foreground="#FFB347"/>
+                                       Foreground="{StaticResource AccentWarm}"/>
                         </StackPanel>
 
                         <!-- Verdict line -->
@@ -732,10 +732,10 @@
                 </Border>
 
                 <!-- ── Row 1, Col 3: Flicks ── -->
-                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="#FFB347" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgAmber}" BorderBrush="{StaticResource AccentWarm}" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Flicks" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#FFB347" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource AccentWarm}" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -746,13 +746,13 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="FlicksCountText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Small Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="SmallFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
                         </Grid>
 
@@ -767,24 +767,24 @@
                             <StackPanel Grid.Column="0">
                                 <TextBlock Text="Large Flicks" Style="{StaticResource LabelTextStyle}"/>
                                 <TextBlock x:Name="LargeFlicksText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Idle Bursts" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Fast movements that start from near-stillness — indicates reactive, instinctive aim from a stationary position."/>
                                 <TextBlock x:Name="IdleBurstsText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#FFB347"/>
+                                           Foreground="{StaticResource AccentWarm}"/>
                             </StackPanel>
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- ── Row 2, Col 1: Aim Quality ── -->
-                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgGreen}" BorderBrush="#00E5A0" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgGreen}" BorderBrush="{StaticResource AccentGreen}" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Aim Quality" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#00E5A0" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource AccentGreen}" Margin="0,0,0,8"/>
 
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -796,14 +796,14 @@
                                 <TextBlock Text="Overall Quality" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="Composite aim score 0–100 based on smoothness, control, and correction consistency. 70+ is solid; 85+ is elite."/>
                                 <TextBlock x:Name="OverallQualityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00E5A0"/>
+                                           Foreground="{StaticResource AccentGreen}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Smoothness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How fluid and continuous your movement is. High = fewer jerky direction changes. Aim for 65+."/>
                                 <TextBlock x:Name="SmoothnessText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00E5A0"/>
+                                           Foreground="{StaticResource AccentGreen}"/>
                             </StackPanel>
                         </Grid>
 
@@ -819,14 +819,14 @@
                                 <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How aggressively you correct your aim. Very high (80+) may mean you're overshooting targets; very low (&lt;20) may mean slow, hesitant adjustments."/>
                                 <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00E5A0"/>
+                                           Foreground="{StaticResource AccentGreen}"/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="Stability" Style="{StaticResource LabelTextStyle}"
                                            ToolTip="How steady your aim is during slow movement or pauses. Higher is better for tracking scenarios."/>
                                 <TextBlock x:Name="StabilityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                           Foreground="#00E5A0"/>
+                                           Foreground="{StaticResource AccentGreen}"/>
                             </StackPanel>
                         </Grid>
 
@@ -839,28 +839,28 @@
                 </Border>
 
                 <!-- ── Row 2, Col 2: Advanced Metrics ── -->
-                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgPurple}" BorderBrush="#A855F7" BorderThickness="0,2,0,0">
+                <Border Style="{StaticResource StatCardStyle}" Background="{StaticResource CardBgPurple}" BorderBrush="{StaticResource AccentPurple}" BorderThickness="0,2,0,0">
                     <StackPanel>
                         <TextBlock Text="Advanced Metrics" Style="{StaticResource SectionHeaderText}"
-                                   Foreground="#A855F7" Margin="0,0,0,8"/>
+                                   Foreground="{StaticResource AccentPurple}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Angle Change" Style="{StaticResource LabelTextStyle}"/>
                         <TextBlock x:Name="AngleChangeText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#A855F7"/>
+                                   Foreground="{StaticResource AccentPurple}"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Jitter" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Rapid involuntary micro-movements that aren't intentional aim. High jitter can indicate grip tension, fatigue, or sensitivity set too high."/>
                         <TextBlock x:Name="JitterText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#A855F7"/>
+                                   Foreground="{StaticResource AccentPurple}"/>
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,8"/>
 
                         <TextBlock Text="Movement Density" Style="{StaticResource LabelTextStyle}"
                                    ToolTip="Active movement events per second across the full session — how busy your aim is over time."/>
                         <TextBlock x:Name="DensityText" Text="--" Style="{StaticResource ValueTextStyle}"
-                                   Foreground="#A855F7"/>
+                                   Foreground="{StaticResource AccentPurple}"/>
 
                         <!-- Verdict line -->
                         <TextBlock x:Name="SmoothnessVerdictText" Text=""
@@ -984,7 +984,7 @@
                                     <TextBlock Text="📋 " FontSize="12" VerticalAlignment="Center"/>
                                     <TextBlock Text="Session complete"
                                                FontSize="11" FontWeight="Bold"
-                                               Foreground="#00D4FF"
+                                               Foreground="{StaticResource AccentPrimary}"
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <TextBlock Text="View your coaching report"
@@ -1156,7 +1156,7 @@
                                 <TextBlock Text="⚡ " FontSize="12" VerticalAlignment="Center"/>
                                 <TextBlock Text="DAILY CHALLENGE"
                                            FontSize="10" FontWeight="Bold"
-                                           Foreground="#00D4FF"
+                                           Foreground="{StaticResource AccentPrimary}"
                                            VerticalAlignment="Center"/>
                                 <TextBlock x:Name="ChallengeStatusBadge"
                                            Text=" · Active"

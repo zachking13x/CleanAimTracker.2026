@@ -353,18 +353,17 @@ namespace CleanAimTracker.Services
                 && (r.Scenario == "Flicking" || r.Scenario == "Switching"))
             {
                 list.Add(Pick(c.TotalSessionsAll,
-                    $"Your reaction time ({r.AvgReactionMs:F0}ms) looks slow but your correction sharpness " +
-                    $"({c.TrackerCorrectionSharpness.Value:F0}) tells a different story — you are overshooting " +
-                    "and yanking back to correct. That correction cycle adds 80-150ms artificially. " +
+                    $"Your reaction time looks slow but your movement data tells a different story — you are overshooting " +
+                    "and yanking back to correct. That correction cycle adds a significant delay artificially. " +
                     "The fix is smoother first motion, not faster reflexes.",
 
-                    $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) " +
-                    "is wider than expected. Combined with your correction sharpness score, this points to " +
-                    "overshoot-correction cycles. You can react fast — you just need to trust that first motion more.",
+                    $"The gap between your best and average reaction time is wider than expected. " +
+                    "Your movement data points to overshoot-correction cycles — you can react fast, " +
+                    "you just need to trust that first motion more instead of second-guessing it.",
 
-                    $"High correction sharpness with slow average reaction is a specific pattern — " +
+                    "High correction activity with slow average reaction is a specific pattern — " +
                     "your instinct is right but your follow-through overshoots. " +
-                    $"Best reaction {r.BestReactionMs:F0}ms proves the speed is there. Train the first motion, not the reaction."
+                    $"Your best reaction of {r.BestReactionMs:F0}ms proves the speed is there. Train the first motion, not the reaction."
                 ));
                 return list;
             }
@@ -378,18 +377,17 @@ namespace CleanAimTracker.Services
                 && r.Scenario == "Tracking")
             {
                 list.Add(Pick(c.TotalSessionsAll,
-                    $"Low smoothness ({c.TrackerSmoothness.Value:F0}/100) combined with " +
-                    $"low sensitivity ({c.TrackerCmPer360.Value:F1} cm/360) is a specific problem — " +
-                    "at that sensitivity range small imperfections in movement get amplified. " +
-                    "Raising your cm/360 above 25 will likely improve smoothness without changing your mechanics.",
+                    "Your mouse movement was inconsistent this session — and your sensitivity may be making it worse. " +
+                    "When sensitivity is very high, small hand movements cause large cursor jumps which makes smooth tracking much harder. " +
+                    "Try lowering your in-game sensitivity slightly before your next session and see if your movement feels more controlled.",
 
-                    $"Your smoothness score ({c.TrackerSmoothness.Value:F0}) and sensitivity ({c.TrackerCmPer360.Value:F1} cm/360) " +
-                    "are fighting each other. The sensitivity is amplifying micro-tremors in your movement. " +
+                    "Your movement data and your sensitivity are working against each other. " +
+                    "High sensitivity amplifies every small imperfection in your hand movement, making fluid tracking harder to achieve. " +
                     "Try the sensitivity recommendation before concluding your tracking mechanics need work.",
 
-                    $"Smoothness {c.TrackerSmoothness.Value:F0}/100 at {c.TrackerCmPer360.Value:F1} cm/360 — " +
-                    "this combination suggests settings are the bottleneck, not skill. " +
-                    "Higher cm/360 gives the motor system more room to work with."
+                    "Your movement inconsistency this session looks like a settings problem, not a skill problem. " +
+                    "When sensitivity is on the higher end, your hand has less room to work with and small tremors get magnified into large cursor swings. " +
+                    "Lower your in-game sensitivity slightly and retest — the difference is usually noticeable immediately."
                 ));
                 return list;
             }
@@ -425,16 +423,15 @@ namespace CleanAimTracker.Services
                     {
                         if (c.TrackerCmPer360.Value < 20)
                         {
-                            list.Add($"Your sensitivity is too high for Precision — your mouse only travels " +
-                                     $"{c.TrackerCmPer360.Value:F1} cm per full turn, which makes micro-adjustments " +
-                                     "on small targets physically very difficult. This is a settings problem, not a skill problem. " +
+                            list.Add("Your sensitivity is too high for Precision — micro-adjustments on small targets become " +
+                                     "physically very difficult when sensitivity is this high. This is a settings problem, not a skill problem. " +
                                      "Lower your in-game sensitivity and retest.");
                             break;
                         }
                         else if (c.TrackerCmPer360.Value > 55)
                         {
-                            list.Add($"Your sensitivity is too low for Precision — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
-                                     "your cursor moves too little per hand movement, making it hard to snap onto small targets quickly. " +
+                            list.Add("Your sensitivity is too low for Precision — your cursor moves too little per hand movement, " +
+                                     "making it hard to snap onto small targets quickly. " +
                                      "Raise your in-game sensitivity and retest.");
                             break;
                         }
@@ -443,15 +440,15 @@ namespace CleanAimTracker.Services
                     {
                         if (c.TrackerCmPer360.Value < 15)
                         {
-                            list.Add($"Your sensitivity is too high for Tracking — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
-                                     "fluid wrist movement is nearly impossible. Lower your in-game sensitivity so your mouse " +
+                            list.Add("Your sensitivity is too high for Tracking — fluid wrist movement is nearly impossible " +
+                                     "at this sensitivity level. Lower your in-game sensitivity so your mouse " +
                                      "travels further across the pad per turn.");
                             break;
                         }
                         else if (c.TrackerCmPer360.Value > 65)
                         {
-                            list.Add($"Your sensitivity is too low for Tracking — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
-                                     "small hand movements cause large cursor jumps, making smooth follow-through very difficult. " +
+                            list.Add("Your sensitivity is too low for Tracking — small hand movements are causing large cursor jumps, " +
+                                     "making smooth follow-through very difficult. " +
                                      "Raise your in-game sensitivity slightly.");
                             break;
                         }
@@ -467,9 +464,9 @@ namespace CleanAimTracker.Services
                         && c.TrackerCorrectionSharpness.Value > 60
                         && c.ReactionGrade == "slow")
                     {
-                        list.Add($"Your reaction time looks slow at {r.AvgReactionMs:F0}ms but your correction sharpness score " +
-                                 $"({c.TrackerCorrectionSharpness.Value:F0}) suggests you are overshooting and correcting — " +
-                                 "that adds 80-150ms artificially. The fix is smoother initial movement, not faster reactions. " +
+                        list.Add($"Your reaction time looks slow at {r.AvgReactionMs:F0}ms but your movement data " +
+                                 "suggests you are overshooting and correcting — " +
+                                 "that correction cycle adds a significant delay artificially. The fix is smoother initial movement, not faster reactions. " +
                                  "Focus on landing on the target in one motion instead of correcting after overshoot.");
                     }
                     else
@@ -513,9 +510,8 @@ namespace CleanAimTracker.Services
                 && r.Scenario == "Tracking"
                 && r.Accuracy < 65)
             {
-                list.Add($"Your smoothness score from your last tracker session was {c.TrackerSmoothness.Value:F0}/100. " +
-                         "That level of jitter makes consistent tracking physically harder — " +
-                         "check your grip, surface friction, and make sure your mousepad is clean and flat.");
+                list.Add("Your movement was noticeably choppy this session — that level of jitter makes consistent tracking physically harder. " +
+                         "Check your grip, surface friction, and make sure your mousepad is clean and flat.");
             }
 
             // Scenario-specific tips — only add if there is still room; smoothness diagnosis above takes priority.
@@ -556,14 +552,14 @@ namespace CleanAimTracker.Services
                 case "Precision":
                     if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value < 20)
                     {
-                        tips.Add($"Your primary fix is to lower your in-game sensitivity — at {c.TrackerCmPer360.Value:F1} cm per full turn " +
-                                 "micro-adjustments on small targets are physically very hard. Use the Recommend screen to find your target range, " +
+                        tips.Add("Your primary fix is to lower your in-game sensitivity — micro-adjustments on small targets are " +
+                                 "physically very hard at high sensitivity. Use the Recommend screen to find your target range, " +
                                  "then retest Precision at the new setting before drawing conclusions about your skill level.");
                     }
                     else if (c.TrackerCmPer360.HasValue && c.TrackerCmPer360.Value > 55)
                     {
-                        tips.Add($"Lower your in-game sensitivity first — at {c.TrackerCmPer360.Value:F1} cm per full turn small targets " +
-                                 "will always feel unpredictable. Aim for the 25–50 cm range and your Precision accuracy will improve immediately.");
+                        tips.Add("Lower your in-game sensitivity first — at very low sensitivity small targets " +
+                                 "will always feel unpredictable. Bring it into a more controlled range and your Precision accuracy will improve immediately.");
                     }
                     else
                     {

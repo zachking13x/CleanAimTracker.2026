@@ -1,4 +1,5 @@
-﻿using CleanAimTracker.Services;
+﻿using CleanAimTracker.Models;
+using CleanAimTracker.Services;
 using CleanAimTracker.Windows;
 using System.Windows;
 
@@ -15,6 +16,7 @@ namespace CleanAimTracker
             // before MainWindow.Show() is reached).
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+            GameProfile.ValidateProfiles(); // guard against bad yaw values like Fortnite's 0.5585 regression
             TrialService.Initialize();
             _ = LicenseService.InitializeAsync(); // background — does not block startup
 
@@ -35,8 +37,11 @@ namespace CleanAimTracker
             MainWindow    = main;
             ShutdownMode  = ShutdownMode.OnMainWindowClose;
 
-            // TASK-17: Re-engagement toast — fire after main window shows so app is registered
+            // Toast notifications — all non-critical, fire after main window shows
             ToastService.CheckAndNotify();
+            ToastService.CheckAndScheduleReEngagement();
+            ToastService.ScheduleStreakAtRiskIfNeeded();
+            ToastService.ScheduleWeeklySummaryIfNeeded();
         }
     }
 }

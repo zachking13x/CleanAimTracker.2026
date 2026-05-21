@@ -39,6 +39,11 @@ namespace CleanAimTracker.Windows
         // Score (kept at window level)
         private int _score;
 
+        // Hot streak system
+        private int    _consecutiveHits  = 0;
+        private bool   _isHotStreak      = false;
+        private double _scoreMultiplier  = 1.0;
+
         // Scenario selection
         private string _scenario = "Tracking";
         private string _difficulty = "Medium";
@@ -67,6 +72,7 @@ namespace CleanAimTracker.Windows
         private int    _warmupTotalMisses  = 0;
         private double _warmupTotalReactionMs = 0;
         private double _warmupBestReaction = double.MaxValue;
+        private int    _warmupMaxStreak    = 0;
 
         private static readonly string[] WarmupScenarioOrder =
             new[] { "Precision", "Tracking", "Flicking", "Switching" };
@@ -93,6 +99,7 @@ namespace CleanAimTracker.Windows
             Loaded += (_, _) =>
             {
                 _uiReady = true;
+                RefreshNightmareLock();
                 if (_preSelectScenario != null)
                     ApplyPreSelection(_preSelectScenario, _preSelectDifficulty ?? "Medium");
             };
@@ -316,8 +323,13 @@ namespace CleanAimTracker.Windows
 
         private void StartDrill()
         {
-            _isRunning = true;
-            _score = 0;
+            _isRunning        = true;
+            _score            = 0;
+            _consecutiveHits  = 0;
+            _isHotStreak      = false;
+            _scoreMultiplier  = 1.0;
+            HotStreakBanner.Visibility  = Visibility.Collapsed;
+            CanvasGlowBorder.Visibility = Visibility.Collapsed;
 
             IdleMessage.Visibility = Visibility.Collapsed;
             StartStopBtn.Content = "■  Stop Drill";
@@ -338,6 +350,7 @@ namespace CleanAimTracker.Windows
                 _warmupTotalMisses     = 0;
                 _warmupTotalReactionMs = 0;
                 _warmupBestReaction    = double.MaxValue;
+                _warmupMaxStreak       = 0;
                 _secondsLeft           = 60;
 
                 WarmUpRoundText.Text       = $"Round 1/4 — {WarmupScenarioOrder[0]}";
@@ -406,6 +419,8 @@ namespace CleanAimTracker.Windows
                     _warmupTotalReactionMs += statsSource.AvgReactionMs * statsSource.Hits;
                     if (statsSource.BestReactionMs < _warmupBestReaction)
                         _warmupBestReaction = statsSource.BestReactionMs;
+                    if (statsSource.MaxStreak > _warmupMaxStreak)
+                        _warmupMaxStreak = statsSource.MaxStreak;
                 }
                 _isWarmupMode = false;
 
@@ -443,6 +458,8 @@ namespace CleanAimTracker.Windows
                 {
                     var result = BuildResult(statsSource);
                     SaveResult(result);
+                    CheckNightmareUnlock(result);
+                    RefreshNightmareLock();
                     new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
                     new RecommendationWindow(BuildRecommendation(result)) { Owner = this }.ShowDialog();
                 }
@@ -487,11 +504,18 @@ namespace CleanAimTracker.Windows
 
             if (hit)
             {
-                _score += 100;
+                _consecutiveHits++;
+                if (!_isHotStreak && _consecutiveHits >= 5)
+                    ActivateHotStreak();
+
+                _score += (int)(100 * _scoreMultiplier);
                 PlayHitEffect(pos);
             }
             else
             {
+                _consecutiveHits = 0;
+                if (_isHotStreak)
+                    DeactivateHotStreak();
                 PlayMissEffect(pos);
             }
 
@@ -586,6 +610,72 @@ namespace CleanAimTracker.Windows
         }
 
         // ─────────────────────────────────────────────────────────────
+        // HOT STREAK
+        // ─────────────────────────────────────────────────────────────
+        private void ActivateHotStreak()
+        {
+            _isHotStreak     = true;
+            _scoreMultiplier = 2.0;
+            HotStreakBanner.Visibility  = Visibility.Visible;
+            CanvasGlowBorder.Visibility = Visibility.Visible;
+        }
+
+        private void DeactivateHotStreak()
+        {
+            _isHotStreak     = false;
+            _scoreMultiplier = 1.0;
+            HotStreakBanner.Visibility  = Visibility.Collapsed;
+            CanvasGlowBorder.Visibility = Visibility.Collapsed;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // NIGHTMARE LOCK
+        // ─────────────────────────────────────────────────────────────
+        private void RefreshNightmareLock()
+        {
+            bool unlocked = IsNightmareUnlocked();
+            NightmareItem.IsEnabled = unlocked;
+            NightmareItem.Content   = unlocked ? "Nightmare" : "🔒 Nightmare";
+            NightmareItem.ToolTip   = unlocked ? null : "Reach 80%+ accuracy on Hard to unlock";
+        }
+
+        private static bool IsNightmareUnlocked()
+        {
+            var all = AimTrainerStorage.LoadAll();
+            return all.Any(r => r.Difficulty == "Hard" && r.Accuracy >= 80.0);
+        }
+
+        /// <summary>
+        /// Checks whether the just-completed result is the first time the user
+        /// unlocked Nightmare difficulty, and fires a toast notification if so.
+        /// </summary>
+        private static void CheckNightmareUnlock(AimTrainerResult result)
+        {
+            if (result.Difficulty != "Hard" || result.Accuracy < 80.0) return;
+
+            // Only fire once — check whether Nightmare was already unlocked before this session
+            var all    = AimTrainerStorage.LoadAll();
+            var before = all.Where(r => r.Timestamp < result.Timestamp)
+                            .Any(r => r.Difficulty == "Hard" && r.Accuracy >= 80.0);
+            if (before) return; // Already unlocked previously
+
+            // First time — fire the unlock toast
+            try
+            {
+                var xml = global::Windows.UI.Notifications.ToastNotificationManager
+                    .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+                var nodes = xml.GetElementsByTagName("text");
+                nodes[0].AppendChild(xml.CreateTextNode("Nightmare unlocked! 💀"));
+                nodes[1].AppendChild(xml.CreateTextNode(
+                    $"You hit {result.Accuracy:F0}% on Hard. Nightmare difficulty is now available."));
+                global::Windows.UI.Notifications.ToastNotificationManager
+                    .CreateToastNotifier("CleanAimTracker")
+                    .Show(new global::Windows.UI.Notifications.ToastNotification(xml));
+            }
+            catch { }
+        }
+
+        // ─────────────────────────────────────────────────────────────
         // LIVE STATS
         // ─────────────────────────────────────────────────────────────
         private void UpdateTimerDisplay()
@@ -636,9 +726,8 @@ namespace CleanAimTracker.Windows
                 LiveReactionText.Text = "--";
                 StreakText.Text       = "0";
                 // Canvas overlay reset
-                CanvasAccText.Text    = "—";
-                CanvasStreakText.Text  = "—";
-                CanvasHitsText.Text   = "—";
+                CanvasAccText.Text  = "—";
+                CanvasHitsText.Text = "—";
                 return;
             }
 
@@ -659,10 +748,9 @@ namespace CleanAimTracker.Windows
 
             StreakText.Text = _scenarioInstance.MaxStreak.ToString();
 
-            // TASK-3F: Canvas overlay
-            CanvasAccText.Text   = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "—";
-            CanvasStreakText.Text = _scenarioInstance.MaxStreak.ToString();
-            CanvasHitsText.Text  = hits.ToString();
+            // TASK-3F: Canvas overlay (ACC + HIT only — streak shown in top bar)
+            CanvasAccText.Text  = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "—";
+            CanvasHitsText.Text = hits.ToString();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -702,6 +790,8 @@ namespace CleanAimTracker.Windows
                 _warmupTotalReactionMs += _scenarioInstance.AvgReactionMs * _scenarioInstance.Hits;
                 if (_scenarioInstance.BestReactionMs < _warmupBestReaction)
                     _warmupBestReaction = _scenarioInstance.BestReactionMs;
+                if (_scenarioInstance.MaxStreak > _warmupMaxStreak)
+                    _warmupMaxStreak = _scenarioInstance.MaxStreak;
                 _scenarioInstance.Stop(TargetCanvas);
                 _scenarioInstance = null;
             }
@@ -743,7 +833,7 @@ namespace CleanAimTracker.Windows
                 Score           = _score,
                 AvgReactionMs   = avgReact,
                 BestReactionMs  = bestReact,
-                MaxStreak       = 0,
+                MaxStreak       = _warmupMaxStreak,
             };
         }
 
@@ -782,7 +872,17 @@ namespace CleanAimTracker.Windows
 
         private static void SaveResult(AimTrainerResult result)
         {
-            try { AimTrainerStorage.Save(result); }
+            try
+            {
+                AimTrainerStorage.Save(result);
+                // Reset re-engagement flag so it can fire again after the next absence gap
+                var settings = SettingsService.Load();
+                if (settings.ReEngagementNotificationSent)
+                {
+                    settings.ReEngagementNotificationSent = false;
+                    SettingsService.Save(settings);
+                }
+            }
             catch (Exception ex) { LogService.Error("Failed to save trainer result", ex); }
         }
 

@@ -116,6 +116,49 @@ namespace CleanAimTracker.Windows
         public string RecommendedSensitivityRange =>
             $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
 
+        /// <summary>
+        /// The single plain instruction shown directly below the hero number.
+        /// Updates whenever the selected game changes.
+        /// Example: "In Fortnite, change your sensitivity from 0.5000 to 0.4252."
+        /// </summary>
+        public string PlainActionLine
+        {
+            get
+            {
+                string game = _selectedGame?.GameName ?? "your game";
+                return $"In {game}, change your sensitivity from " +
+                       $"{_rec.CurrentSensitivity:F4} to {_rec.RecommendedSensitivity:F4}.";
+            }
+        }
+
+        /// <summary>
+        /// Plain-English description of what the cm/360 value means to the user,
+        /// without percentages or directional jargon.
+        /// Example: "Your mouse will travel 38.4 cm per full turn — up from 32.7 cm.
+        ///           This feels slower but gives you more precision."
+        /// </summary>
+        public string Cm360PlainDesc
+        {
+            get
+            {
+                double rec = _rec.RecommendedCm360;
+                double cur = _rec.CurrentCm360;
+
+                if (Math.Abs(rec - cur) < 0.1)
+                    return $"Your mouse will travel {rec:F1} cm per full turn — " +
+                            "the same as your current setup.";
+
+                bool bigger        = rec > cur;
+                string direction   = bigger ? "up"      : "down";
+                string feel        = bigger ? "slower"  : "snappier";
+                string tradeoff    = bigger ? "more precision" : "a faster feel";
+
+                return $"Your mouse will travel {rec:F1} cm per full turn — " +
+                       $"{direction} from {cur:F1} cm. " +
+                       $"This feels {feel} but gives you {tradeoff}.";
+            }
+        }
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public RecommendationWindow(SensitivityRecommendation rec)
@@ -178,6 +221,7 @@ namespace CleanAimTracker.Windows
                 .Select(l => new SettingRow(l)).ToList();
 
             OnPropertyChanged(nameof(HasAdsScopeSection));
+            OnPropertyChanged(nameof(PlainActionLine));
         }
 
         protected void OnPropertyChanged(string name)

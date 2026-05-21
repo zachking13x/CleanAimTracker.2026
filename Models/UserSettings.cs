@@ -38,5 +38,18 @@
 
         // Update banner — tracks last version the user has seen the What's New banner for
         public string LastVersionSeen { get; set; } = "";
+
+        // Re-engagement notifications — reset to false after each session
+        public bool ReEngagementNotificationSent { get; set; } = false;
+
+        // See You Tomorrow prompt — shown at most once per calendar day
+        public DateTime LastTomorrowPromptDate { get; set; } = DateTime.MinValue;
+
+        // XP + Level system
+        public int TotalXP      { get; set; } = 0;
+        public int CurrentLevel { get; set; } = 1;
+
+        // Weekly summary notification
+        public DateTime LastWeeklySummaryDate { get; set; } = DateTime.MinValue;
     }
 }

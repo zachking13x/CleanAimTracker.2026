@@ -6,6 +6,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 
 namespace CleanAimTracker.Windows
 {
@@ -36,6 +39,11 @@ namespace CleanAimTracker.Windows
             {
                 _ = EvaluateAchievementsAsync(result);
                 _ = LoadPersonalBestsAsync(result);
+                _ = ShowXpAsync(result);
+
+                // Show share button when accuracy warrants it
+                if (result.Accuracy >= 75)
+                    ShareBtn.Visibility = Visibility.Visible;
             }
         }
 
@@ -62,8 +70,12 @@ namespace CleanAimTracker.Windows
         {
             try
             {
-                var settings   = SettingsService.Load();
                 var allResults = await Task.Run(() => AimTrainerStorage.LoadAll());
+
+                // Reload settings after the async disk I/O so any save that happened
+                // on the UI thread (e.g. Close_Click writing LastTomorrowPromptDate)
+                // is not overwritten by a stale copy.
+                var settings = SettingsService.Load();
 
                 // Daily challenge — TryComplete increments settings.ChallengesCompleted on success
                 var challenge = DailyChallengeService.GetToday();
@@ -118,34 +130,60 @@ namespace CleanAimTracker.Windows
                 Dispatcher.Invoke(() =>
                 {
                     PBBadgesPanel.Children.Clear();
-                    void AddBadge(string label, string bg)
+
+                    // Collect which badges earned this session
+                    var badgesToShow = new List<(string label, string bg)>();
+                    if (isBestScore)    badgesToShow.Add(("🏆 New Best Score!", "#1B5E20"));
+                    if (isBestAccuracy) badgesToShow.Add(("🎯 Best Accuracy!",  "#0D47A1"));
+                    if (isBestReaction) badgesToShow.Add(("⚡ Best Reaction!",  "#E65100"));
+                    if (isBestStreak)   badgesToShow.Add(("🔥 Best Streak!",    "#4A148C"));
+
+                    if (badgesToShow.Count > 0)
                     {
-                        var b = new Border
+                        PBBadgesPanel.Visibility = Visibility.Visible;
+
+                        // Stagger each badge 150 ms apart — turns a data dump into a reveal
+                        for (int i = 0; i < badgesToShow.Count; i++)
                         {
-                            Background  = new System.Windows.Media.SolidColorBrush(
-                                (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(bg)),
-                            CornerRadius = new CornerRadius(6),
-                            Padding      = new Thickness(10, 4, 10, 4),
-                            Margin       = new Thickness(0, 0, 8, 0),
-                        };
-                        b.Child = new TextBlock
-                        {
-                            Text       = label,
-                            FontSize   = 11,
-                            FontWeight = FontWeights.Bold,
-                            Foreground = System.Windows.Media.Brushes.White,
-                        };
-                        PBBadgesPanel.Children.Add(b);
+                            var (label, bg) = badgesToShow[i];
+                            int delayMs = i * 150;
+
+                            var b = new Border
+                            {
+                                Background   = new SolidColorBrush(
+                                    (Color)ColorConverter.ConvertFromString(bg)),
+                                CornerRadius = new CornerRadius(6),
+                                Padding      = new Thickness(10, 4, 10, 4),
+                                Margin       = new Thickness(0, 0, 8, 0),
+                                Opacity      = 0,   // start invisible; animation reveals it
+                            };
+                            b.Child = new TextBlock
+                            {
+                                Text       = label,
+                                FontSize   = 11,
+                                FontWeight = FontWeights.Bold,
+                                Foreground = Brushes.White,
+                            };
+                            PBBadgesPanel.Children.Add(b);
+
+                            var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200))
+                            {
+                                BeginTime      = TimeSpan.FromMilliseconds(delayMs),
+                                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                            };
+                            b.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                        }
                     }
-
-                    if (isBestScore)    AddBadge("🏆 New Best Score!",    "#1B5E20");
-                    if (isBestAccuracy) AddBadge("🎯 Best Accuracy!",     "#0D47A1");
-                    if (isBestReaction) AddBadge("⚡ Best Reaction!",     "#E65100");
-                    if (isBestStreak)   AddBadge("🔥 Best Streak!",       "#4A148C");
-
-                    PBBadgesPanel.Visibility = PBBadgesPanel.Children.Count > 0
-                        ? Visibility.Visible : Visibility.Collapsed;
+                    else
+                    {
+                        PBBadgesPanel.Visibility = Visibility.Collapsed;
+                    }
                 });
+
+                // Delayed gold celebration banner for any new personal best
+                bool anyPB = isBestScore || isBestAccuracy || isBestReaction || isBestStreak;
+                if (anyPB)
+                    _ = CelebratePersonalBests(isBestScore, isBestAccuracy, isBestReaction, isBestStreak);
 
                 // ── TASK-17: Top 5 by score for this scenario ─────────────
                 var top5 = all
@@ -185,6 +223,209 @@ namespace CleanAimTracker.Windows
             public string AccuracyDisplay { get; set; } = "";
             public string ReactionDisplay { get; set; } = "";
             public string ScoreDisplay    { get; set; } = "";
+        }
+
+        // ── XP system ────────────────────────────────────────────────
+        private async Task ShowXpAsync(AimTrainerResult result)
+        {
+            try
+            {
+                var (xpEarned, oldLevel, newLevel) = await Task.Run(() => XPService.AwardXP(result));
+                var settings = await Task.Run(() => SettingsService.Load());
+                var (current, range) = XPService.LevelProgress(settings.TotalXP, newLevel);
+
+                Dispatcher.Invoke(() =>
+                {
+                    XpEarnedText.Text = $"+{xpEarned} XP";
+                    XpLevelText.Text  = $"LEVEL {newLevel}";
+
+                    // Animate XP bar fill
+                    double maxWidth  = (XpProgressBar.Parent as FrameworkElement)?.ActualWidth ?? 400;
+                    double fillRatio = Math.Clamp((double)current / range, 0, 1);
+                    var anim = new DoubleAnimation(0, maxWidth * fillRatio,
+                        TimeSpan.FromMilliseconds(900))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                        BeginTime      = TimeSpan.FromMilliseconds(300),
+                    };
+                    XpProgressBar.BeginAnimation(FrameworkElement.WidthProperty, anim);
+
+                    // Show level-up banner when level increased
+                    if (newLevel > oldLevel)
+                    {
+                        LevelUpText.Text           = $"LEVEL UP!  You reached Level {newLevel}";
+                        LevelUpBanner.Visibility   = Visibility.Visible;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("XP display failed", ex);
+            }
+        }
+
+        // ── Personal best gold banner (delayed) ──────────────────────
+        private async Task CelebratePersonalBests(
+            bool isBestScore, bool isBestAccuracy, bool isBestReaction, bool isBestStreak)
+        {
+            try
+            {
+                await Task.Delay(800);
+
+                Dispatcher.Invoke(() =>
+                {
+                    // Build detail string
+                    var parts = new System.Collections.Generic.List<string>();
+                    if (isBestScore)    parts.Add("score");
+                    if (isBestAccuracy) parts.Add("accuracy");
+                    if (isBestReaction) parts.Add("reaction time");
+                    if (isBestStreak)   parts.Add("streak");
+
+                    PBBannerDetail.Text = parts.Count > 0
+                        ? $"New record: {string.Join(", ", parts)}"
+                        : string.Empty;
+
+                    PBBanner.Visibility = Visibility.Visible;
+
+                    // Fade in
+                    var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(400))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    PBBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                });
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("PB celebration failed", ex);
+            }
+        }
+
+        // ── Share result card ─────────────────────────────────────────
+        private void ShareResult_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var bmp = BuildShareCard();
+                Clipboard.SetImage(bmp);
+                MessageBox.Show(
+                    "Session card copied to clipboard — paste it anywhere!",
+                    "Copied",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.None);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Share card build failed", ex);
+                MessageBox.Show("Couldn't build share card.", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        private BitmapSource BuildShareCard()
+        {
+            // Build a small styled card in memory and render it
+            var card = new Border
+            {
+                Width           = 500,
+                Height          = 220,
+                Background      = new SolidColorBrush(Color.FromRgb(0x0D, 0x11, 0x17)),
+                BorderBrush     = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius    = new CornerRadius(12),
+                Padding         = new Thickness(28, 20, 28, 20),
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // Header row: scenario badge + score
+            var headerGrid = new Grid();
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var badge = new TextBlock
+            {
+                Text       = _result.Scenario.ToUpperInvariant() + $"  •  {_result.Difficulty}  •  {_result.DurationSeconds}s",
+                FontSize   = 11,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x9B, 0xAE)),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            Grid.SetColumn(badge, 0);
+
+            var scoreLabel = new TextBlock
+            {
+                Text       = _result.Score.ToString("N0"),
+                FontSize   = 36,
+                FontWeight = FontWeights.Black,
+                Foreground = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF)),
+            };
+            Grid.SetColumn(scoreLabel, 1);
+
+            headerGrid.Children.Add(badge);
+            headerGrid.Children.Add(scoreLabel);
+            Grid.SetRow(headerGrid, 0);
+
+            // Stats row
+            var statsPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin      = new Thickness(0, 12, 0, 12),
+            };
+
+            void AddStat(string label, string value, Color color)
+            {
+                var sp = new StackPanel { Margin = new Thickness(0, 0, 28, 0) };
+                sp.Children.Add(new TextBlock
+                {
+                    Text       = label,
+                    FontSize   = 9,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x4A, 0x5A, 0x6A)),
+                });
+                sp.Children.Add(new TextBlock
+                {
+                    Text       = value,
+                    FontSize   = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(color),
+                });
+                statsPanel.Children.Add(sp);
+            }
+
+            AddStat("ACCURACY",     $"{_result.Accuracy:F0}%",        Color.FromRgb(0x00, 0xE5, 0xA0));
+            AddStat("AVG REACTION", $"{_result.AvgReactionMs:F0}ms",  Color.FromRgb(0xF0, 0xF4, 0xF8));
+            AddStat("BEST STREAK",  _result.MaxStreak.ToString(),     Color.FromRgb(0xF5, 0xC8, 0x42));
+
+            Grid.SetRow(statsPanel, 1);
+
+            // Branding
+            var brandText = new TextBlock
+            {
+                Text       = "Clean Aim Tracker",
+                FontSize   = 10,
+                Foreground = new SolidColorBrush(Color.FromArgb(0x66, 0x00, 0xD4, 0xFF)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+            };
+            Grid.SetRow(brandText, 3);
+
+            grid.Children.Add(headerGrid);
+            grid.Children.Add(statsPanel);
+            grid.Children.Add(brandText);
+            card.Child = grid;
+
+            // Measure + arrange + render
+            card.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            card.Arrange(new Rect(card.DesiredSize));
+            card.UpdateLayout();
+
+            var rtb = new RenderTargetBitmap(500, 220, 96, 96, PixelFormats.Pbgra32);
+            rtb.Render(card);
+            return rtb;
         }
 
         // ── Populate stats immediately ────────────────────────────────
@@ -326,14 +567,23 @@ namespace CleanAimTracker.Windows
             // Skip prompt when opened as a replay from Last Report
             if (_isReplay) { Close(); return; }
 
-            var response = MessageBox.Show(
-                "Come back tomorrow — 3 sessions builds a reliable trend.\n\nSchedule a reminder?",
-                "See You Tomorrow",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.None);
+            // Only show the tomorrow prompt once per calendar day
+            var settings = SettingsService.Load();
+            LogService.Info("TomorrowPrompt: last=" + settings.LastTomorrowPromptDate.Date + " today=" + DateTime.Today);
+            if (settings.LastTomorrowPromptDate.Date < DateTime.Today)
+            {
+                settings.LastTomorrowPromptDate = DateTime.Today;
+                SettingsService.Save(settings);
 
-            if (response == MessageBoxResult.Yes)
-                ToastService.ScheduleTomorrowReminder();
+                var response = MessageBox.Show(
+                    "Come back tomorrow — 3 sessions builds a reliable trend.\n\nSchedule a reminder?",
+                    "See You Tomorrow",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.None);
+
+                if (response == MessageBoxResult.Yes)
+                    ToastService.ScheduleTomorrowReminder();
+            }
 
             Close();
         }

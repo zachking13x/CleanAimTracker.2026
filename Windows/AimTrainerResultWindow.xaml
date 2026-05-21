@@ -159,8 +159,88 @@
 
                     <!-- ═══ TASK-16: Personal Best badges ═══ -->
                     <WrapPanel x:Name="PBBadgesPanel"
-                               Margin="0,0,0,16"
+                               Margin="0,0,0,12"
                                Visibility="Collapsed"/>
+
+                    <!-- ═══ PB CELEBRATION BANNER — gold, delayed fade-in ═══ -->
+                    <Border x:Name="PBBanner"
+                            Background="#1AF5C842"
+                            BorderBrush="{StaticResource AccentGold}"
+                            BorderThickness="0 0 0 2"
+                            CornerRadius="8"
+                            Padding="16,12"
+                            Margin="0,0,0,16"
+                            Opacity="0"
+                            Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🏆" FontSize="22"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,12,0"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="PBBannerTitle"
+                                           Text="NEW PERSONAL BEST!"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{StaticResource AccentGold}"/>
+                                <TextBlock x:Name="PBBannerDetail"
+                                           Text=""
+                                           FontSize="11"
+                                           Foreground="{DynamicResource SecondaryText}"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ═══ XP PANEL ═══ -->
+                    <Border x:Name="XpPanel"
+                            Background="{DynamicResource CardBackground}"
+                            CornerRadius="8"
+                            Padding="16,12"
+                            Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="⚡ " FontSize="13"
+                                               VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="XpEarnedText"
+                                               Text="+0 XP"
+                                               FontSize="13" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentGold}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="XpLevelText"
+                                           Text="LEVEL 1"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource MutedText}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                            <!-- XP progress bar -->
+                            <Border Background="{DynamicResource BgElevated}"
+                                    CornerRadius="4" Height="6">
+                                <Border x:Name="XpProgressBar"
+                                        Background="{StaticResource AccentGold}"
+                                        CornerRadius="4" Height="6"
+                                        HorizontalAlignment="Left"
+                                        Width="0"/>
+                            </Border>
+                            <!-- Level-up banner — revealed on level-up -->
+                            <Border x:Name="LevelUpBanner"
+                                    Margin="0,10,0,0"
+                                    Background="#1AF5C842"
+                                    CornerRadius="6"
+                                    Padding="10,7"
+                                    Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock Text="⬆ " FontSize="14" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentGold}"/>
+                                    <TextBlock x:Name="LevelUpText"
+                                               Text="LEVEL UP!"
+                                               FontSize="13" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentGold}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
 
                     <!-- ═══ TASK-17: Top 5 Sessions ═══ -->
                     <Border x:Name="Top5Panel"
@@ -364,17 +444,31 @@
                     CornerRadius="0 0 14 14"
                     Padding="24 16">
                 <Grid>
-                    <Button x:Name="PlayAgainBtn"
-                            Content="▶  Play Again"
-                            Click="PlayAgain_Click"
-                            Width="140" Height="38"
-                            HorizontalAlignment="Left"
-                            Background="{DynamicResource AccentBrush}"
-                            Foreground="Black"
-                            FontWeight="Bold"
-                            FontSize="13"
-                            BorderThickness="0"
-                            Cursor="Hand"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                        <Button x:Name="PlayAgainBtn"
+                                Content="▶  Play Again"
+                                Click="PlayAgain_Click"
+                                Width="140" Height="38"
+                                Margin="0,0,10,0"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="Black"
+                                FontWeight="Bold"
+                                FontSize="13"
+                                BorderThickness="0"
+                                Cursor="Hand"/>
+                        <Button x:Name="ShareBtn"
+                                Content="📤  Share Result"
+                                Click="ShareResult_Click"
+                                Height="38"
+                                Padding="12,0"
+                                Background="{DynamicResource CardBackgroundAlt}"
+                                Foreground="{DynamicResource PrimaryText}"
+                                FontSize="12"
+                                BorderThickness="1"
+                                BorderBrush="#444"
+                                Cursor="Hand"
+                                Visibility="Collapsed"/>
+                    </StackPanel>
 
                     <Button Content="Close"
                             Click="Close_Click"

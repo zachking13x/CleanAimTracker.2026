@@ -76,6 +76,7 @@ namespace CleanAimTracker.Windows
         private double _sessionSeconds = 0;
         private DispatcherTimer? _countdownTimer;
         private int _onboardingCountdown = 3;
+        private DispatcherTimer? _challengeCountdownTimer;
 
         // DPI + SENSITIVITY
         private double _dpi = 800;
@@ -529,32 +530,7 @@ namespace CleanAimTracker.Windows
             TotalDistanceText.Text = "0";
             DxDyText.Text = "dX: 0  dY: 0";
 
-            double cm360 = CalculateCmPer360();
-
-            // Show game sensitivity as primary display
-            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0)
-            {
-                double gameSens = 914.4 / (cm360 * _dpi * _selectedProfile.YawPerCount);
-                if (!double.IsNaN(gameSens) && !double.IsInfinity(gameSens) && gameSens > 0)
-                {
-                    SensDisplayText.Text  = $"{gameSens:F4}";
-                    SensDisplayLabel.Text = $"{_selectedProfile.Name} Sensitivity";
-                }
-                else
-                {
-                    SensDisplayText.Text  = "--";
-                    SensDisplayLabel.Text = "Sensitivity";
-                }
-            }
-            else
-            {
-                // No profile / yaw — fall back to cm/360 as primary
-                SensDisplayText.Text  = $"{cm360:F2}";
-                SensDisplayLabel.Text = "Sensitivity";
-            }
-
-            // Always show cm/360 as secondary context
-            CmPer360Text.Text = cm360 > 0 ? $"{cm360:F1} cm/360" : "--";
+            UpdateSensitivityDisplay();
 
             try
             {
@@ -1015,9 +991,70 @@ namespace CleanAimTracker.Windows
             AimTrainerResultWindow.OpenLastReport(this);
         }
 
+        // ── DPI / SENSITIVITY INPUT ───────────────────────────────────
+
+        private void DpiInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (double.TryParse(DpiInput.Text, out double dpi) && dpi > 0)
+            {
+                _dpi = dpi;
+                var settings = SettingsService.Load();
+                settings.DPI = (int)dpi;
+                SettingsService.Save(settings);
+                UpdateSensitivityDisplay();
+            }
+        }
+
+        private void SensitivityInput_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (double.TryParse(SensitivityInput.Text, out double sens) && sens > 0)
+            {
+                _sensitivity = sens;
+                var settings = SettingsService.Load();
+                settings.Sensitivity = sens;
+                SettingsService.Save(settings);
+                UpdateSensitivityDisplay();
+            }
+        }
+
         // HELPERS
         private double CalculateCmPer360()
             => (360.0 / (_dpi * _sensitivity)) * 2.54;
+
+        /// <summary>
+        /// Refreshes the cm/360 and game-sensitivity display from the current
+        /// _dpi / _sensitivity / _selectedProfile values.
+        /// Called on LostFocus for both input fields and at the start of a session.
+        /// </summary>
+        private void UpdateSensitivityDisplay()
+        {
+            double cm360 = CalculateCmPer360();
+
+            // Show game sensitivity as primary display when a profile is loaded
+            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0)
+            {
+                double gameSens = 914.4 / (cm360 * _dpi * _selectedProfile.YawPerCount);
+                if (!double.IsNaN(gameSens) && !double.IsInfinity(gameSens) && gameSens > 0)
+                {
+                    SensDisplayText.Text  = $"{gameSens:F4}";
+                    SensDisplayLabel.Text = $"{_selectedProfile.Name} Sensitivity";
+                }
+                else
+                {
+                    SensDisplayText.Text  = "--";
+                    SensDisplayLabel.Text = "Sensitivity";
+                }
+            }
+            else
+            {
+                // No profile / yaw — fall back to cm/360 as primary
+                SensDisplayText.Text  = $"{cm360:F2}";
+                SensDisplayLabel.Text = "Sensitivity";
+            }
+
+            // Always show cm/360 as secondary context
+            CmPer360Text.Text = cm360 > 0 ? $"{cm360:F1} cm/360" : "--";
+        }
 
         private SessionSummary BuildSessionSummary()
         {
@@ -1192,8 +1229,11 @@ namespace CleanAimTracker.Windows
                     ChallengeStatusBadge.Text       = " · ✓ Done";
                     ChallengeStatusBadge.Foreground = new System.Windows.Media.SolidColorBrush(
                         System.Windows.Media.Color.FromRgb(76, 175, 80));
-                    ChallengeAcceptBtn.Visibility   = Visibility.Collapsed;
-                    ChallengeDoneText.Visibility    = Visibility.Visible;
+                    ChallengeAcceptBtn.Visibility         = Visibility.Collapsed;
+                    ChallengeDoneText.Visibility          = Visibility.Visible;
+                    ChallengeCountdownText.Visibility     = Visibility.Collapsed;
+                    _challengeCountdownTimer?.Stop();
+                    _challengeCountdownTimer = null;
                 }
                 else
                 {
@@ -1201,6 +1241,7 @@ namespace CleanAimTracker.Windows
                     ChallengeStatusBadge.Foreground = (System.Windows.Media.Brush)FindResource("SecondaryText");
                     ChallengeAcceptBtn.Visibility   = Visibility.Visible;
                     ChallengeDoneText.Visibility    = Visibility.Collapsed;
+                    StartChallengeCountdown();
                 }
 
                 // ── TASK-11: Achievement Badge Row ────────────────────────
@@ -1365,7 +1406,60 @@ namespace CleanAimTracker.Windows
         protected override void OnClosed(EventArgs e)
         {
             _rawInput.Stop();
+            _challengeCountdownTimer?.Stop();
+            _challengeCountdownTimer = null;
             base.OnClosed(e);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TASK-4A: Challenge countdown timer
+        // ─────────────────────────────────────────────────────────────
+        private void StartChallengeCountdown()
+        {
+            _challengeCountdownTimer?.Stop();
+            _challengeCountdownTimer = new DispatcherTimer
+                { Interval = TimeSpan.FromMinutes(1) };
+            _challengeCountdownTimer.Tick += (_, _) => UpdateChallengeCountdown();
+            _challengeCountdownTimer.Start();
+            UpdateChallengeCountdown(); // update immediately so label doesn't wait 1 min
+        }
+
+        private void UpdateChallengeCountdown()
+        {
+            var remaining = DateTime.Today.AddDays(1) - DateTime.Now;
+
+            // Only show when under 12 hours remain
+            if (remaining.TotalHours >= 12)
+            {
+                ChallengeCountdownText.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            if (remaining.TotalMinutes <= 0)
+            {
+                _challengeCountdownTimer?.Stop();
+                _challengeCountdownTimer = null;
+                ChallengeCountdownText.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            int h = (int)remaining.TotalHours;
+            int m = remaining.Minutes;
+
+            if (remaining.TotalHours < 3)
+            {
+                ChallengeCountdownText.Text       = $"⚠  {h}h {m:D2}m left";
+                ChallengeCountdownText.Foreground =
+                    (System.Windows.Media.Brush)FindResource("AccentOrange");
+            }
+            else
+            {
+                ChallengeCountdownText.Text       = $"⏱  {h}h {m:D2}m left";
+                ChallengeCountdownText.Foreground =
+                    (System.Windows.Media.Brush)FindResource("TextMuted");
+            }
+
+            ChallengeCountdownText.Visibility = Visibility.Visible;
         }
 
         // ─────────────────────────────────────────────────────────────

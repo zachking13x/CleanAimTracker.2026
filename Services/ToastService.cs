@@ -4,17 +4,19 @@ using System.Linq;
 namespace CleanAimTracker.Services
 {
     /// <summary>
-    /// TASK-17: Windows toast notifications for re-engagement.
-    /// Uses Windows.UI.Notifications (WinRT) available on net8.0-windows10.0.19041.0.
-    /// Called from App.xaml.cs on startup.
+    /// Windows toast notification service.
+    /// Uses Windows.UI.Notifications (WinRT) via net8.0-windows10.0.19041.0.
+    /// Uses global:: prefix throughout to avoid collision with CleanAimTracker.Windows namespace.
     /// </summary>
     public static class ToastService
     {
         private const string AppId = "CleanAimTracker";
 
+        // ── Public API ────────────────────────────────────────────────
+
         /// <summary>
         /// Shows a re-engagement toast if the user hasn't trained today
-        /// and their last session was ≥ 20 hours ago.
+        /// and their last aim trainer session was ≥ 20 hours ago.
         /// Silent if the user has no sessions yet or has already trained today.
         /// </summary>
         public static void CheckAndNotify()
@@ -22,90 +24,236 @@ namespace CleanAimTracker.Services
             try
             {
                 var sessions = SessionStorage.LoadAll();
-                if (sessions.Count == 0) return;          // first-timer — don't spam
+                if (sessions.Count == 0) return;
 
                 var last = sessions.OrderByDescending(s => s.Timestamp).FirstOrDefault();
                 if (last == null) return;
 
-                // Already trained today → no toast
                 if (last.Timestamp.Date == DateTime.Today) return;
-
-                // Less than 20 hours ago → too soon
                 if ((DateTime.Now - last.Timestamp).TotalHours < 20) return;
 
-                ShowReEngagementToast(last.Timestamp, last.OverallQualityScore);
+                ShowToast(
+                    "Time to train 🎯",
+                    $"Last session was {DayText(last.Timestamp)} (quality: {last.OverallQualityScore:F0}). " +
+                    "A quick session keeps your streak alive.");
             }
-            catch
-            {
-                // Silently swallow — toast is non-critical
-            }
+            catch { }
         }
 
         /// <summary>
-        /// Schedules a Windows toast for tomorrow at the same hour the user is training now.
-        /// Called when the user opts in via the "See You Tomorrow" prompt on Close.
+        /// Context-aware reminder scheduled for tomorrow at the same hour (clamped 10 am–9 pm).
+        /// Picks the most motivating message based on the user's actual state:
+        /// streak urgency → pending challenge → new user coaching → accuracy reference.
         /// </summary>
         public static void ScheduleTomorrowReminder()
         {
             try
             {
-                // Deliver at the same hour tomorrow, clamped to a polite window (10 am – 9 pm)
                 int hour         = Math.Clamp(DateTime.Now.Hour, 10, 21);
-                var deliveryTime = new DateTimeOffset(DateTime.Now.Date.AddDays(1).AddHours(hour));
+                var deliveryTime = DateTime.Now.Date.AddDays(1).AddHours(hour);
 
-                string title   = "Time to train 🎯";
-                string message = "You set a reminder yesterday. 3 sessions builds a real trend — today's the day.";
+                var settings  = SettingsService.Load();
+                var allDrills = AimTrainerStorage.LoadAll();
+                var lastDrill = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
 
-                var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
-                    .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+                string title;
+                string body;
 
-                var textNodes = toastXml.GetElementsByTagName("text");
-                textNodes[0].AppendChild(toastXml.CreateTextNode(title));
-                textNodes[1].AppendChild(toastXml.CreateTextNode(message));
+                // Priority 1: meaningful streak at risk (≥3 days)
+                if (settings.CurrentStreak >= 3)
+                {
+                    title = "Your streak is on the line 🔥";
+                    body  = $"Day {settings.CurrentStreak} streak — train today to keep it alive.";
+                }
+                // Priority 2: daily challenge hasn't been completed
+                else if (settings.LastChallengeDate.Date < DateTime.Today)
+                {
+                    title = "Daily challenge waiting 🎯";
+                    body  = "A new challenge is ready. Complete it before midnight to stay consistent.";
+                }
+                // Priority 3: new user (fewer than 3 sessions)
+                else if (allDrills.Count < 3)
+                {
+                    int n = allDrills.Count;
+                    title = "Build the habit early 💪";
+                    body  = $"Only {n} session{(n == 1 ? "" : "s")} in. Three sessions builds a real trend.";
+                }
+                // Priority 4: reference last accuracy
+                else if (lastDrill != null)
+                {
+                    double acc = lastDrill.Accuracy;
+                    if (acc >= 85)
+                    {
+                        title = $"You hit {acc:F0}% accuracy 🔥";
+                        body  = "That's elite territory. Can you beat it today?";
+                    }
+                    else if (acc >= 70)
+                    {
+                        title = "Time to sharpen that aim 🎯";
+                        body  = $"You were at {acc:F0}% last session. 5 minutes today compounds over time.";
+                    }
+                    else
+                    {
+                        title = "Time to train 🎯";
+                        body  = "Consistency matters more than perfection. Jump in for 5 minutes.";
+                    }
+                }
+                else
+                {
+                    title = "Time to train 🎯";
+                    body  = "You set a reminder yesterday. 3 sessions builds a real trend — today's the day.";
+                }
 
-                var scheduled = new global::Windows.UI.Notifications.ScheduledToastNotification(
-                    toastXml, deliveryTime);
-
-                global::Windows.UI.Notifications.ToastNotificationManager
-                    .CreateToastNotifier(AppId)
-                    .AddToSchedule(scheduled);
+                ScheduleToast(title, body, deliveryTime);
             }
-            catch
-            {
-                // Silently swallow — non-critical
-            }
+            catch { }
         }
 
-        private static void ShowReEngagementToast(DateTime lastDate, double lastQuality)
+        /// <summary>
+        /// Schedules an 8 pm "streak at risk" warning if the user hasn't trained today
+        /// and has built a streak of ≥ 2 days. Called on app startup.
+        /// </summary>
+        public static void ScheduleStreakAtRiskIfNeeded()
         {
             try
             {
-                string dayText = lastDate.Date == DateTime.Today.AddDays(-1)
-                    ? "yesterday"
-                    : $"{(int)(DateTime.Now - lastDate).TotalDays} days ago";
+                var settings = SettingsService.Load();
+                if (settings.CurrentStreak < 2) return;
 
-                string title   = "Time to train 🎯";
-                string message = $"Last session was {dayText} (quality: {lastQuality:F0}). " +
-                                 "A quick session keeps your streak alive.";
+                // Already trained today — no warning needed
+                var lastDrill = AimTrainerStorage.LoadLast();
+                if (lastDrill != null && lastDrill.Timestamp.Date == DateTime.Today) return;
 
-                // Use global:: to avoid collision with CleanAimTracker.Windows namespace
-                var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
-                    .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+                // Already past 8 pm — too late to schedule for tonight
+                if (DateTime.Now.Hour >= 20) return;
 
-                var textNodes = toastXml.GetElementsByTagName("text");
-                textNodes[0].AppendChild(toastXml.CreateTextNode(title));
-                textNodes[1].AppendChild(toastXml.CreateTextNode(message));
-
-                var toast    = new global::Windows.UI.Notifications.ToastNotification(toastXml);
-                var notifier = global::Windows.UI.Notifications.ToastNotificationManager
-                    .CreateToastNotifier(AppId);
-
-                notifier.Show(toast);
+                var deliveryTime = DateTime.Today.AddHours(20); // 8 pm tonight
+                ScheduleToast(
+                    $"Streak at risk — {settings.CurrentStreak} days 🔥",
+                    "Train before midnight to protect your streak. Even one quick session counts.",
+                    deliveryTime);
             }
-            catch
-            {
-                // Toast not supported in this environment — ignore
-            }
+            catch { }
         }
+
+        /// <summary>
+        /// Shows an immediate re-engagement toast when the user has been absent ≥ 3 days.
+        /// Marks <c>ReEngagementNotificationSent</c> so it only fires once per absence gap.
+        /// Reset the flag (to false) after each new session so it can fire again next time.
+        /// </summary>
+        public static void CheckAndScheduleReEngagement()
+        {
+            try
+            {
+                var settings  = SettingsService.Load();
+                if (settings.ReEngagementNotificationSent) return;
+
+                var allDrills = AimTrainerStorage.LoadAll();
+                if (allDrills.Count == 0) return;
+
+                var lastDrill = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
+                if (lastDrill == null) return;
+
+                int daysSince = (int)(DateTime.Today - lastDrill.Timestamp.Date).TotalDays;
+                if (daysSince < 3) return;
+
+                string title;
+                string body;
+
+                if (daysSince >= 7)
+                {
+                    title = "You've been away a week 👀";
+                    body  = "Muscle memory fades fast. Even one session gets you back on track.";
+                }
+                else if (daysSince >= 5)
+                {
+                    title = "5 days since your last drill 😬";
+                    body  = "Your aim is a skill — use it or lose it. Come back for 5 minutes.";
+                }
+                else
+                {
+                    title = "3-day gap detected 🎯";
+                    body  = "Aim consistency breaks down quickly. A quick session now sets you straight.";
+                }
+
+                ShowToast(title, body);
+
+                settings.ReEngagementNotificationSent = true;
+                SettingsService.Save(settings);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Schedules a weekly summary toast for Sunday at 7 pm.
+        /// Only fires once per Sunday and only when ≥ 2 sessions were completed this week.
+        /// </summary>
+        public static void ScheduleWeeklySummaryIfNeeded()
+        {
+            try
+            {
+                if (DateTime.Today.DayOfWeek != DayOfWeek.Sunday) return;
+
+                var settings = SettingsService.Load();
+                if (settings.LastWeeklySummaryDate.Date == DateTime.Today) return;
+
+                // Already past 7 pm — skip until next week
+                if (DateTime.Now.Hour >= 19) return;
+
+                var allDrills    = AimTrainerStorage.LoadAll();
+                var weekStart    = DateTime.Today.AddDays(-6);
+                var weekSessions = allDrills.Where(r => r.Timestamp.Date >= weekStart).ToList();
+                if (weekSessions.Count < 2) return;
+
+                double avgAcc  = weekSessions.Average(r => r.Accuracy);
+                double bestAcc = weekSessions.Max(r => r.Accuracy);
+                string body    = $"{weekSessions.Count} sessions this week · avg accuracy {avgAcc:F0}% · peak {bestAcc:F0}%";
+
+                ScheduleToast("Your week in review 📊", body, DateTime.Today.AddHours(19));
+
+                settings.LastWeeklySummaryDate = DateTime.Today;
+                SettingsService.Save(settings);
+            }
+            catch { }
+        }
+
+        // ── Private helpers ───────────────────────────────────────────
+
+        private static void ScheduleToast(string title, string body, DateTime deliveryTime)
+        {
+            var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
+                .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+
+            var nodes = toastXml.GetElementsByTagName("text");
+            nodes[0].AppendChild(toastXml.CreateTextNode(title));
+            nodes[1].AppendChild(toastXml.CreateTextNode(body));
+
+            var scheduled = new global::Windows.UI.Notifications.ScheduledToastNotification(
+                toastXml, new DateTimeOffset(deliveryTime));
+
+            global::Windows.UI.Notifications.ToastNotificationManager
+                .CreateToastNotifier(AppId)
+                .AddToSchedule(scheduled);
+        }
+
+        private static void ShowToast(string title, string body)
+        {
+            var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
+                .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+
+            var nodes = toastXml.GetElementsByTagName("text");
+            nodes[0].AppendChild(toastXml.CreateTextNode(title));
+            nodes[1].AppendChild(toastXml.CreateTextNode(body));
+
+            var toast = new global::Windows.UI.Notifications.ToastNotification(toastXml);
+            global::Windows.UI.Notifications.ToastNotificationManager
+                .CreateToastNotifier(AppId)
+                .Show(toast);
+        }
+
+        private static string DayText(DateTime date)
+            => date.Date == DateTime.Today.AddDays(-1)
+                ? "yesterday"
+                : $"{(int)(DateTime.Now - date).TotalDays} days ago";
     }
 }

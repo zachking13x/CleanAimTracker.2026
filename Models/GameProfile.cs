@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CleanAimTracker.Services;
 
 namespace CleanAimTracker.Models
 {
@@ -88,7 +89,7 @@ namespace CleanAimTracker.Models
                     Name                = "Rainbow Six Siege",
                     Category            = "Tactical",
                     Description         = "Close-quarters tactical FPS",
-                    YawPerCount         = 0.005729,
+                    YawPerCount         = 0.00572957795,
                     RecommendedCm360Min = 25,
                     RecommendedCm360Max = 55,
                     ProAverageCm360     = 40,
@@ -116,12 +117,12 @@ namespace CleanAimTracker.Models
                     Name                = "Fortnite",
                     Category            = "Battle Royale",
                     Description         = "Fortnite BR profile",
-                    YawPerCount         = 0.5585,
+                    YawPerCount         = 0.005555,  // was 0.5585 — wrong by factor of 100
                     RecommendedCm360Min = 18,
                     RecommendedCm360Max = 45,
                     ProAverageCm360     = 30,
-                    TypicalSensMin      = 0.01,
-                    TypicalSensMax      = 0.15
+                    TypicalSensMin      = 1.0,   // was 0.01 — Fortnite typical sens is 1–20 not 0.01–0.15
+                    TypicalSensMax      = 20.0
                 },
 
                 // ─── Generic FPS Profile ─────────────────────
@@ -138,6 +139,21 @@ namespace CleanAimTracker.Models
                     TypicalSensMax      = 5.0
                 }
             };
+        }
+
+        /// <summary>
+        /// Sanity-check all built-in profiles at startup.
+        /// Real game yaw values are all well below 0.1 — anything higher is almost certainly
+        /// a data-entry error (e.g. Fortnite was accidentally set to 0.5585 instead of 0.005555).
+        /// </summary>
+        public static void ValidateProfiles()
+        {
+            foreach (var p in GetDefaults())
+            {
+                if (p.YawPerCount > 0.1)
+                    LogService.Warn(
+                        $"GameProfile validation: {p.Name} has suspicious YawPerCount {p.YawPerCount} — expected below 0.1");
+            }
         }
 
         public static List<GameProfile> GetAllProfiles(List<AimProfile>? customProfiles)

@@ -407,7 +407,7 @@
                         <ComboBoxItem Content="Easy" Tag="Easy"/>
                         <ComboBoxItem Content="Medium" IsSelected="True" Tag="Medium"/>
                         <ComboBoxItem Content="Hard" Tag="Hard"/>
-                        <ComboBoxItem Content="Nightmare" Tag="Nightmare"/>
+                        <ComboBoxItem x:Name="NightmareItem" Content="🔒 Nightmare" Tag="Nightmare" IsEnabled="False" ToolTip="Reach 80%+ accuracy on Hard to unlock"/>
                     </ComboBox>
 
                     <!-- Duration -->
@@ -464,7 +464,7 @@
                         <TextBlock x:Name="LiveReactionText" Grid.Column="1"
                                    Foreground="{DynamicResource PrimaryText}" FontSize="14" FontWeight="Bold" Text="--"/>
                     </Grid>
-                    <Grid Margin="0 0 0 20">
+                    <Grid Margin="0 0 0 10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -473,6 +473,24 @@
                         <TextBlock x:Name="LiveScoreText" Grid.Column="1"
                                    Foreground="{DynamicResource AccentBrush}" FontSize="16" FontWeight="Black" Text="0"/>
                     </Grid>
+
+                    <!-- HOT STREAK BANNER — left panel, shown when 5 consecutive hits -->
+                    <Border x:Name="HotStreakBanner"
+                            Background="#1AFF6B35"
+                            BorderBrush="#FF6B35"
+                            BorderThickness="0,0,0,2"
+                            CornerRadius="6"
+                            Padding="10,7"
+                            Margin="0,0,0,10"
+                            Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <TextBlock Text="🔥 " FontSize="14" VerticalAlignment="Center"/>
+                            <TextBlock Text="HOT STREAK — 2× SCORE"
+                                       FontSize="12" FontWeight="Bold"
+                                       Foreground="#FF6B35"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Start/Stop -->
                     <Button x:Name="StartStopBtn"
@@ -574,13 +592,13 @@
 
                 <!-- TASK-3D: Timer bar — 4px accent line draining at top of drill area -->
                 <Border Height="4" VerticalAlignment="Top"
+                        Background="{StaticResource BgElevated}"
                         CornerRadius="0" Panel.ZIndex="10"
                         IsHitTestVisible="False">
-                    <Border.Background>
-                        <SolidColorBrush Color="#0A0A0A" Opacity="0.8"/>
-                    </Border.Background>
                     <Border x:Name="TimerBarFill"
                             HorizontalAlignment="Left"
+                            VerticalAlignment="Stretch"
+                            Height="4"
                             Background="{StaticResource AccentPrimary}"
                             CornerRadius="0"
                             Width="0"/>
@@ -639,6 +657,14 @@
                     </StackPanel>
                 </Canvas>
 
+                <!-- HOT STREAK — orange glow border over whole canvas area -->
+                <Border x:Name="CanvasGlowBorder"
+                        BorderBrush="#66FF6B35"
+                        BorderThickness="3"
+                        IsHitTestVisible="False"
+                        Panel.ZIndex="15"
+                        Visibility="Collapsed"/>
+
                 <!-- TASK-3E: Crosshair overlay — separate Canvas so ClearTargets never removes it -->
                 <Canvas IsHitTestVisible="False" Panel.ZIndex="5">
                     <!-- Ring -->
@@ -685,15 +711,6 @@
                                    Text="—"
                                    FontSize="12" FontWeight="Black"
                                    Foreground="#CC00E5A0"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="STK  "
-                                   FontSize="10" FontWeight="SemiBold"
-                                   Foreground="#608A9BAE"/>
-                        <TextBlock x:Name="CanvasStreakText"
-                                   Text="—"
-                                   FontSize="12" FontWeight="Black"
-                                   Foreground="#CCF5C842"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="HIT  "

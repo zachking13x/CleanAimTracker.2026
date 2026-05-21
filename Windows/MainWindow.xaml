@@ -470,7 +470,8 @@
                                        FontSize="10" Margin="0,0,0,3"
                                        ToolTip="Your mouse hardware DPI setting. Check your mouse software or physical DPI button. Common values: 400, 800, 1600, 3200."/>
                             <TextBox x:Name="DpiInput" Width="80" Text="800"
-                                     Style="{StaticResource ModernTextBox}"/>
+                                     Style="{StaticResource ModernTextBox}"
+                                     LostFocus="DpiInput_LostFocus"/>
                         </StackPanel>
 
                         <!-- Sensitivity -->
@@ -479,7 +480,8 @@
                                        FontSize="10" Margin="0,0,0,3"
                                        ToolTip="Your in-game sensitivity value. Used to calculate cm/360 and generate sensitivity-specific coaching advice."/>
                             <TextBox x:Name="SensitivityInput" Width="80" Text="1.0"
-                                     Style="{StaticResource ModernTextBox}"/>
+                                     Style="{StaticResource ModernTextBox}"
+                                     LostFocus="SensitivityInput_LostFocus"/>
                         </StackPanel>
 
                         <!-- Profile -->
@@ -1171,7 +1173,15 @@
                                        FontSize="13" FontWeight="SemiBold"
                                        Foreground="White"
                                        TextWrapping="Wrap"
-                                       Margin="0,0,0,10"/>
+                                       Margin="0,0,0,4"/>
+
+                            <!-- Challenge countdown — only visible within 12 hours of midnight -->
+                            <TextBlock x:Name="ChallengeCountdownText"
+                                       Text=""
+                                       FontSize="10"
+                                       Foreground="{DynamicResource MutedText}"
+                                       Margin="0,0,0,8"
+                                       Visibility="Collapsed"/>
 
                             <!-- Start button -->
                             <Button x:Name="ChallengeAcceptBtn"

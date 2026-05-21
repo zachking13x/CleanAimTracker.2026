@@ -153,16 +153,17 @@
                                     <TextBlock Text="{Binding RecommendedSensitivity, StringFormat={}{0:F4}}"
                                                FontSize="40" FontWeight="Black"
                                                Foreground="{StaticResource AccentPrimary}"
-                                               Margin="0,4,0,2"
+                                               Margin="0,4,0,4"
                                                SnapsToDevicePixels="True"/>
+                                    <!-- Plain action line — the only instruction most users need -->
+                                    <TextBlock Text="{Binding PlainActionLine, ElementName=RootWindow}"
+                                               Foreground="{StaticResource TextPrimary}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Margin="0,0,0,4"/>
                                     <TextBlock Text="{Binding RecommendedSensitivityRange, ElementName=RootWindow}"
                                                Foreground="{StaticResource TextSecondary}"
-                                               FontSize="11"
-                                               Margin="0,0,0,4"/>
-                                    <TextBlock Text="{Binding SensVerdict}"
-                                               Foreground="{StaticResource TextSecondary}"
-                                               FontSize="11" FontStyle="Italic"
-                                               TextWrapping="Wrap"/>
+                                               FontSize="11"/>
                                 </StackPanel>
                             </Border>
 
@@ -205,14 +206,11 @@
                                         <TextBlock Text="{Binding RecommendedCm360, StringFormat={}{0:F1}}"
                                                    Style="{StaticResource MetricValueStyle}"
                                                    Foreground="{StaticResource AccentPrimary}"/>
-                                        <TextBlock Text="cm per full rotation"
-                                                   Foreground="{StaticResource TextMuted}"
-                                                   FontSize="10"
-                                                   Margin="0,2,0,0"/>
-                                        <TextBlock Text="{Binding Cm360Verdict}"
+                                        <TextBlock Text="{Binding Cm360PlainDesc, ElementName=RootWindow}"
                                                    Foreground="{StaticResource TextSecondary}"
-                                                   FontSize="10" FontStyle="Italic"
-                                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                                   FontSize="10"
+                                                   TextWrapping="Wrap"
+                                                   Margin="0,4,0,0"/>
                                     </StackPanel>
                                 </Border>
                             </Grid>

@@ -37,8 +37,8 @@ namespace CleanAimTracker.Models
                     RecommendedCm360Min = 30,
                     RecommendedCm360Max = 65,
                     ProAverageCm360     = 47,
-                    TypicalSensMin      = 0.5,
-                    TypicalSensMax      = 3.0
+                    TypicalSensMin      = 1.0,  // was 0.5 — at 400 DPI, 0.5 = 207 cm/360 (impossibly high)
+                    TypicalSensMax      = 4.0   // was 3.0
                 },
 
                 // ─── Valorant ────────────────────────────────
@@ -93,8 +93,8 @@ namespace CleanAimTracker.Models
                     RecommendedCm360Min = 25,
                     RecommendedCm360Max = 55,
                     ProAverageCm360     = 40,
-                    TypicalSensMin      = 5.0,
-                    TypicalSensMax      = 15.0
+                    TypicalSensMin      = 6.0,  // was 5.0 — tightened to realistic pro range
+                    TypicalSensMax      = 12.0  // was 15.0
                 },
 
                 // ─── Call of Duty (MW/WZ) ─────────────────────

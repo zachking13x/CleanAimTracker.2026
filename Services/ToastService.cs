@@ -32,10 +32,14 @@ namespace CleanAimTracker.Services
                 if (last.Timestamp.Date == DateTime.Today) return;
                 if ((DateTime.Now - last.Timestamp).TotalHours < 20) return;
 
-                ShowToast(
+                // Schedule for 30 minutes from now so it fires after the user closes the app,
+                // not immediately while they are looking at the screen.
+                var deliveryTime = DateTime.Now.AddMinutes(30);
+                ScheduleToast(
                     "Time to train 🎯",
                     $"Last session was {DayText(last.Timestamp)} (quality: {last.OverallQualityScore:F0}). " +
-                    "A quick session keeps your streak alive.");
+                    "A quick session keeps your streak alive.",
+                    deliveryTime);
             }
             catch { }
         }
@@ -52,18 +56,19 @@ namespace CleanAimTracker.Services
                 int hour         = Math.Clamp(DateTime.Now.Hour, 10, 21);
                 var deliveryTime = DateTime.Now.Date.AddDays(1).AddHours(hour);
 
-                var settings  = SettingsService.Load();
-                var allDrills = AimTrainerStorage.LoadAll();
-                var lastDrill = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
+                var settings     = SettingsService.Load();
+                int currentStreak = StreakService.GetStreakInfo().current; // always fresh, not stale from settings load
+                var allDrills    = AimTrainerStorage.LoadAll();
+                var lastDrill    = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
 
                 string title;
                 string body;
 
                 // Priority 1: meaningful streak at risk (≥3 days)
-                if (settings.CurrentStreak >= 3)
+                if (currentStreak >= 3)
                 {
                     title = "Your streak is on the line 🔥";
-                    body  = $"Day {settings.CurrentStreak} streak — train today to keep it alive.";
+                    body  = $"Day {currentStreak} streak — train today to keep it alive.";
                 }
                 // Priority 2: daily challenge hasn't been completed
                 else if (settings.LastChallengeDate.Date < DateTime.Today)

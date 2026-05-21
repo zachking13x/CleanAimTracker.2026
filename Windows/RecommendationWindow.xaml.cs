@@ -1,4 +1,5 @@
 ﻿using CleanAimTracker.Models;
+using CleanAimTracker.Services;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -126,8 +127,16 @@ namespace CleanAimTracker.Windows
             get
             {
                 string game = _selectedGame?.GameName ?? "your game";
+
+                // Fallback: if the rec object has no current sensitivity (e.g. built before
+                // the session was fully populated), read the live value from settings so the
+                // action line always shows something meaningful rather than "0.0000".
+                double currentSens = _rec.CurrentSensitivity > 0
+                    ? _rec.CurrentSensitivity
+                    : SettingsService.Load().Sensitivity;
+
                 return $"In {game}, change your sensitivity from " +
-                       $"{_rec.CurrentSensitivity:F4} to {_rec.RecommendedSensitivity:F4}.";
+                       $"{currentSens:F4} to {_rec.RecommendedSensitivity:F4}.";
             }
         }
 

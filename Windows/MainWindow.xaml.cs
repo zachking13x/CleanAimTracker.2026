@@ -520,8 +520,12 @@ namespace CleanAimTracker.Windows
             _pendingRec            = null;
             _pendingStreak         = null;
 
+            // Force a display sync first so any pending LostFocus state is flushed,
+            // then read the text boxes as the authoritative source for this session.
+            UpdateSensitivityDisplay();
             if (double.TryParse(DpiInput.Text, out double dpi)) _dpi = dpi;
             if (double.TryParse(SensitivityInput.Text, out double sens)) _sensitivity = sens;
+            LogService.Info($"Session start — DPI:{_dpi} Sens:{_sensitivity}");
 
             _isTracking = true;
             _sessionStart = DateTime.Now;
@@ -529,8 +533,6 @@ namespace CleanAimTracker.Windows
 
             TotalDistanceText.Text = "0";
             DxDyText.Text = "dX: 0  dY: 0";
-
-            UpdateSensitivityDisplay();
 
             try
             {
@@ -958,6 +960,12 @@ namespace CleanAimTracker.Windows
                 return;
             }
 
+            // Override saved DPI/sensitivity with the live fields so the recommendation
+            // and PlainActionLine always reflect what the user has set right now,
+            // not what was on disk when the last session was stored.
+            summary.DPI         = (int)Math.Round(_dpi);
+            summary.Sensitivity = _sensitivity;
+
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
             new RecommendationWindow(rec) { Owner = this }.ShowDialog();
         }
@@ -1001,6 +1009,7 @@ namespace CleanAimTracker.Windows
                 var settings = SettingsService.Load();
                 settings.DPI = (int)dpi;
                 SettingsService.Save(settings);
+                LogService.Info($"DPI saved: {settings.DPI}");
                 UpdateSensitivityDisplay();
             }
         }
@@ -1013,6 +1022,7 @@ namespace CleanAimTracker.Windows
                 var settings = SettingsService.Load();
                 settings.Sensitivity = sens;
                 SettingsService.Save(settings);
+                LogService.Info($"Sensitivity saved: {settings.Sensitivity}");
                 UpdateSensitivityDisplay();
             }
         }

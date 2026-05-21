@@ -35,6 +35,13 @@
         public string ProfileName { get; set; }
         public double SessionSeconds { get; set; }
 
+        /// <summary>
+        /// The actual in-game sensitivity value for the selected profile.
+        /// Computed from DPI, raw sensitivity, and the profile's YawPerCount.
+        /// When > 0 the recommendation engine uses this in preference to Sensitivity.
+        /// </summary>
+        public double GameSensitivity { get; set; }
+
 
 
 

@@ -20,8 +20,13 @@ namespace CleanAimTracker.Services
             if (p == null) throw new ArgumentNullException(nameof(p));
 
             // Basic sanity clamps to avoid garbage values
-            double safeDpi = s.DPI <= 0 ? 800 : s.DPI;
-            double safeSens = s.Sensitivity <= 0 ? 1.0 : s.Sensitivity;
+            double safeDpi  = s.DPI <= 0 ? 800 : s.DPI;
+            // Prefer GameSensitivity (actual in-game value) over raw Sensitivity.
+            // GameSensitivity is populated by BuildSessionSummary and OpenRecommendation_Click;
+            // older serialised sessions that lack it fall through to Sensitivity.
+            double safeSens = (s.GameSensitivity > 0) ? s.GameSensitivity
+                            : (s.Sensitivity     > 0) ? s.Sensitivity
+                            : 1.0;
             double safeCm360 = s.CmPer360 <= 0 ? 30.0 : s.CmPer360;
 
             var rec = new SensitivityRecommendation

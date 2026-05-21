@@ -429,7 +429,6 @@ namespace CleanAimTracker.Windows
                     var result = BuildWarmupResult();
                     SaveResult(result);
                     new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
-                    new RecommendationWindow(BuildRecommendation(result)) { Owner = this }.ShowDialog();
                 }
             }
             else
@@ -461,7 +460,6 @@ namespace CleanAimTracker.Windows
                     CheckNightmareUnlock(result);
                     RefreshNightmareLock();
                     new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
-                    new RecommendationWindow(BuildRecommendation(result)) { Owner = this }.ShowDialog();
                 }
             }
         }
@@ -844,15 +842,21 @@ namespace CleanAimTracker.Windows
             var profile = GameProfileStorage.LoadByName(settings.SelectedProfile)
                 ?? GameProfileStorage.Profiles.First();
 
-            double yaw = profile.YawPerCount <= 0 ? 0.022 : profile.YawPerCount;
-            double cm360 = 914.4 / (settings.DPI * settings.Sensitivity * yaw);
+            double yaw  = profile.YawPerCount <= 0 ? 0.022 : profile.YawPerCount;
+            double dpi  = settings.DPI > 0 ? settings.DPI : 800;
+            double sens = settings.Sensitivity > 0 ? settings.Sensitivity : 1.0;
+
+            // Correct formula: sens IS the in-game sensitivity (e.g. 11.1 for Fortnite)
+            // cm/360 = (360 / (gameSens * DPI * yaw)) * 2.54
+            double cm360 = (360.0 / (sens * dpi * yaw)) * 2.54;
 
             var summary = new SessionSummary
             {
-                Timestamp = result.Timestamp,
-                DPI = settings.DPI,
-                Sensitivity = settings.Sensitivity,
-                CmPer360 = cm360,
+                Timestamp       = result.Timestamp,
+                DPI             = (int)Math.Round(dpi),
+                Sensitivity     = sens,
+                GameSensitivity = sens,  // user input IS the game sensitivity
+                CmPer360        = cm360,
                 SmoothnessScore = result.Accuracy,
                 MovementConsistency = result.Accuracy,
                 JitterAmount = 100 - result.Accuracy,

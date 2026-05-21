@@ -960,11 +960,13 @@ namespace CleanAimTracker.Windows
                 return;
             }
 
-            // Override saved DPI/sensitivity with the live fields so the recommendation
-            // and PlainActionLine always reflect what the user has set right now,
-            // not what was on disk when the last session was stored.
-            summary.DPI         = (int)Math.Round(_dpi);
-            summary.Sensitivity = _sensitivity;
+            // Always override with current live values — the saved session may be from
+            // a different DPI or profile. _sensitivity IS the in-game sensitivity because
+            // that is what the user types into the input box.
+            summary.DPI             = (int)Math.Round(_dpi);
+            summary.Sensitivity     = _sensitivity;
+            summary.GameSensitivity = _sensitivity; // user input IS the game sensitivity
+            summary.CmPer360        = CalculateCmPer360(); // recalculate with current profile
 
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
             new RecommendationWindow(rec) { Owner = this }.ShowDialog();
@@ -1029,7 +1031,38 @@ namespace CleanAimTracker.Windows
 
         // HELPERS
         private double CalculateCmPer360()
-            => (360.0 / (_dpi * _sensitivity)) * 2.54;
+        {
+            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0 && _sensitivity > 0)
+            {
+                // Game-specific formula — uses yaw to convert game sensitivity to cm/360
+                return (360.0 / (_sensitivity * _dpi * _selectedProfile.YawPerCount)) * 2.54;
+            }
+            else
+            {
+                // Fallback when no profile is selected — treat sensitivity as raw multiplier
+                return _dpi > 0 && _sensitivity > 0
+                    ? (360.0 / (_dpi * _sensitivity)) * 2.54
+                    : 30.0; // safe default
+            }
+        }
+
+        /// <summary>
+        /// Returns the actual in-game sensitivity for the currently selected profile.
+        /// Uses the same formula as UpdateSensitivityDisplay so the stored value
+        /// matches exactly what the user sees on screen.
+        /// Falls back to raw _sensitivity when no profile is loaded.
+        /// </summary>
+        private double ComputeGameSensitivity()
+        {
+            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0)
+            {
+                double cm360    = CalculateCmPer360();
+                double gameSens = 914.4 / (cm360 * _dpi * _selectedProfile.YawPerCount);
+                if (gameSens > 0 && !double.IsNaN(gameSens) && !double.IsInfinity(gameSens))
+                    return gameSens;
+            }
+            return _sensitivity;
+        }
 
         /// <summary>
         /// Refreshes the cm/360 and game-sensitivity display from the current
@@ -1068,30 +1101,40 @@ namespace CleanAimTracker.Windows
 
         private SessionSummary BuildSessionSummary()
         {
+            double cm360 = CalculateCmPer360(); // now uses yaw when a profile is loaded
+
+            // _sensitivity is what the user typed — their actual in-game sensitivity.
+            // Store it in both fields so the recommendation engine uses the right value
+            // whether it reads the legacy Sensitivity field or the explicit GameSensitivity.
+            double gameSens = _sensitivity;
+            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0)
+                gameSens = _sensitivity;   // user input IS the game sensitivity
+
             return new SessionSummary
             {
-                DPI = (int)Math.Round(_dpi),
-                Sensitivity = _sensitivity,
-                ProfileName = _selectedProfile?.Name ?? "Unknown",
+                DPI             = (int)Math.Round(_dpi),
+                Sensitivity     = _sensitivity,
+                GameSensitivity = gameSens,
+                ProfileName     = _selectedProfile?.Name ?? "Unknown",
                 TotalDistanceCm = _totalDistance,
-                PeakVelocity = _peakVelocity,
+                PeakVelocity    = _peakVelocity,
                 AverageVelocity = _averageVelocity,
-                FlickCount = _flickCount,
+                FlickCount      = _flickCount,
                 SmallFlickCount = _smallFlicks,
                 LargeFlickCount = _largeFlicks,
-                JitterAmount = _jitterAmount,
-                IdleBurstCount = _idleBurstCount,
+                JitterAmount    = _jitterAmount,
+                IdleBurstCount  = _idleBurstCount,
                 SmoothnessScore = _smoothnessScore,
                 CorrectionSharpness = _correctionSharpness,
                 MovementConsistency = _movementConsistency,
                 OverallQualityScore = _overallQualityScore,
-                SessionSeconds = _sessionSeconds,
-                Timestamp = DateTime.Now,
-                CmPer360 = CalculateCmPer360(),
-                IdlePercentage = _sessionSeconds > 0
+                SessionSeconds  = _sessionSeconds,
+                Timestamp       = DateTime.Now,
+                CmPer360        = cm360,
+                IdlePercentage  = _sessionSeconds > 0
                     ? (_idleTimeSeconds / _sessionSeconds) * 100.0
                     : 0,
-                TotalSamples = _movementEvents
+                TotalSamples    = _movementEvents
             };
         }
 

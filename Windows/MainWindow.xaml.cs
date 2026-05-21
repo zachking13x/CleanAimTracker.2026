@@ -1047,24 +1047,6 @@ namespace CleanAimTracker.Windows
         }
 
         /// <summary>
-        /// Returns the actual in-game sensitivity for the currently selected profile.
-        /// Uses the same formula as UpdateSensitivityDisplay so the stored value
-        /// matches exactly what the user sees on screen.
-        /// Falls back to raw _sensitivity when no profile is loaded.
-        /// </summary>
-        private double ComputeGameSensitivity()
-        {
-            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0 && _dpi > 0)
-            {
-                double cm360    = CalculateCmPer360();
-                double gameSens = 914.4 / (cm360 * _dpi * _selectedProfile.YawPerCount);
-                if (gameSens > 0 && !double.IsNaN(gameSens) && !double.IsInfinity(gameSens))
-                    return gameSens;
-            }
-            return _sensitivity;
-        }
-
-        /// <summary>
         /// Refreshes the cm/360 and game-sensitivity display from the current
         /// _dpi / _sensitivity / _selectedProfile values.
         /// Called on LostFocus for both input fields and at the start of a session.
@@ -1103,12 +1085,9 @@ namespace CleanAimTracker.Windows
         {
             double cm360 = CalculateCmPer360(); // now uses yaw when a profile is loaded
 
-            // _sensitivity is what the user typed — their actual in-game sensitivity.
-            // Store it in both fields so the recommendation engine uses the right value
-            // whether it reads the legacy Sensitivity field or the explicit GameSensitivity.
+            // _sensitivity is always the user's in-game sensitivity value
+            // (e.g. 11.1 for Fortnite) — store it directly, no conversion needed.
             double gameSens = _sensitivity;
-            if (_selectedProfile != null && _selectedProfile.YawPerCount > 0)
-                gameSens = _sensitivity;   // user input IS the game sensitivity
 
             return new SessionSummary
             {
@@ -1166,6 +1145,16 @@ namespace CleanAimTracker.Windows
                         "Personal Bests tab in history · " +
                         "Scenario-aware coaching benchmarks · " +
                         "Clean game profile names in dropdown",
+
+            "1.0.33" => "Sensitivity recommendation rebuilt — now uses your actual game sensitivity · " +
+                        "Fortnite sensitivity fix — recommendations are now accurate · " +
+                        "XP and level system — earn XP every drill · " +
+                        "Hot streak mode — 5 consecutive hits triggers 2× score · " +
+                        "Share Result button on personal best sessions · " +
+                        "Smarter notifications reference your streak and last accuracy · " +
+                        "Daily challenge card shows countdown timer · " +
+                        "Sensitivity window no longer auto-opens after drills",
+
             _        => "Bug fixes and performance improvements.",
         };
 

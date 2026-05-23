@@ -28,20 +28,20 @@ namespace CleanAimTracker.Windows
 
         public GameSpecificView Translate(SensitivityRecommendation rec)
         {
-            double sliderPercent = rec.RecommendedSensitivity * 10.0;
+            // RecommendedSensitivity is already in Fortnite percentage units
+            // (e.g. 7.62 means 7.62%) — no scaling needed.
+            double sliderPercent = rec.RecommendedSensitivity;
 
             var view = new GameSpecificView();
 
+            // Field names match Fortnite's Mouse and Keyboard settings page exactly
             view.GameSettingsLines.Add($"X-Axis Sensitivity: {sliderPercent:F1}%");
             view.GameSettingsLines.Add($"Y-Axis Sensitivity: {sliderPercent:F1}%");
             view.GameSettingsLines.Add("Targeting Sensitivity: 70%");
             view.GameSettingsLines.Add("Scope Sensitivity: 70%");
             view.GameSettingsLines.Add("Building Sensitivity: 100%");
             view.GameSettingsLines.Add("Editing Sensitivity: 100%");
-            view.GameSettingsLines.Add("First-Person Sensitivity: 100%");
-            view.GameSettingsLines.Add("Zoom Scaling: Standard");
-            view.GameSettingsLines.Add("Lock Input Method as Mouse: On");
-            view.GameSettingsLines.Add("Ignore Controller Input: On");
+            view.GameSettingsLines.Add("First Person Mode: 100%");
 
             view.AdsScopeLines.Add("Keep Targeting and Scope around 70% for consistent ADS feel.");
 

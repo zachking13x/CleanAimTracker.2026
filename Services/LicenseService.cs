@@ -26,15 +26,24 @@ namespace CleanAimTracker.Services
         public static bool HasLifetime { get; private set; }
         public static bool IsFree      => !HasPro && !HasTrainer && !HasLifetime;
 
-        public static async Task InitializeAsync()
-        {
-            if (_initialized) return;
+        // Guard against concurrent InitializeAsync calls (e.g. PurchaseAsync calling it
+        // while App.OnStartup's fire-and-forget is still running).
+        private static Task? _initTask;
 
+        public static Task InitializeAsync()
+        {
+            if (_initialized) return Task.CompletedTask;
+            return _initTask ??= InitializeCoreAsync();
+        }
+
+        private static async Task InitializeCoreAsync()
+        {
             try
             {
                 _context = StoreContext.GetDefault();
                 await RefreshEntitlementsAsync();
                 _initialized = true;
+                LogService.Info("LicenseService initialized");
             }
             catch (Exception ex)
             {
@@ -130,18 +139,42 @@ namespace CleanAimTracker.Services
         /// <summary>Purchase an add-on by its Store ID (not InAppOfferToken).</summary>
         public static async Task<bool> PurchaseAsync(string storeId)
         {
+            // If init hasn't finished yet (fire-and-forget from App startup), wait for it now.
+            // This prevents NullReferenceException when the user opens the Upgrade window
+            // within the first second of the app launching.
+            if (!_initialized && _initTask != null)
+            {
+                LogService.Info("PurchaseAsync: waiting for LicenseService init to complete");
+                await _initTask;
+            }
+
             if (_context == null)
             {
-                LogService.Error("LicenseService not initialized — cannot purchase", null);
+                LogService.Error("LicenseService: _context still null after init — cannot purchase", null);
                 return false;
             }
 
             try
             {
-                StorePurchaseResult result = await _context.RequestPurchaseAsync(storeId);
+                StorePurchaseResult? result = await _context.RequestPurchaseAsync(storeId);
+
+                if (result == null)
+                {
+                    LogService.Error("PurchaseAsync: RequestPurchaseAsync returned null", null);
+                    return false;
+                }
+
+                LogService.Info($"PurchaseAsync: status={result.Status} for {storeId}");
 
                 if (result.Status == StorePurchaseStatus.Succeeded)
                 {
+                    await RefreshEntitlementsAsync();
+                    return true;
+                }
+
+                if (result.Status == StorePurchaseStatus.AlreadyPurchased)
+                {
+                    // Treat as success — refresh to pick up the license
                     await RefreshEntitlementsAsync();
                     return true;
                 }

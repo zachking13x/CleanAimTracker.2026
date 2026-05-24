@@ -369,8 +369,11 @@
                             Content="🎯  Aim Trainer" Click="OpenAimTrainer_Click"
                             Style="{StaticResource NavButtonStyle}"
                             Foreground="{DynamicResource AccentBrush}"/>
+                    <Button x:Name="NavAimTrainerReportBtn"
+                            Content="🤖  Aim Coach Report" Click="ViewLastAimCoachReport_Click"
+                            Style="{StaticResource NavButtonStyle}"/>
                     <Button x:Name="NavLastReportBtn"
-                            Content="🤖  Last Report" Click="ViewLastCoachReport_Click"
+                            Content="📋  Last Session Report" Click="ViewLastCoachReport_Click"
                             Style="{StaticResource NavButtonStyle}"/>
                     <Button x:Name="NavSensitivityBtn"
                             Content="🔄  Sensitivity" Click="OpenConverter_Click" Style="{StaticResource NavButtonStyle}"/>

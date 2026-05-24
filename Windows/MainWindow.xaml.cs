@@ -87,6 +87,11 @@ namespace CleanAimTracker.Windows
         private SensitivityRecommendation? _pendingRec;
         private StreakService.StreakResult? _pendingStreak;
 
+        // LAST REPORT — kept alive so the nav button can re-open any time
+        private SessionSummary? _lastSummary;
+        private SensitivityRecommendation? _lastRec;
+        private StreakService.StreakResult? _lastStreak;
+
         public event Action? StatsUpdated;
 
         // Live stat properties for the overlay to read
@@ -633,7 +638,13 @@ namespace CleanAimTracker.Windows
             }
 
             if (rec != null)
+            {
+                _lastSummary = summary;
+                _lastRec     = rec;
+                _lastStreak  = streak;
+                UpdateLastReportButton();
                 new SummaryWindow(summary, rec, streak) { Owner = this }.Show();
+            }
             else
                 MessageBox.Show(
                     "Session saved! Select a game profile and click Recommend to see your sensitivity analysis.",
@@ -877,6 +888,10 @@ namespace CleanAimTracker.Windows
                 _pendingSessionSummary = null;
                 _pendingRec            = null;
                 _pendingStreak         = null;
+                _lastSummary = pendingSummary;
+                _lastRec     = pendingRec;
+                _lastStreak  = pendingStreak;
+                UpdateLastReportButton();
                 new SummaryWindow(pendingSummary, pendingRec, pendingStreak) { Owner = this }.Show();
                 MaybeShowValueMoment();
                 return;
@@ -919,6 +934,10 @@ namespace CleanAimTracker.Windows
             UpdateTrialBanner();   // refresh count after session saves
 
             var rec = RecommendationEngine.Analyze(summary, _selectedProfile);
+            _lastSummary = summary;
+            _lastRec     = rec;
+            _lastStreak  = streakResult;
+            UpdateLastReportButton();
             new SummaryWindow(summary, rec, streakResult) { Owner = this }.Show();
 
             MaybeShowValueMoment();
@@ -1021,13 +1040,85 @@ namespace CleanAimTracker.Windows
         {
             // TASK-14: Aim Trainer is free — it's a core value driver
             var trainer = new AimTrainerWindow { Owner = this };
-            trainer.Closed += (s, args) => Dispatcher.Invoke(() => LoadTodayStats(animatePanel: true));
+            trainer.Closed += (s, args) => Dispatcher.Invoke(() =>
+            {
+                LoadTodayStats(animatePanel: true);
+                NavAimTrainerReportBtn.Content = "🤖  Aim Coach Report · just now";
+            });
             trainer.Show();
+        }
+
+        private void ViewLastAimCoachReport_Click(object sender, RoutedEventArgs e)
+        {
+            AimTrainerResultWindow.OpenLastReport(this);
         }
 
         private void ViewLastCoachReport_Click(object sender, RoutedEventArgs e)
         {
-            AimTrainerResultWindow.OpenLastReport(this);
+            // If we already have the last report in memory, just re-open it.
+            if (_lastSummary != null && _lastRec != null)
+            {
+                new SummaryWindow(_lastSummary, _lastRec, _lastStreak) { Owner = this }.Show();
+                return;
+            }
+
+            // Fall back: load the most recent saved session from disk.
+            try
+            {
+                var sessions = SessionStorage.LoadAll();
+                if (sessions == null || sessions.Count == 0)
+                {
+                    MessageBox.Show(
+                        "No sessions recorded yet. Complete a tracking session first.",
+                        "No Sessions",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                var last = sessions.OrderByDescending(s => s.Timestamp).First();
+
+                SensitivityRecommendation? rec = null;
+                if (_selectedProfile != null)
+                {
+                    try { rec = RecommendationEngine.Analyze(last, _selectedProfile); }
+                    catch (Exception ex) { LogService.Error("Rec failed in ViewLastReport", ex); }
+                }
+
+                if (rec == null)
+                {
+                    MessageBox.Show(
+                        "Select a game profile from the dropdown first, then try again.",
+                        "Profile Needed",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                _lastSummary = last;
+                _lastRec     = rec;
+                _lastStreak  = null;
+                new SummaryWindow(last, rec, null) { Owner = this }.Show();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("ViewLastCoachReport_Click failed", ex);
+            }
+        }
+
+        /// <summary>
+        /// Updates the "Last Report" nav button label to show a timestamp hint
+        /// once a report is available, so users know they can re-open it.
+        /// </summary>
+        private void UpdateLastReportButton()
+        {
+            if (_lastSummary == null) return;
+            var elapsed = DateTime.Now - _lastSummary.Timestamp;
+            string hint = elapsed.TotalMinutes < 2  ? "just now"
+                        : elapsed.TotalMinutes < 60 ? $"{(int)elapsed.TotalMinutes}m ago"
+                        : elapsed.TotalHours   < 24 ? $"{(int)elapsed.TotalHours}h ago"
+                        : _lastSummary.Timestamp.ToString("MMM d");
+            NavLastReportBtn.Content = $"📋  Last Report · {hint}";
         }
 
         // ── DPI / SENSITIVITY INPUT ───────────────────────────────────

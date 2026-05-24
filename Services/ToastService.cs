@@ -10,7 +10,9 @@ namespace CleanAimTracker.Services
     /// </summary>
     public static class ToastService
     {
-        private const string AppId = "CleanAimTracker";
+        // NOTE: for MSIX-packaged apps the system already knows the app identity.
+        // The CreateToastNotifier() overload with no argument must be used — passing
+        // an explicit AppId string here fails silently and drops all notifications.
 
         // ── Public API ────────────────────────────────────────────────
 
@@ -238,7 +240,7 @@ namespace CleanAimTracker.Services
                 toastXml, new DateTimeOffset(deliveryTime));
 
             global::Windows.UI.Notifications.ToastNotificationManager
-                .CreateToastNotifier(AppId)
+                .CreateToastNotifier()
                 .AddToSchedule(scheduled);
         }
 
@@ -253,7 +255,7 @@ namespace CleanAimTracker.Services
 
             var toast = new global::Windows.UI.Notifications.ToastNotification(toastXml);
             global::Windows.UI.Notifications.ToastNotificationManager
-                .CreateToastNotifier(AppId)
+                .CreateToastNotifier()
                 .Show(toast);
         }
 

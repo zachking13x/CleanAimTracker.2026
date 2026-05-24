@@ -73,8 +73,13 @@ namespace CleanAimTracker.Services
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-                File.WriteAllText(FilePath, JsonSerializer.Serialize(unlocked,
-                    new JsonSerializerOptions { WriteIndented = true }));
+
+                // Atomic write: write to .tmp then replace so a crash mid-write
+                // never corrupts the achievements file.
+                string json    = JsonSerializer.Serialize(unlocked, new JsonSerializerOptions { WriteIndented = true });
+                string tmpPath = FilePath + ".tmp";
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, FilePath, overwrite: true);
             }
             catch { }
         }

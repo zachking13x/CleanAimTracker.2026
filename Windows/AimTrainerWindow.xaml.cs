@@ -667,7 +667,7 @@ namespace CleanAimTracker.Windows
                 nodes[1].AppendChild(xml.CreateTextNode(
                     $"You hit {result.Accuracy:F0}% on Hard. Nightmare difficulty is now available."));
                 global::Windows.UI.Notifications.ToastNotificationManager
-                    .CreateToastNotifier("CleanAimTracker")
+                    .CreateToastNotifier()
                     .Show(new global::Windows.UI.Notifications.ToastNotification(xml));
             }
             catch { }

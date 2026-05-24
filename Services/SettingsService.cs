@@ -35,7 +35,11 @@ namespace CleanAimTracker.Services
                 WriteIndented = true
             });
 
-            File.WriteAllText(FilePath, json);
+            // Atomic write: write to .tmp then replace so a crash mid-write
+            // never corrupts the main settings file.
+            string tmpPath = FilePath + ".tmp";
+            File.WriteAllText(tmpPath, json);
+            File.Move(tmpPath, FilePath, overwrite: true);
         }
     }
 }

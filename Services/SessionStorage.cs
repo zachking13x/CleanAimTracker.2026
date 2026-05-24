@@ -63,7 +63,7 @@ namespace CleanAimTracker.Services
             }
         }
 
-        public static SessionSummary LoadLast()
+        public static SessionSummary? LoadLast()
         {
             var all = LoadAll();
             if (all.Count == 0) return null;

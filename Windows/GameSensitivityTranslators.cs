@@ -114,7 +114,7 @@ namespace CleanAimTracker.Windows
     // ─────────────────────────────────────────────
     public class Cs2Translator : IGameSensitivityTranslator
     {
-        public string GameName => "CS2";
+        public string GameName => "Counter-Strike 2";
 
         public GameSpecificView Translate(SensitivityRecommendation rec)
         {
@@ -191,7 +191,7 @@ namespace CleanAimTracker.Windows
     // ─────────────────────────────────────────────
     public class WarzoneTranslator : IGameSensitivityTranslator
     {
-        public string GameName => "Warzone / MW2 / MW3";
+        public string GameName => "Call of Duty: MW / Warzone";
 
         public GameSpecificView Translate(SensitivityRecommendation rec)
         {

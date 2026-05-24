@@ -188,8 +188,12 @@ namespace CleanAimTracker.Windows
             GameOptions.Add(new HaloTranslator());
             GameOptions.Add(new TarkovTranslator());
 
-            GameCombo.SelectedIndex = 0;
-            SelectedGame = GameOptions[0];
+            // Auto-select the translator that matches the user's active game profile.
+            // Falls back to Fortnite (index 0) if no match is found.
+            var match = GameOptions.FirstOrDefault(t => t.GameName == _rec.GameName);
+            int idx   = match != null ? GameOptions.IndexOf(match) : 0;
+            GameCombo.SelectedIndex = idx;
+            SelectedGame = GameOptions[idx];
         }
 
         private void GameCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

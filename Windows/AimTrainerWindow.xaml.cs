@@ -839,8 +839,12 @@ namespace CleanAimTracker.Windows
         {
             var settings = SettingsService.Load() ?? new UserSettings();
 
-            var profile = GameProfileStorage.LoadByName(settings.SelectedProfile)
-                ?? GameProfileStorage.Profiles.First();
+            // Use the single canonical profile system (GameProfile.GetAllProfiles) so that
+            // name lookups here always match what MainWindow uses — avoids the "CS2" vs
+            // "Counter-Strike 2" mismatch that was silently falling back to Valorant.
+            var allProfiles = GameProfile.GetAllProfiles(ProfileStorage.LoadProfiles());
+            var profile     = allProfiles.FirstOrDefault(p => p.Name == settings.SelectedProfile)
+                           ?? allProfiles.First();
 
             double yaw  = profile.YawPerCount <= 0 ? 0.022 : profile.YawPerCount;
             double dpi  = settings.DPI > 0 ? settings.DPI : 800;

@@ -125,6 +125,48 @@ namespace CleanAimTracker.Models
                     TypicalSensMax      = 20.0
                 },
 
+                // ─── PUBG ────────────────────────────────────
+                new GameProfile
+                {
+                    Name                = "PUBG",
+                    Category            = "Battle Royale",
+                    Description         = "PUBG Battle Royale profile",
+                    YawPerCount         = 0.00572957795,
+                    RecommendedCm360Min = 30,
+                    RecommendedCm360Max = 55,
+                    ProAverageCm360     = 40,
+                    TypicalSensMin      = 20.0,
+                    TypicalSensMax      = 60.0
+                },
+
+                // ─── Halo Infinite ───────────────────────────
+                new GameProfile
+                {
+                    Name                = "Halo Infinite",
+                    Category            = "Arena",
+                    Description         = "Halo Infinite arena FPS profile",
+                    YawPerCount         = 0.00572957795,
+                    RecommendedCm360Min = 30,
+                    RecommendedCm360Max = 55,
+                    ProAverageCm360     = 40,
+                    TypicalSensMin      = 1.0,
+                    TypicalSensMax      = 10.0
+                },
+
+                // ─── Escape From Tarkov ──────────────────────
+                new GameProfile
+                {
+                    Name                = "Escape From Tarkov",
+                    Category            = "Tactical",
+                    Description         = "Escape From Tarkov hardcore FPS profile",
+                    YawPerCount         = 0.00572957795,
+                    RecommendedCm360Min = 30,
+                    RecommendedCm360Max = 50,
+                    ProAverageCm360     = 38,
+                    TypicalSensMin      = 0.1,
+                    TypicalSensMax      = 1.0
+                },
+
                 // ─── Generic FPS Profile ─────────────────────
                 new GameProfile
                 {

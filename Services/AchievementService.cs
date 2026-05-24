@@ -112,6 +112,7 @@ namespace CleanAimTracker.Services
 
             if (result.Accuracy >= 80)  TryUnlock("accuracy_80");
             if (result.Accuracy >= 90)  TryUnlock("accuracy_90");
+            if (result.Accuracy >= 95)  TryUnlock("elite_grade");  // "Excellent" AI coach threshold
             if (result.Accuracy >= 100) TryUnlock("accuracy_100");
 
             if (result.AvgReactionMs > 0 && result.AvgReactionMs < 300) TryUnlock("reaction_300");
@@ -142,7 +143,7 @@ namespace CleanAimTracker.Services
             if (currentStreakDays >= 14) TryUnlock("streak_14");
             if (currentStreakDays >= 30) TryUnlock("streak_30");
 
-            var tier = ProgressionService.GetTier(SessionStorage.LoadAll());
+            var tier = ProgressionService.GetTier(SessionStorage.LoadAll() ?? new List<SessionSummary>());
             if (tier.Name is "Bronze" or "Silver" or "Gold" or "Elite") TryUnlock("reach_bronze");
             if (tier.Name is "Silver" or "Gold" or "Elite")              TryUnlock("reach_silver");
             if (tier.Name is "Gold" or "Elite")                          TryUnlock("reach_gold");

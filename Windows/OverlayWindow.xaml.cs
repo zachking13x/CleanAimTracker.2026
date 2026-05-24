@@ -10,6 +10,7 @@ namespace CleanAimTracker.Windows
     public partial class OverlayWindow : Window
     {
         private readonly DispatcherTimer _refreshTimer;
+        private readonly DispatcherTimer _positionSaveTimer;   // debounces overlay drag saves
         private bool _isCollapsed = false;
 
         private static readonly SolidColorBrush GreenBrush  = new(Color.FromRgb(0x4C, 0xAF, 0x50));
@@ -28,6 +29,19 @@ namespace CleanAimTracker.Windows
             _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
             _refreshTimer.Tick += RefreshStats;
             _refreshTimer.Start();
+
+            // Debounce position saves: only write to disk 300 ms after the drag stops.
+            // Without this, every pixel dragged triggers a full settings Load+Save cycle,
+            // which races with XP/challenge saves and overwrites them.
+            _positionSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+            _positionSaveTimer.Tick += (_, _) =>
+            {
+                _positionSaveTimer.Stop();
+                var s = SettingsService.Load();
+                s.OverlayLeft = Left;
+                s.OverlayTop  = Top;
+                SettingsService.Save(s);
+            };
         }
 
         // ── STATS REFRESH ──────────────────────────────────────────────
@@ -113,17 +127,26 @@ namespace CleanAimTracker.Windows
             var s = SettingsService.Load();
             if (s.OverlayLeft >= 0 && s.OverlayTop >= 0)
             {
-                Left = s.OverlayLeft;
-                Top  = s.OverlayTop;
+                // Guard against off-screen position (e.g. saved on a monitor that is now disconnected).
+                double vw = SystemParameters.VirtualScreenWidth;
+                double vh = SystemParameters.VirtualScreenHeight;
+                double vl = SystemParameters.VirtualScreenLeft;
+                double vt = SystemParameters.VirtualScreenTop;
+
+                double clampedLeft = Math.Max(vl, Math.Min(s.OverlayLeft, vl + vw - 80));
+                double clampedTop  = Math.Max(vt, Math.Min(s.OverlayTop,  vt + vh - 40));
+
+                Left = clampedLeft;
+                Top  = clampedTop;
             }
         }
 
         private void Overlay_LocationChanged(object sender, EventArgs e)
         {
-            var s = SettingsService.Load();
-            s.OverlayLeft = Left;
-            s.OverlayTop  = Top;
-            SettingsService.Save(s);
+            // Reset the debounce timer on every move event.
+            // The actual save fires 300 ms after dragging stops.
+            _positionSaveTimer.Stop();
+            _positionSaveTimer.Start();
         }
 
         // ── CONTROLS ───────────────────────────────────────────────────
@@ -151,6 +174,7 @@ namespace CleanAimTracker.Windows
         protected override void OnClosed(EventArgs e)
         {
             _refreshTimer.Stop();
+            _positionSaveTimer.Stop();
             base.OnClosed(e);
         }
     }

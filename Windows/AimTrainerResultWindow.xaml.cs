@@ -37,9 +37,14 @@ namespace CleanAimTracker.Windows
 
             if (!isReplay)
             {
-                _ = EvaluateAchievementsAsync(result);
+                // EvaluateAchievements and ShowXp both call SettingsService.Save().
+                // Run them sequentially to prevent the last writer overwriting the other's changes.
+                _ = Task.Run(async () =>
+                {
+                    await EvaluateAchievementsAsync(result);
+                    await ShowXpAsync(result);
+                });
                 _ = LoadPersonalBestsAsync(result);
-                _ = ShowXpAsync(result);
 
                 // Show share button when accuracy warrants it
                 if (result.Accuracy >= 75)
@@ -115,7 +120,10 @@ namespace CleanAimTracker.Windows
                 var all = await Task.Run(() => AimTrainerStorage.LoadAll());
 
                 // ── TASK-16: PB badges ────────────────────────────────────
-                var same = all.Where(r => r.Scenario == result.Scenario).ToList();
+                // Exclude the current result (already saved before this window opens)
+                // so we only compare against genuinely prior sessions.
+                var same = all.Where(r => r.Scenario  == result.Scenario
+                                       && r.Timestamp != result.Timestamp).ToList();
 
                 bool isBestScore    = same.Count == 0 || result.Score        >= same.Max(r => r.Score);
                 bool isBestAccuracy = same.Count == 0 || result.Accuracy     >= same.Max(r => r.Accuracy);

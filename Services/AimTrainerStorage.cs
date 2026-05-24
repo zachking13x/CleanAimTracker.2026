@@ -30,9 +30,9 @@ namespace CleanAimTracker.Services
 
                 File.WriteAllText(FilePath, json);
             }
-            catch
+            catch (Exception ex)
             {
-                // swallow errors silently (same pattern as SessionStorage)
+                LogService.Error("AimTrainerStorage.Save failed — drill result not persisted", ex);
             }
         }
 

@@ -69,6 +69,12 @@ namespace CleanAimTracker.Services
         {
             if (IsTodayComplete(settings)) return false;
 
+            // Must be the correct scenario and difficulty — prevents completing a
+            // Tracking/Hard challenge by running Flicking/Easy with a high score.
+            if (result.Scenario   != challenge.Scenario ||
+                result.Difficulty != challenge.Difficulty)
+                return false;
+
             bool met = challenge.GoalType switch
             {
                 "Accuracy"  => result.Accuracy  >= challenge.GoalValue,

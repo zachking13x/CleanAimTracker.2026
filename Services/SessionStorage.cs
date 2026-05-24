@@ -17,12 +17,25 @@ namespace CleanAimTracker.Services
 
         public static void Save(SessionSummary summary)
         {
-            Directory.CreateDirectory(Folder);
+            try
+            {
+                Directory.CreateDirectory(Folder);
 
-            List<SessionSummary> history = LoadAll();
-            history.Add(summary);
+                List<SessionSummary> history = LoadAll();
+                history.Add(summary);
 
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(history));
+                string json    = JsonSerializer.Serialize(history);
+                string tmpPath = FilePath + ".tmp";
+
+                // Safe atomic write: write to .tmp then replace,
+                // so a crash mid-write never corrupts the main file.
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, FilePath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("SessionStorage.Save failed", ex);
+            }
         }
 
         public static void SaveSession(SessionSummary summary)
@@ -32,14 +45,22 @@ namespace CleanAimTracker.Services
 
         public static List<SessionSummary> LoadAll()
         {
-            Directory.CreateDirectory(Folder);
+            try
+            {
+                Directory.CreateDirectory(Folder);
 
-            if (!File.Exists(FilePath))
+                if (!File.Exists(FilePath))
+                    return new List<SessionSummary>();
+
+                return JsonSerializer.Deserialize<List<SessionSummary>>(
+                    File.ReadAllText(FilePath)
+                ) ?? new List<SessionSummary>();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("SessionStorage.LoadAll failed — returning empty list", ex);
                 return new List<SessionSummary>();
-
-            return JsonSerializer.Deserialize<List<SessionSummary>>(
-                File.ReadAllText(FilePath)
-            );
+            }
         }
 
         public static SessionSummary LoadLast()

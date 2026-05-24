@@ -40,12 +40,20 @@ namespace CleanAimTracker.Services
 
         public static void SaveProfiles(List<AimProfile> profiles)
         {
-            string json = JsonSerializer.Serialize(profiles, new JsonSerializerOptions
+            try
             {
-                WriteIndented = true
-            });
+                Directory.CreateDirectory(ProfilesFolder);
 
-            File.WriteAllText(ProfilesFile, json);
+                string json    = JsonSerializer.Serialize(profiles, new JsonSerializerOptions { WriteIndented = true });
+                string tmpPath = ProfilesFile + ".tmp";
+
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, ProfilesFile, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("ProfileStorage.SaveProfiles failed", ex);
+            }
         }
     }
 }

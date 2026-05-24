@@ -227,18 +227,47 @@
                             <Border x:Name="LevelUpBanner"
                                     Margin="0,10,0,0"
                                     Background="#1AF5C842"
+                                    BorderBrush="{StaticResource AccentGold}"
+                                    BorderThickness="0,0,0,1"
                                     CornerRadius="6"
-                                    Padding="10,7"
-                                    Visibility="Collapsed">
+                                    Padding="10,9"
+                                    Opacity="0"
+                                    Visibility="Collapsed"
+                                    RenderTransformOrigin="0.5,0.5">
+                                <Border.RenderTransform>
+                                    <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                </Border.RenderTransform>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <TextBlock Text="⬆ " FontSize="14" FontWeight="Bold"
-                                               Foreground="{StaticResource AccentGold}"/>
+                                    <TextBlock Text="⬆  " FontSize="16" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentGold}"
+                                               VerticalAlignment="Center"/>
                                     <TextBlock x:Name="LevelUpText"
                                                Text="LEVEL UP!"
-                                               FontSize="13" FontWeight="Bold"
-                                               Foreground="{StaticResource AccentGold}"/>
+                                               FontSize="14" FontWeight="Bold"
+                                               Foreground="{StaticResource AccentGold}"
+                                               VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ═══ NEAR-MISS ACHIEVEMENT HINT ═══ -->
+                    <Border x:Name="NearMissPanel"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="#22F5C842"
+                            BorderThickness="0,0,0,1"
+                            CornerRadius="8"
+                            Padding="14,10"
+                            Margin="0,0,0,14"
+                            Visibility="Collapsed"
+                            Opacity="0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="NearMissText"
+                                       Text=""
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 

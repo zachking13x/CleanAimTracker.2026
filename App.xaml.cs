@@ -1,12 +1,18 @@
 ﻿using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using CleanAimTracker.Windows;
+using System;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace CleanAimTracker
 {
     public partial class App : Application
     {
+        // Refresh Store entitlements every 30 minutes so subscription cancellations
+        // and new purchases are reflected without restarting the app.
+        private DispatcherTimer? _licenseRefreshTimer;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -19,6 +25,11 @@ namespace CleanAimTracker
             GameProfile.ValidateProfiles(); // guard against bad yaw values like Fortnite's 0.5585 regression
             TrialService.Initialize();
             _ = LicenseService.InitializeAsync(); // background — does not block startup
+
+            // Periodic license refresh — every 30 minutes keeps subscription status current.
+            _licenseRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(30) };
+            _licenseRefreshTimer.Tick += async (_, _) => await LicenseService.RefreshEntitlementsAsync();
+            _licenseRefreshTimer.Start();
 
             var settings = SettingsService.Load();
 

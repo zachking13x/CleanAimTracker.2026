@@ -28,7 +28,9 @@ namespace CleanAimTracker.Services
                     WriteIndented = true
                 });
 
-                File.WriteAllText(FilePath, json);
+                string tmpPath = FilePath + ".tmp";
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, FilePath, overwrite: true);
             }
             catch (Exception ex)
             {

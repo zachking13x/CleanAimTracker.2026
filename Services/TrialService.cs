@@ -42,11 +42,6 @@ namespace CleanAimTracker.Services
 
         public static bool IsFullVersion()
         {
-            // Dev override for testing
-            string? devFlag = Environment.GetEnvironmentVariable("CLEANAIMTRACKER_FULLVERSION");
-            if (devFlag == "1") return true;
-
-            // Store license check
             return LicenseService.HasPro
                 || LicenseService.HasTrainer
                 || LicenseService.HasLifetime;
@@ -80,10 +75,14 @@ namespace CleanAimTracker.Services
             if (completed == 0) return "";      // TASK-12: suppress until first session done
 
             int remaining = SessionsRemaining();
-            if (remaining <= 0) return "⚠ Free limit reached — Upgrade to continue";
-            if (remaining <= 5) return $"⚠ {remaining} free session{(remaining == 1 ? "" : "s")} left — Upgrade now";
+            if (remaining <= 0) return $"🎯 {completed} sessions done — ready for Pro?";
+            if (remaining <= 5) return $"⚡ {remaining} free session{(remaining == 1 ? "" : "s")} left";
             return $"Free — {remaining} sessions remaining";
         }
+
+        /// <summary>True when the free trial has been fully used up.</summary>
+        public static bool IsAtFreeLimit()
+            => !IsFullVersion() && SessionsRemaining() <= 0;
 
         // TASK-11: Returns true if this session count is a value-moment milestone
         public static bool IsValueMoment(int sessionCount)

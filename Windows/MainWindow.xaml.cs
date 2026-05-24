@@ -155,6 +155,8 @@ namespace CleanAimTracker.Windows
             // 5A: Start subtle background atmosphere drift
             StartAtmosphereAnimation();
 
+            CheckWeeklyAimRecap();
+
             var settings = SettingsService.Load();
             if (settings.OnboardingAutoStart)
             {
@@ -985,7 +987,34 @@ namespace CleanAimTracker.Windows
 
         private void TrialBanner_Click(object sender, RoutedEventArgs e)
         {
-            UpgradeDialog.Show("Pro Features");
+            if (TrialService.IsAtFreeLimit())
+            {
+                // User has used all 30 sessions — acknowledge the effort before the ask
+                var allDrills = AimTrainerStorage.LoadAll();
+                int sessions  = allDrills.Count;
+                double bestAcc = allDrills.Count > 0 ? allDrills.Max(r => r.Accuracy) : 0;
+                int streak     = SettingsService.Load().CurrentStreak;
+
+                string statLine = sessions > 0
+                    ? $"Best accuracy: {bestAcc:F0}%  ·  Current streak: {streak} day{(streak == 1 ? "" : "s")}"
+                    : "";
+
+                var result = MessageBox.Show(
+                    $"You've completed {sessions} sessions — that's serious commitment.\n\n" +
+                    (statLine.Length > 0 ? statLine + "\n\n" : "") +
+                    "Pro keeps your full history, AI coaching, and weekly reports going — " +
+                    "everything you've built stays with you.\n\nView upgrade options?",
+                    "Ready for Pro?",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.None);
+
+                if (result == MessageBoxResult.Yes)
+                    new UpgradeWindow { Owner = this }.ShowDialog();
+            }
+            else
+            {
+                UpgradeDialog.Show("Pro Features");
+            }
         }
 
         private void OpenAimTrainer_Click(object sender, RoutedEventArgs e)
@@ -1160,6 +1189,44 @@ namespace CleanAimTracker.Windows
 
         private void WhatsNewDismiss_Click(object sender, RoutedEventArgs e)
             => WhatsNewBanner.Visibility = Visibility.Collapsed;
+
+        private void WeeklyRecapDismiss_Click(object sender, RoutedEventArgs e)
+            => WeeklyRecapBanner.Visibility = Visibility.Collapsed;
+
+        // ── Weekly Aim Recap (Feature 3) ─────────────────────────────────
+        private void CheckWeeklyAimRecap()
+        {
+            try
+            {
+                var settings = SettingsService.Load();
+
+                // Show on Mondays (first launch of the week), or if 7+ days since last shown
+                bool isDueMonday  = DateTime.Today.DayOfWeek == DayOfWeek.Monday
+                                    && settings.LastWeeklySummaryDate.Date < DateTime.Today.AddDays(-1);
+                bool isOverdue    = (DateTime.Today - settings.LastWeeklySummaryDate.Date).TotalDays >= 7;
+                if (!isDueMonday && !isOverdue) return;
+
+                var allDrills = AimTrainerStorage.LoadAll();
+                var lastWeek  = allDrills
+                    .Where(r => r.Timestamp.Date >= DateTime.Today.AddDays(-7)
+                             && r.Timestamp.Date <  DateTime.Today)
+                    .ToList();
+
+                if (lastWeek.Count < 2) return; // not enough data to be meaningful
+
+                settings.LastWeeklySummaryDate = DateTime.Today;
+                SettingsService.Save(settings);
+
+                double avgAcc  = lastWeek.Average(r => r.Accuracy);
+                double bestAcc = lastWeek.Max(r => r.Accuracy);
+                int    xpList  = lastWeek.Sum(r => XPService.CalculateSessionXP(r));
+
+                WeeklyRecapTitleText.Text = $"Last week: {lastWeek.Count} session{(lastWeek.Count == 1 ? "" : "s")} · +{xpList} XP";
+                WeeklyRecapBodyText.Text  = $"Avg accuracy {avgAcc:F0}%  ·  Peak {bestAcc:F0}%  — keep it going 💪";
+                WeeklyRecapBanner.Visibility = Visibility.Visible;
+            }
+            catch { /* non-critical */ }
+        }
 
         // ── Today's stats ─────────────────────────────────────────────────
         private void LoadTodayStats(bool animatePanel = false)

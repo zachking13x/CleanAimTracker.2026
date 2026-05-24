@@ -177,5 +177,40 @@ namespace CleanAimTracker.Services
 
         public static int GetUnlockedCount() => LoadUnlocked().Count;
         public static int GetTotalCount()    => GetAllDefinitions().Count;
+
+        /// <summary>
+        /// Returns a single near-miss hint string if the result came close to unlocking
+        /// an achievement the user hasn't earned yet, or null if nothing is close.
+        /// Priority: accuracy > reaction > streak.
+        /// </summary>
+        public static string? GetNearMissHint(AimTrainerResult result, List<Achievement> unlocked)
+        {
+            var ids = unlocked.Select(a => a.Id).ToHashSet();
+
+            if (!ids.Contains("accuracy_100") && result.Accuracy >= 95 && result.Accuracy < 100)
+                return $"⚡  {(100 - result.Accuracy):F0}% more accuracy away from Flawless";
+
+            if (!ids.Contains("accuracy_90") && result.Accuracy >= 85 && result.Accuracy < 90)
+                return $"🎯  {(90 - result.Accuracy):F0}% away from the Precision badge";
+
+            if (!ids.Contains("accuracy_80") && result.Accuracy >= 72 && result.Accuracy < 80)
+                return $"🎖️  Almost Sharp — hit 80% accuracy once to unlock it";
+
+            if (!ids.Contains("reaction_220") && result.AvgReactionMs > 0
+                    && result.AvgReactionMs >= 220 && result.AvgReactionMs < 265)
+                return $"⚡  {(result.AvgReactionMs - 220):F0}ms from the Lightning badge";
+
+            if (!ids.Contains("reaction_300") && result.AvgReactionMs > 0
+                    && result.AvgReactionMs >= 300 && result.AvgReactionMs < 355)
+                return $"🤠  {(result.AvgReactionMs - 300):F0}ms from Quick Draw";
+
+            if (!ids.Contains("max_streak_50") && result.MaxStreak >= 35 && result.MaxStreak < 50)
+                return $"👑  {50 - result.MaxStreak} more consecutive hits for God Mode";
+
+            if (!ids.Contains("max_streak_20") && result.MaxStreak >= 12 && result.MaxStreak < 20)
+                return $"🏆  {20 - result.MaxStreak} more consecutive hits to unlock Unstoppable";
+
+            return null;
+        }
     }
 }

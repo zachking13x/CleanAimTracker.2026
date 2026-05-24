@@ -70,11 +70,21 @@ namespace CleanAimTracker.Services
             return all[^1];
         }
 
-        public static void ClearAll()
+        // Internal use only — called by reset flows, not exposed to arbitrary callers.
+        internal static void ClearAll()
         {
-            Directory.CreateDirectory(Folder);
-
-            File.WriteAllText(FilePath, "[]");
+            try
+            {
+                Directory.CreateDirectory(Folder);
+                string tmpPath = FilePath + ".tmp";
+                File.WriteAllText(tmpPath, "[]");
+                File.Move(tmpPath, FilePath, overwrite: true);
+                LogService.Info("SessionStorage.ClearAll: session history wiped");
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("SessionStorage.ClearAll failed", ex);
+            }
         }
     }
 }

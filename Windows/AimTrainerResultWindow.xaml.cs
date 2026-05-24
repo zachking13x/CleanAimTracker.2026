@@ -105,6 +105,27 @@ namespace CleanAimTracker.Windows
                         popup.ShowDialog();
                     });
                 }
+
+                // Near-miss hint — show only if no achievement was just unlocked (avoid noise)
+                if (!_isReplay && (_newlyUnlocked == null || _newlyUnlocked.Count == 0))
+                {
+                    var allUnlocked = AchievementService.LoadUnlocked();
+                    string? hint    = AchievementService.GetNearMissHint(result, allUnlocked);
+                    if (hint != null)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            NearMissText.Text          = hint;
+                            NearMissPanel.Visibility   = Visibility.Visible;
+                            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
+                            {
+                                BeginTime      = TimeSpan.FromMilliseconds(1200),
+                                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                            };
+                            NearMissPanel.BeginAnimation(UIElement.OpacityProperty, fade);
+                        });
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -258,11 +279,33 @@ namespace CleanAimTracker.Windows
                     };
                     XpProgressBar.BeginAnimation(FrameworkElement.WidthProperty, anim);
 
-                    // Show level-up banner when level increased
+                    // Show level-up banner when level increased — animated entrance
                     if (newLevel > oldLevel)
                     {
-                        LevelUpText.Text           = $"LEVEL UP!  You reached Level {newLevel}";
-                        LevelUpBanner.Visibility   = Visibility.Visible;
+                        LevelUpText.Text         = $"LEVEL UP!  You reached Level {newLevel}";
+                        LevelUpBanner.Visibility = Visibility.Visible;
+
+                        var lvlFade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(400))
+                        {
+                            BeginTime      = TimeSpan.FromMilliseconds(700),
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                        };
+                        var scaleAnim = new DoubleAnimation(0.95, 1.0, TimeSpan.FromMilliseconds(350))
+                        {
+                            BeginTime      = TimeSpan.FromMilliseconds(700),
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                        };
+                        LevelUpBanner.BeginAnimation(UIElement.OpacityProperty, lvlFade);
+                        if (LevelUpBanner.RenderTransform is ScaleTransform lvlScale)
+                        {
+                            lvlScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+                            lvlScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                                new DoubleAnimation(0.95, 1.0, TimeSpan.FromMilliseconds(350))
+                                {
+                                    BeginTime      = TimeSpan.FromMilliseconds(700),
+                                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                                });
+                        }
                     }
                 });
             }
@@ -293,14 +336,30 @@ namespace CleanAimTracker.Windows
                         ? $"New record: {string.Join(", ", parts)}"
                         : string.Empty;
 
+                    // Set up scale transform for a gentle pop
+                    PBBanner.RenderTransformOrigin = new System.Windows.Point(0.5, 0.5);
+                    if (PBBanner.RenderTransform is not ScaleTransform)
+                        PBBanner.RenderTransform = new ScaleTransform(0.96, 0.96);
+                    var pbScale = (ScaleTransform)PBBanner.RenderTransform;
+
                     PBBanner.Visibility = Visibility.Visible;
 
-                    // Fade in
-                    var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(400))
+                    // Fade + scale in together
+                    var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(380))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    var scaleUp = new DoubleAnimation(0.96, 1.0, TimeSpan.FromMilliseconds(340))
                     {
                         EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
                     };
                     PBBanner.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                    pbScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleUp);
+                    pbScale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                        new DoubleAnimation(0.96, 1.0, TimeSpan.FromMilliseconds(340))
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                        });
                 });
             }
             catch (Exception ex)
@@ -583,8 +642,15 @@ namespace CleanAimTracker.Windows
                 settings.LastTomorrowPromptDate = DateTime.Today;
                 SettingsService.Save(settings);
 
+                int streak = settings.CurrentStreak;
+                string promptMsg = streak >= 7
+                    ? $"Day {streak} — seriously impressive.\n\nSee you tomorrow for Day {streak + 1}? Schedule a reminder so you don't break it."
+                    : streak >= 3
+                        ? $"Day {streak} done. You're building a real habit.\n\nSee you tomorrow for Day {streak + 1}?\n\nSchedule a reminder?"
+                        : "Good session. Come back tomorrow — consistency beats perfection.\n\nSchedule a reminder?";
+
                 var response = MessageBox.Show(
-                    "Come back tomorrow — 3 sessions builds a reliable trend.\n\nSchedule a reminder?",
+                    promptMsg,
                     "See You Tomorrow",
                     MessageBoxButton.YesNo,
                     MessageBoxImage.None);

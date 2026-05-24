@@ -23,8 +23,8 @@
         public double OverlayLeft { get; set; } = -1;
         public double OverlayTop { get; set; } = -1;
 
-        // AI Coach (optional — enables personalized coaching in result window)
-        public string AnthropicApiKey { get; set; } = "";
+        // AI Coach — API key is NOT stored here; retrieve it from Windows.Security.Credentials.PasswordVault
+        // if/when AI coaching is re-enabled.
 
         // Goal + Streak tracking
         public int DailyGoalQuality { get; set; } = 70;

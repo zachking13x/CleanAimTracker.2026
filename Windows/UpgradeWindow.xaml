@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Upgrade to Pro"
-        Height="600" Width="440"
+        Height="720" Width="440"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="{DynamicResource AppBackground}">
@@ -22,17 +22,52 @@
                        HorizontalAlignment="Center"
                        Margin="0 0 0 24"/>
 
+            <!-- AI Coaching preview (blurred) — Feature 8 -->
+            <Border Background="{DynamicResource CardBackground}"
+                    CornerRadius="8"
+                    Padding="14,10"
+                    Margin="0,0,0,16"
+                    ClipToBounds="True">
+                <Grid>
+                    <!-- Fake coaching content behind the overlay -->
+                    <StackPanel Opacity="0.35">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <TextBlock Text="🤖  " FontSize="12"/>
+                            <TextBlock Text="AI COACH" FontSize="10" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Text="Excellent — your reaction time is elite for this scenario."
+                                   FontSize="12" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap"/>
+                        <TextBlock Text="✅  Flick precision is in the top tier  •  Consistent micro-adjustments"
+                                   FontSize="11" Foreground="LightGreen" Margin="0,5,0,0"/>
+                        <TextBlock Text="💡  Focus on reducing overswing on fast horizontal targets..."
+                                   FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                    <!-- Lock overlay -->
+                    <Border Background="{DynamicResource AppBackground}" Opacity="0.60" CornerRadius="6"/>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,4,0,4">
+                        <TextBlock Text="🔒" FontSize="20" HorizontalAlignment="Center"/>
+                        <TextBlock Text="AI Coaching — Pro only"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- Feature list -->
             <Border Background="{DynamicResource CardBackground}"
-                    CornerRadius="10" Padding="20 16" Margin="0 0 0 24">
+                    CornerRadius="10" Padding="20 16" Margin="0 0 0 16">
                 <StackPanel>
                     <TextBlock Text="WHAT YOU UNLOCK"
                                Foreground="{DynamicResource MutedText}"
                                FontSize="10" FontWeight="Bold"
                                Margin="0 0 0 12"/>
-                    <TextBlock Text="✅  Full session history &amp; trends"
-                               Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
                     <TextBlock Text="✅  AI coaching after every session"
+                               Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
+                    <TextBlock Text="✅  Full session history &amp; trends"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
                     <TextBlock Text="✅  Weekly performance reports"
                                Foreground="{DynamicResource PrimaryText}" FontSize="13" Margin="0 0 0 7"/>
@@ -45,17 +80,68 @@
                 </StackPanel>
             </Border>
 
-            <!-- Monthly button -->
-            <Button x:Name="ProBtn"
-                    Click="Pro_Click"
-                    Height="52"
-                    Background="#7B2FFF"
-                    Foreground="White"
-                    FontWeight="Bold"
+            <!-- Lifetime button — anchor: show best value first (Feature 11) -->
+            <Button x:Name="LifetimeBtn"
+                    Click="Lifetime_Click"
+                    Height="56"
+                    Foreground="Black"
+                    FontWeight="Black"
                     FontSize="14"
                     BorderThickness="0"
                     Cursor="Hand"
-                    Margin="0 0 0 10">
+                    Margin="0 0 0 8">
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+                        <Setter Property="Foreground" Value="Black"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Cursor" Value="Hand"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                                        </Trigger>
+                                        <Trigger Property="IsPressed" Value="True">
+                                            <Setter TargetName="Bd" Property="Opacity" Value="0.75"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Button.Style>
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="⭐  Lifetime — " VerticalAlignment="Center" FontSize="14"/>
+                        <TextBlock Text="$24.99" FontSize="17" FontWeight="Black" VerticalAlignment="Center" Margin="0 0 8 0"/>
+                        <Border Background="#1A1A1A" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock Text="BEST VALUE" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="One-time · pays off in 5 months · never billed again"
+                               FontSize="10" FontWeight="Normal"
+                               HorizontalAlignment="Center"
+                               Margin="0,3,0,0"
+                               Foreground="#333333"/>
+                </StackPanel>
+            </Button>
+
+            <!-- Monthly button — secondary option -->
+            <Button x:Name="ProBtn"
+                    Click="Pro_Click"
+                    Height="46"
+                    Background="#7B2FFF"
+                    Foreground="White"
+                    FontWeight="Bold"
+                    FontSize="13"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Margin="0 0 0 4">
                 <Button.Style>
                     <Style TargetType="Button">
                         <Setter Property="Background" Value="#7B2FFF"/>
@@ -82,62 +168,18 @@
                     </Style>
                 </Button.Style>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Pro  — " VerticalAlignment="Center" FontSize="14"/>
-                    <TextBlock Text="$4.99 / month" FontSize="16" FontWeight="Black" VerticalAlignment="Center"/>
+                    <TextBlock Text="Pro Monthly — " VerticalAlignment="Center" FontSize="13"/>
+                    <TextBlock Text="$4.99 / month" FontSize="14" FontWeight="Black" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
 
-            <!-- Lifetime button -->
-            <Button x:Name="LifetimeBtn"
-                    Click="Lifetime_Click"
-                    Height="52"
-                    Foreground="Black"
-                    FontWeight="Black"
-                    FontSize="14"
-                    BorderThickness="0"
-                    Cursor="Hand"
-                    Margin="0 0 0 4">
-                <Button.Style>
-                    <Style TargetType="Button">
-                        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-                        <Setter Property="Foreground" Value="Black"/>
-                        <Setter Property="BorderThickness" Value="0"/>
-                        <Setter Property="Cursor" Value="Hand"/>
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="Button">
-                                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="10">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
-                                        </Trigger>
-                                        <Trigger Property="IsPressed" Value="True">
-                                            <Setter TargetName="Bd" Property="Opacity" Value="0.75"/>
-                                        </Trigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                    </Style>
-                </Button.Style>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="Lifetime  — " VerticalAlignment="Center" FontSize="14"/>
-                    <TextBlock Text="$24.99" FontSize="17" FontWeight="Black" VerticalAlignment="Center" Margin="0 0 8 0"/>
-                    <Border Background="#1A1A1A" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                        <TextBlock Text="pays off in 5 months" Foreground="#CCCCCC" FontSize="10" FontWeight="Normal"/>
-                    </Border>
-                </StackPanel>
-            </Button>
-
-            <TextBlock Text="Subscription renews monthly · Cancel anytime · Lifetime = one-time payment"
+            <TextBlock Text="Lifetime = one-time payment · Monthly renews until cancelled"
                        Foreground="{DynamicResource MutedText}"
                        FontSize="10"
                        HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
-                       Margin="0 8 0 16"/>
+                       Margin="0 6 0 14"/>
 
             <!-- Cancel -->
             <Button Content="Maybe Later"

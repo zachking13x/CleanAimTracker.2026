@@ -133,9 +133,10 @@ namespace CleanAimTracker.Services
                 if (DateTime.Now.Hour >= 20) return;
 
                 var deliveryTime = DateTime.Today.AddHours(20); // 8 pm tonight
+                int s = settings.CurrentStreak;
                 ScheduleToast(
-                    $"Streak at risk — {settings.CurrentStreak} days 🔥",
-                    "Train before midnight to protect your streak. Even one quick session counts.",
+                    $"{s}-day streak at risk 🔥",
+                    $"You've trained {s} days in a row. Train before midnight or the streak resets — even one quick session counts.",
                     deliveryTime);
             }
             catch { }

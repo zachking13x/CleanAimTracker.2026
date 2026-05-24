@@ -146,7 +146,9 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
-            view.GameSettingsLines.Add($"Mouse Sensitivity: {rec.RecommendedSensitivity * 100:F1}");
+            // OW2 sens scale is 1–100; yaw=0.0066 at sens=1 means the formula output
+            // IS already the correct in-game value — no multiplier needed.
+            view.GameSettingsLines.Add($"Mouse Sensitivity: {rec.RecommendedSensitivity:F1}");
             view.GameSettingsLines.Add("Scoped Sensitivity: 100%");
             view.GameSettingsLines.Add("Relative Aim Sensitivity While Zoomed: 100%");
 
@@ -172,6 +174,9 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
+            // R6S yaw stored at 0.00572957795 (×10 of the sens=1 real value 0.000572957795).
+            // Multiplying by 10 here exactly compensates, producing the correct 1–100 UI value.
+            // At 800 DPI / 40 cm → 49.9, consistent with competitive R6 play.
             view.GameSettingsLines.Add($"Mouse Sensitivity: {rec.RecommendedSensitivity * 10:F1}");
             view.GameSettingsLines.Add("ADS Sensitivity: 50");
 
@@ -197,8 +202,10 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
-            view.GameSettingsLines.Add($"Horizontal Sensitivity: {rec.RecommendedSensitivity * 10:F1}");
-            view.GameSettingsLines.Add($"Vertical Sensitivity: {rec.RecommendedSensitivity * 10:F1}");
+            // CoD sens scale is 1–20+; yaw=0.0066 at sens=1 means the formula output
+            // IS already the correct in-game value — no multiplier needed.
+            view.GameSettingsLines.Add($"Horizontal Sensitivity: {rec.RecommendedSensitivity:F1}");
+            view.GameSettingsLines.Add($"Vertical Sensitivity: {rec.RecommendedSensitivity:F1}");
             view.GameSettingsLines.Add("ADS Sensitivity Multiplier: 1.0");
 
             view.AdsScopeLines.Add("Use 1.0 ADS multiplier.");
@@ -223,7 +230,9 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
-            view.GameSettingsLines.Add($"General Sensitivity: {rec.RecommendedSensitivity * 50:F1}");
+            // PUBG sens scale is 1–200 (linear); corrected yaw=0.000573 deg/count at sens=1
+            // means the formula output IS already the correct in-game value — no multiplier needed.
+            view.GameSettingsLines.Add($"General Sensitivity: {rec.RecommendedSensitivity:F0}");
             view.GameSettingsLines.Add("Vertical Sensitivity Multiplier: 1.0");
 
             view.AdsScopeLines.Add("Align scope sensitivities around baseline.");
@@ -248,8 +257,11 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
-            view.GameSettingsLines.Add($"Look Sensitivity (Horizontal): {rec.RecommendedSensitivity * 5:F1}");
-            view.GameSettingsLines.Add($"Look Sensitivity (Vertical): {rec.RecommendedSensitivity * 5:F1}");
+            // Halo Infinite sens scale is 1–10; yaw=0.0066 at sens=1 means the formula output
+            // IS already the correct in-game value — no multiplier needed.
+            // At 800 DPI / 40 cm → ~4.3, consistent with competitive Halo play.
+            view.GameSettingsLines.Add($"Look Sensitivity (Horizontal): {rec.RecommendedSensitivity:F1}");
+            view.GameSettingsLines.Add($"Look Sensitivity (Vertical): {rec.RecommendedSensitivity:F1}");
 
             view.AdsScopeLines.Add("Keep zoom sensitivity close to hipfire.");
 
@@ -273,8 +285,11 @@ namespace CleanAimTracker.Windows
         {
             var view = new GameSpecificView();
 
-            view.GameSettingsLines.Add($"Mouse Sensitivity: {rec.RecommendedSensitivity * 50:F1}");
-            view.GameSettingsLines.Add("Aiming Sensitivity: 50");
+            // EFT sens slider runs 0.0–1.0; corrected yaw=0.09 deg/count at sens=1
+            // means the formula output IS already the correct in-game value — no multiplier needed.
+            // At 800 DPI / 38 cm → ~0.33, matching competitive EFT hipfire sensitivity.
+            view.GameSettingsLines.Add($"Mouse Sensitivity: {rec.RecommendedSensitivity:F2}");
+            view.GameSettingsLines.Add($"Aiming Sensitivity: {rec.RecommendedSensitivity:F2}");
 
             view.AdsScopeLines.Add("Align scope sensitivities with hipfire cm/360.");
 

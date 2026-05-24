@@ -131,12 +131,14 @@ namespace CleanAimTracker.Models
                     Name                = "PUBG",
                     Category            = "Battle Royale",
                     Description         = "PUBG Battle Royale profile",
-                    YawPerCount         = 0.00572957795,
+                    // PUBG yaw at General Sensitivity = 1 is ~0.000573 deg/count (linear 1–200 scale)
+                    // At 800 DPI / 40 cm → sens ≈ 50, which matches real-game reference data
+                    YawPerCount         = 0.000572957795,
                     RecommendedCm360Min = 30,
                     RecommendedCm360Max = 55,
                     ProAverageCm360     = 40,
                     TypicalSensMin      = 20.0,
-                    TypicalSensMax      = 60.0
+                    TypicalSensMax      = 65.0
                 },
 
                 // ─── Halo Infinite ───────────────────────────
@@ -145,7 +147,9 @@ namespace CleanAimTracker.Models
                     Name                = "Halo Infinite",
                     Category            = "Arena",
                     Description         = "Halo Infinite arena FPS profile",
-                    YawPerCount         = 0.00572957795,
+                    // Halo Infinite uses 0.0066 deg/count at sensitivity 1 (1–10 scale)
+                    // same engine-class constant as CoD/OW2 — at 800 DPI / 40 cm → sens ≈ 4.3
+                    YawPerCount         = 0.0066,
                     RecommendedCm360Min = 30,
                     RecommendedCm360Max = 55,
                     ProAverageCm360     = 40,
@@ -159,7 +163,9 @@ namespace CleanAimTracker.Models
                     Name                = "Escape From Tarkov",
                     Category            = "Tactical",
                     Description         = "Escape From Tarkov hardcore FPS profile",
-                    YawPerCount         = 0.00572957795,
+                    // EFT sensitivity slider runs 0.0–1.0; at sens=1 the yaw is ~0.09 deg/count
+                    // At 800 DPI / 38 cm → sens ≈ 0.33, matching competitive EFT play
+                    YawPerCount         = 0.09,
                     RecommendedCm360Min = 30,
                     RecommendedCm360Max = 50,
                     ProAverageCm360     = 38,

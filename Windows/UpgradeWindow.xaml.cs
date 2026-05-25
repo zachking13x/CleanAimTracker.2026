@@ -20,9 +20,19 @@ namespace CleanAimTracker.Windows
             {
                 bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_PRO);
                 if (ok)
+                {
                     RefreshMainAndShowSuccess();
+                }
                 else
+                {
                     RestoreProButton();
+                    MessageBox.Show(
+                        "Purchase was canceled or could not be completed. You were not charged.\n\n" +
+                        "If you already purchased, use \"Already purchased? Restore\" below.",
+                        "Purchase Canceled",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.None);
+                }
             }
             catch (Exception ex)
             {
@@ -45,9 +55,19 @@ namespace CleanAimTracker.Windows
             {
                 bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_LIFETIME);
                 if (ok)
+                {
                     RefreshMainAndShowSuccess();
+                }
                 else
+                {
                     RestoreLifetimeButton();
+                    MessageBox.Show(
+                        "Purchase was canceled or could not be completed. You were not charged.\n\n" +
+                        "If you already purchased, use \"Already purchased? Restore\" below.",
+                        "Purchase Canceled",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.None);
+                }
             }
             catch (Exception ex)
             {
@@ -85,7 +105,10 @@ namespace CleanAimTracker.Windows
         {
             // Refresh the trial banner on the main window
             if (Application.Current.MainWindow is MainWindow main)
+            {
                 main.UpdateTrialBanner();
+                main.RefreshAfterPurchase();
+            }
 
             // Show the celebration screen, then close this window
             new PostUpgradeWindow { Owner = this }.ShowDialog();

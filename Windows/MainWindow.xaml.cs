@@ -348,16 +348,31 @@ namespace CleanAimTracker.Windows
                 TrialBannerText.Text       = "⚠  License check failed — check your connection and restart the app.";
                 TrialBannerText.Foreground = new System.Windows.Media.SolidColorBrush(
                     System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));  // AccentOrange
-                TrialBannerText.Visibility = Visibility.Visible;
+                TrialBannerText.Visibility    = Visibility.Visible;
+                TrialBannerContainer.Visibility = Visibility.Visible;
                 return;
             }
 
             TrialBannerText.ClearValue(System.Windows.Controls.TextBlock.ForegroundProperty);
             string banner = TrialService.GetBannerText();
             TrialBannerText.Text = banner;
-            TrialBannerText.Visibility = string.IsNullOrEmpty(banner)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+
+            // Hide the entire container (including the hardcoded "Tap to upgrade →" line)
+            // when the user is Pro or has no sessions yet — not just the text element.
+            bool showBanner = !string.IsNullOrEmpty(banner);
+            TrialBannerContainer.Visibility = showBanner ? Visibility.Visible : Visibility.Collapsed;
+            TrialBannerText.Visibility      = showBanner ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Called after a successful purchase or restore to collapse all free-tier
+        /// upsell cards and fully reload the player panel with the unlocked Pro state.
+        /// </summary>
+        public void RefreshAfterPurchase()
+        {
+            ValueMomentCard.Visibility = Visibility.Collapsed;
+            FreeLimitCard.Visibility   = Visibility.Collapsed;
+            LoadTodayStats(animatePanel: false);
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -957,6 +972,8 @@ namespace CleanAimTracker.Windows
         {
             if (TrialService.IsFullVersion()) return;
 
+            if (TrialService.IsAtFreeLimit()) { ShowFreeLimitCard(); return; }
+
             int count = TrialService.SessionsCompleted();
             if (!TrialService.IsValueMoment(count)) return;
 
@@ -967,6 +984,22 @@ namespace CleanAimTracker.Windows
 
         private void ShowFreeLimitCard()
         {
+            try
+            {
+                var drills   = AimTrainerStorage.LoadAll();
+                int count    = drills.Count;
+                double best  = count > 0 ? drills.Max(r => r.Accuracy) : 0;
+                int streak   = SettingsService.Load().CurrentStreak;
+
+                FreeLimitStatsText.Text = count > 0
+                    ? $"Best accuracy: {best:F0}%  ·  {streak} day streak"
+                    : "";
+            }
+            catch
+            {
+                FreeLimitStatsText.Text = "";
+            }
+
             FreeLimitCard.Visibility = Visibility.Visible;
             FreeLimitCard.BringIntoView();
         }

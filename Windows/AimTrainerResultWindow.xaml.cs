@@ -604,7 +604,7 @@ namespace CleanAimTracker.Windows
 
             bool isPro = TrialService.IsFullVersion();
 
-            StrengthsList.ItemsSource  = report.Strengths;
+            StrengthsList.ItemsSource  = isPro ? report.Strengths : report.Strengths.Take(1).ToList();
             WeaknessesList.ItemsSource = report.Weaknesses;
             AdviceList.ItemsSource     = report.Advice;
 
@@ -629,8 +629,20 @@ namespace CleanAimTracker.Windows
                 {
                     NextDrillText.Text = report.NextDrillSuggestion;
                 }
+                MotivationalText.Text = report.MotivationalClose;
             }
-            MotivationalText.Text = report.MotivationalClose;
+            else
+            {
+                // Build a teaser hint for the locked overlay
+                string weakHint = report.Weaknesses.Count > 0
+                    ? $"What to work on next, plus {report.Advice.Count} coaching tips for {_result.Scenario}."
+                    : $"{report.Advice.Count} coaching tips and your next drill prescription.";
+
+                if (CoachingLockedOverlay.FindName("CoachingLockedHint") is System.Windows.Controls.TextBlock hint)
+                    hint.Text = weakHint;
+
+                MotivationalText.Text = "";
+            }
         }
 
         // ── Coaching upgrade button ──────────────────────────────────

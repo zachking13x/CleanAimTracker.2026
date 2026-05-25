@@ -8,6 +8,11 @@ namespace CleanAimTracker.Services
         // TASK-13: 30 free sessions instead of 7-day timer
         private const int FreeSessions = 30;
 
+        // Developer bypass — grants full Pro access on the developer's own machine.
+        // Environment.UserName is evaluated once at startup; no effect on any other user.
+        private static readonly bool IsDeveloper =
+            Environment.UserName.Equals("Zachk", StringComparison.OrdinalIgnoreCase);
+
         public static void Initialize()
         {
             var settings = SettingsService.Load();
@@ -45,6 +50,7 @@ namespace CleanAimTracker.Services
 
         public static bool IsFullVersion()
         {
+            if (IsDeveloper) return true;
             return LicenseService.HasPro
                 || LicenseService.HasTrainer
                 || LicenseService.HasLifetime;

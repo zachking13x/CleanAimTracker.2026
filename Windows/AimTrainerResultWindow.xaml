@@ -465,7 +465,8 @@
                                                    FontSize="14" FontWeight="Bold"
                                                    HorizontalAlignment="Center"
                                                    Margin="0,0,0,8"/>
-                                        <TextBlock Text="Upgrade to unlock weaknesses, tips, and drill prescriptions."
+                                        <TextBlock x:Name="CoachingLockedHint"
+                                                   Text="Upgrade to unlock weaknesses, tips, and drill prescriptions."
                                                    Foreground="#AAAAAA"
                                                    FontSize="12" TextWrapping="Wrap"
                                                    TextAlignment="Center"

@@ -143,18 +143,32 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         private void LoadAdaptiveWeakSpot()
         {
-            var last = SessionStorage.LoadLast();
-            if (last == null) return;
+            var all = AimTrainerStorage.LoadAll();
+            if (all.Count == 0) return;
 
-            var scores = new Dictionary<string, double>
+            // Determine weakest scenario by average accuracy across the last 10 results
+            // for each of the four scenarios. -1 means the scenario has never been played.
+            var scenarios = new[] { "Flicking", "Precision", "Tracking", "Switching" };
+            var avgByScenario = new Dictionary<string, double>();
+
+            foreach (var scenario in scenarios)
             {
-                ["Flicking"] = last.SmoothnessScore,
-                ["Precision"] = last.MovementConsistency,
-                ["Tracking"] = 100 - (last.JitterAmount / Math.Max(1, last.TotalSamples) * 100),
-                ["Switching"] = last.CorrectionSharpness,
-            };
+                var recent = all
+                    .Where(r => r.Scenario == scenario)
+                    .OrderByDescending(r => r.Timestamp)
+                    .Take(10)
+                    .ToList();
 
-            _adaptiveWeakSpot = scores.OrderBy(kv => kv.Value).First().Key;
+                avgByScenario[scenario] = recent.Count > 0
+                    ? recent.Average(r => r.Accuracy)
+                    : -1;
+            }
+
+            // Pick the scenario with the lowest average; unplayed scenarios sort last
+            // (never-played should not be chosen unless everything is unplayed).
+            var played = avgByScenario.Where(kv => kv.Value >= 0).ToList();
+            if (played.Count > 0)
+                _adaptiveWeakSpot = played.OrderBy(kv => kv.Value).First().Key;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -444,7 +458,9 @@ namespace CleanAimTracker.Windows
                     {
                         var result = BuildResult(statsSource);
                         SaveResult(result);
-                        new AimTrainerResultWindow(result) { Owner = Application.Current.MainWindow }.ShowDialog();
+                        // isOnboarding: true suppresses achievement popups during the onboarding flow
+                        new AimTrainerResultWindow(result, isOnboarding: true)
+                            { Owner = Application.Current.MainWindow }.ShowDialog();
                     }
 
                     Application.Current.MainWindow.Activate();
@@ -761,6 +777,12 @@ namespace CleanAimTracker.Windows
             int total = hits + misses;
             double accuracy = total > 0 ? hits * 100.0 / total : 0;
 
+            // Guard against double.MaxValue sentinel — only emit a real best-reaction
+            // value when at least one hit was recorded and the scenario tracked it.
+            double bestReaction = (hits > 0 && stats.BestReactionMs < double.MaxValue)
+                ? stats.BestReactionMs
+                : 0;
+
             return new AimTrainerResult
             {
                 Timestamp       = DateTime.Now,
@@ -773,7 +795,7 @@ namespace CleanAimTracker.Windows
                 Accuracy        = accuracy,
                 Score           = _score,
                 AvgReactionMs   = stats.AvgReactionMs,
-                BestReactionMs  = stats.BestReactionMs,
+                BestReactionMs  = bestReaction,
                 MaxStreak       = stats.MaxStreak,
             };
         }
@@ -854,25 +876,30 @@ namespace CleanAimTracker.Windows
             // cm/360 = (360 / (gameSens * DPI * yaw)) * 2.54
             double cm360 = (360.0 / (sens * dpi * yaw)) * 2.54;
 
+            // The aim trainer has no raw mouse-movement data, so tracker-derived fields
+            // (smoothness, correction sharpness, jitter, etc.) cannot be computed from
+            // click accuracy without fabricating numbers. Use neutral 50/0 values instead
+            // so the recommendation engine applies its confidence cap rather than producing
+            // misleading coaching text based on invented metrics.
             var summary = new SessionSummary
             {
-                Timestamp       = result.Timestamp,
-                DPI             = (int)Math.Round(dpi),
-                Sensitivity     = sens,
-                GameSensitivity = sens,  // user input IS the game sensitivity
-                CmPer360        = cm360,
-                SmoothnessScore = result.Accuracy,
-                MovementConsistency = result.Accuracy,
-                JitterAmount = 100 - result.Accuracy,
-                TotalSamples = result.Hits + result.Misses,
-                FlickCount = result.Hits,
-                SmallFlickCount = result.Hits,
-                LargeFlickCount = result.Misses,
-                CorrectionSharpness = 100 - result.Accuracy,
-                PeakVelocity = 1,
-                AverageVelocity = 1,
-                IdlePercentage = 0,
-                SessionSeconds = result.DurationSeconds
+                Timestamp           = result.Timestamp,
+                DPI                 = (int)Math.Round(dpi),
+                Sensitivity         = sens,
+                GameSensitivity     = sens,
+                CmPer360            = cm360,
+                SmoothnessScore     = 50,
+                MovementConsistency = 50,
+                JitterAmount        = 50,
+                TotalSamples        = result.Hits + result.Misses,
+                FlickCount          = result.Hits,
+                SmallFlickCount     = result.Hits,
+                LargeFlickCount     = 0,
+                CorrectionSharpness = 50,
+                PeakVelocity        = 1,
+                AverageVelocity     = 1,
+                IdlePercentage      = 0,
+                SessionSeconds      = 0,   // 0 forces the engine confidence cap low
             };
 
             return RecommendationEngine.Analyze(summary, profile);

@@ -1,7 +1,8 @@
-﻿using CleanAimTracker.Models;
+using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace CleanAimTracker.Services
@@ -15,6 +16,10 @@ namespace CleanAimTracker.Services
         private static readonly string FilePath =
             Path.Combine(Folder, "session_history.json");
 
+        // Oldest excess sessions are moved to the archive file instead of being discarded.
+        private const int MaxSessions = 1000;
+        private static readonly string ArchivePath = FilePath + ".archive.json";
+
         public static void Save(SessionSummary summary)
         {
             try
@@ -24,11 +29,18 @@ namespace CleanAimTracker.Services
                 List<SessionSummary> history = LoadAll();
                 history.Add(summary);
 
+                if (history.Count > MaxSessions)
+                {
+                    // Move the oldest excess entries to the archive before trimming.
+                    var excess = history.Take(history.Count - MaxSessions).ToList();
+                    AppendToArchive(excess);
+                    history = history.Skip(history.Count - MaxSessions).ToList();
+                }
+
+                // Atomic write: write to .tmp then replace,
+                // so a crash mid-write never corrupts the main file.
                 string json    = JsonSerializer.Serialize(history);
                 string tmpPath = FilePath + ".tmp";
-
-                // Safe atomic write: write to .tmp then replace,
-                // so a crash mid-write never corrupts the main file.
                 File.WriteAllText(tmpPath, json);
                 File.Move(tmpPath, FilePath, overwrite: true);
             }
@@ -38,6 +50,7 @@ namespace CleanAimTracker.Services
             }
         }
 
+        [Obsolete("Use Save() directly. SaveSession() will be removed in a future version.")]
         public static void SaveSession(SessionSummary summary)
         {
             Save(summary);
@@ -84,6 +97,36 @@ namespace CleanAimTracker.Services
             catch (Exception ex)
             {
                 LogService.Error("SessionStorage.ClearAll failed", ex);
+            }
+        }
+
+        private static void AppendToArchive(List<SessionSummary> sessions)
+        {
+            try
+            {
+                Directory.CreateDirectory(Folder);
+
+                List<SessionSummary> existing = new();
+                if (File.Exists(ArchivePath))
+                {
+                    try
+                    {
+                        existing = JsonSerializer.Deserialize<List<SessionSummary>>(
+                            File.ReadAllText(ArchivePath)) ?? new();
+                    }
+                    catch { /* corrupt archive — start fresh */ }
+                }
+
+                existing.AddRange(sessions);
+
+                string json    = JsonSerializer.Serialize(existing);
+                string tmpPath = ArchivePath + ".tmp";
+                File.WriteAllText(tmpPath, json);
+                File.Move(tmpPath, ArchivePath, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("SessionStorage.AppendToArchive failed", ex);
             }
         }
     }

@@ -117,8 +117,20 @@ namespace CleanAimTracker.Services
 
             if (result.Accuracy >= 80)  TryUnlock("accuracy_80");
             if (result.Accuracy >= 90)  TryUnlock("accuracy_90");
-            if (result.Accuracy >= 95)  TryUnlock("elite_grade");  // "Excellent" AI coach threshold
             if (result.Accuracy >= 100) TryUnlock("accuracy_100");
+
+            // Elite threshold matches AiCoachService.Bench.AccuracyElite() so the
+            // achievement fires exactly when the coach would grade the session "Excellent".
+            double eliteThreshold = result.Scenario switch
+            {
+                "Tracking"  => 80,
+                "Flicking"  => 82,
+                "Precision" => 88,
+                "Switching" => 80,
+                "Adaptive"  => 80,
+                _           => 82,
+            };
+            if (result.Accuracy >= eliteThreshold) TryUnlock("elite_grade");
 
             if (result.AvgReactionMs > 0 && result.AvgReactionMs < 300) TryUnlock("reaction_300");
             if (result.AvgReactionMs > 0 && result.AvgReactionMs < 220) TryUnlock("reaction_220");
@@ -148,11 +160,20 @@ namespace CleanAimTracker.Services
             if (currentStreakDays >= 14) TryUnlock("streak_14");
             if (currentStreakDays >= 30) TryUnlock("streak_30");
 
-            var tier = ProgressionService.GetTier(SessionStorage.LoadAll() ?? new List<SessionSummary>());
-            if (tier.Name is "Bronze" or "Silver" or "Gold" or "Elite") TryUnlock("reach_bronze");
-            if (tier.Name is "Silver" or "Gold" or "Elite")              TryUnlock("reach_silver");
-            if (tier.Name is "Gold" or "Elite")                          TryUnlock("reach_gold");
-            if (tier.Name == "Elite")                                     TryUnlock("reach_elite");
+            // Tier is computed from aim trainer accuracy so aim-trainer-only users are not
+            // locked at Rookie forever. ProgressionService uses tracker sessions which
+            // may be empty for users who only use the aim trainer.
+            double avgAccuracy = allResults.Count > 0 ? allResults.Average(r => r.Accuracy) : 0;
+            string tierName = avgAccuracy >= 82 ? "Elite"
+                            : avgAccuracy >= 70 ? "Gold"
+                            : avgAccuracy >= 55 ? "Silver"
+                            : avgAccuracy >= 40 ? "Bronze"
+                            : "Rookie";
+
+            if (tierName is "Bronze" or "Silver" or "Gold" or "Elite") TryUnlock("reach_bronze");
+            if (tierName is "Silver" or "Gold" or "Elite")              TryUnlock("reach_silver");
+            if (tierName is "Gold" or "Elite")                          TryUnlock("reach_gold");
+            if (tierName == "Elite")                                     TryUnlock("reach_elite");
 
             if (challengesCompleted >= 1)  TryUnlock("first_challenge");
             if (challengesCompleted >= 7)  TryUnlock("challenge_7");

@@ -27,10 +27,13 @@ namespace CleanAimTracker.Services
             return SessionsCompleted() < FreeSessions;
         }
 
-        // Number of sessions the user has completed
+        // Number of aim trainer drills the user has completed.
+        // NOTE: SessionStorage holds raw mouse-movement tracker sessions (gameplay).
+        //       AimTrainerStorage holds aim trainer drill results — these are separate
+        //       stores and must not be interchanged. Trial progress is based on drills.
         public static int SessionsCompleted()
         {
-            try { return SessionStorage.LoadAll().Count; }
+            try { return AimTrainerStorage.LoadAll().Count; }
             catch { return 0; }
         }
 

@@ -112,7 +112,7 @@
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="BestReactionText" Text="--"
                                            FontSize="22" FontWeight="Bold"
-                                           Foreground="LightGreen"
+                                           Foreground="{DynamicResource AccentGreen}"
                                            Margin="0 4 0 0"/>
                             </StackPanel>
                         </Border>
@@ -139,10 +139,10 @@
                                            Foreground="{DynamicResource MutedText}"
                                            FontSize="10" FontWeight="SemiBold"/>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock x:Name="HitsText" Foreground="LightGreen"
+                                    <TextBlock x:Name="HitsText" Foreground="{DynamicResource AccentGreen}"
                                                FontSize="13" FontWeight="Bold"/>
                                     <TextBlock Text=" hits  " Foreground="{DynamicResource MutedText}" FontSize="12"/>
-                                    <TextBlock x:Name="MissesText" Foreground="OrangeRed"
+                                    <TextBlock x:Name="MissesText" Foreground="{DynamicResource AccentOrange}"
                                                FontSize="13" FontWeight="Bold"/>
                                     <TextBlock Text=" misses" Foreground="{DynamicResource MutedText}" FontSize="12"/>
                                 </StackPanel>
@@ -364,7 +364,7 @@
 
                                 <!-- Strengths -->
                                 <TextBlock Text="✅  STRENGTHS"
-                                           Foreground="LightGreen"
+                                           Foreground="{DynamicResource AccentGreen}"
                                            FontSize="11" FontWeight="Bold"
                                            Margin="0 0 0 6"/>
                                 <ItemsControl x:Name="StrengthsList" Margin="0 0 0 14">
@@ -379,6 +379,7 @@
                                 </ItemsControl>
 
                                 <!-- Weaknesses -->
+                                <StackPanel x:Name="WeaknessesSection">
                                 <TextBlock Text="⚠️  AREAS TO IMPROVE"
                                            Foreground="#FFAA44"
                                            FontSize="11" FontWeight="Bold"
@@ -393,8 +394,10 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </StackPanel>
 
                                 <!-- Advice -->
+                                <StackPanel x:Name="AdviceSection">
                                 <TextBlock Text="💡  COACHING TIPS"
                                            Foreground="{DynamicResource AccentBrush}"
                                            FontSize="11" FontWeight="Bold"
@@ -411,12 +414,14 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </StackPanel>
 
                                 <!-- Next drill -->
+                                <StackPanel x:Name="NextDrillSection">
                                 <Border Background="#0A4CAF50" CornerRadius="6" Padding="12 10" Margin="0 0 0 12">
                                     <StackPanel>
                                         <TextBlock Text="NEXT DRILL SUGGESTION"
-                                                   Foreground="LightGreen"
+                                                   Foreground="{DynamicResource AccentGreen}"
                                                    FontSize="10" FontWeight="Bold"
                                                    Margin="0 0 0 4"/>
                                         <TextBlock x:Name="NextDrillText"
@@ -443,6 +448,39 @@
                                                 BorderThickness="0"
                                                 Padding="12,7"
                                                 HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </Border>
+                                </StackPanel>
+
+                                <!-- Coaching locked overlay — shown for free users -->
+                                <Border x:Name="CoachingLockedOverlay"
+                                        Background="#CC000000"
+                                        CornerRadius="8"
+                                        Padding="20,16"
+                                        Margin="0,0,0,12"
+                                        Visibility="Collapsed">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="🔒  Full coaching is a Pro feature"
+                                                   Foreground="White"
+                                                   FontSize="14" FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,8"/>
+                                        <TextBlock Text="Upgrade to unlock weaknesses, tips, and drill prescriptions."
+                                                   Foreground="#AAAAAA"
+                                                   FontSize="12" TextWrapping="Wrap"
+                                                   TextAlignment="Center"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,14"
+                                                   MaxWidth="340"/>
+                                        <Button Content="Upgrade to Pro →"
+                                                Click="CoachingUpgrade_Click"
+                                                Background="{DynamicResource AccentBrush}"
+                                                Foreground="Black"
+                                                BorderThickness="0"
+                                                FontSize="13" FontWeight="Bold"
+                                                Padding="16,8"
+                                                HorizontalAlignment="Center"
+                                                Cursor="Hand"/>
                                     </StackPanel>
                                 </Border>
 

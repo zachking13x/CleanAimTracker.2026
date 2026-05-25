@@ -1108,6 +1108,85 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ── Value Moment Card (FIX-23) ────────────────── -->
+                    <Border x:Name="ValueMomentCard"
+                            Background="#1A002A00"
+                            BorderBrush="#3300E5A0"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="14,12"
+                            Margin="0,0,0,8"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="🎯 " FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="Looking good!"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentGreen}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock x:Name="ValueMomentBodyText"
+                                       Text="Unlock full coaching, history insights, and more with Pro."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"/>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Content="Upgrade →"
+                                        Click="ValueMomentUpgrade_Click"
+                                        Background="{DynamicResource AccentBrush}"
+                                        Foreground="Black"
+                                        BorderThickness="0"
+                                        FontSize="11" FontWeight="Bold"
+                                        Padding="10,5"
+                                        Margin="0,0,8,0"
+                                        Cursor="Hand"/>
+                                <Button Content="Maybe Later"
+                                        Click="ValueMomentDismiss_Click"
+                                        Background="Transparent"
+                                        Foreground="{DynamicResource SecondaryText}"
+                                        BorderThickness="0"
+                                        FontSize="11"
+                                        Padding="6,5"
+                                        Cursor="Hand"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── Free Limit Card (FIX-24) ──────────────────── -->
+                    <Border x:Name="FreeLimitCard"
+                            Background="#1A1A0000"
+                            BorderBrush="#33FF6B35"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="14,12"
+                            Margin="0,0,0,8"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="🔒 " FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="Free limit reached"
+                                           FontSize="13" FontWeight="Bold"
+                                           Foreground="#FF6B35"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="You've used your free aim trainer drills. Upgrade to Pro for unlimited training."
+                                       FontSize="11"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,10"/>
+                            <Button Content="Unlock Unlimited →"
+                                    Click="FreeLimitUpgrade_Click"
+                                    Background="#FF6B35"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="11" FontWeight="Bold"
+                                    Padding="10,5"
+                                    Cursor="Hand"
+                                    HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ── TASK-08: Tier Hero Card ─────────────────────── -->
                     <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8">
                         <StackPanel>
@@ -1167,7 +1246,7 @@
                             Margin="0,0,0,8"
                             CornerRadius="12"
                             Cursor="Hand"
-                            MouseDown="DailyChallenge_Click"
+                            MouseDown="DailyChallenge_MouseDown"
                             SnapsToDevicePixels="True">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
@@ -1237,7 +1316,7 @@
                             <!-- Start button -->
                             <Button x:Name="ChallengeAcceptBtn"
                                     Content="▶  Start Challenge"
-                                    Click="DailyChallenge_Click"
+                                    Click="DailyChallenge_ButtonClick"
                                     Foreground="Black"
                                     BorderThickness="0"
                                     FontSize="12" FontWeight="Bold"

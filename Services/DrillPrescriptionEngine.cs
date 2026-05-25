@@ -67,10 +67,10 @@ namespace CleanAimTracker.Services
                     Difficulty  = "Easy",
                     SubVariant  = "Static",
                     DurationSec = 60,
-                    Reason      = $"Your sensitivity is {recentTracker.CmPer360:F1} cm/360 — too low for Precision. " +
-                                  "Micro-adjustment on small targets requires at least 25 cm/360. " +
-                                  "Check the Recommend screen for your optimal sensitivity, " +
-                                  "adjust it in-game, then run Precision Static at Easy to recalibrate.",
+                    Reason      = "Your sensitivity is too high for Precision — hitting small targets becomes " +
+                                  "physically difficult at this sensitivity level. " +
+                                  "Check the Recommend screen for your target range, adjust in-game, " +
+                                  "then run Precision Static at Easy to recalibrate.",
                     FocusCue    = "Fix the settings first. More drilling at the wrong sensitivity builds bad habits."
                 });
                 return prescriptions;
@@ -88,8 +88,8 @@ namespace CleanAimTracker.Services
                     Difficulty  = "Easy",
                     SubVariant  = "Static",
                     DurationSec = 60,
-                    Reason      = $"Your sensitivity is {recentTracker.CmPer360:F1} cm/360 — high for Precision. " +
-                                  "You are overshooting small targets because the cursor jumps too far per hand movement. " +
+                    Reason      = "Your sensitivity is too low for Precision — your cursor jumps too far per hand movement, " +
+                                  "making small targets hard to land on consistently. " +
                                   "Lower your in-game sensitivity and retest on Easy before increasing difficulty.",
                     FocusCue    = "Slow is smooth. Smooth is accurate. Speed comes after the mechanics are clean."
                 });

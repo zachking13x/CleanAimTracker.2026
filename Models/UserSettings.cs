@@ -51,5 +51,8 @@
 
         // Weekly summary notification
         public DateTime LastWeeklySummaryDate { get; set; } = DateTime.MinValue;
+
+        // Upgrade reminder — set when user clicks "Remind me after my next session"
+        public bool PendingUpgradeReminder { get; set; } = false;
     }
 }

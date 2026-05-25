@@ -32,6 +32,7 @@ namespace CleanAimTracker.Services
             {
                 double avgSmooth = history
                     .Where(h => h.Timestamp < session.Timestamp)
+                    .OrderByDescending(h => h.Timestamp)
                     .Take(5)
                     .Average(h => h.SmoothnessScore);
 

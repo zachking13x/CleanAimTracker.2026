@@ -25,10 +25,10 @@ namespace CleanAimTracker.Services
         {
             try
             {
-                var sessions = SessionStorage.LoadAll();
-                if (sessions.Count == 0) return;
+                var drills = AimTrainerStorage.LoadAll();
+                if (drills.Count == 0) return;
 
-                var last = sessions.OrderByDescending(s => s.Timestamp).FirstOrDefault();
+                var last = drills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
                 if (last == null) return;
 
                 if (last.Timestamp.Date == DateTime.Today) return;
@@ -39,7 +39,7 @@ namespace CleanAimTracker.Services
                 var deliveryTime = DateTime.Now.AddMinutes(30);
                 ScheduleToast(
                     "Time to train 🎯",
-                    $"Last session was {DayText(last.Timestamp)} (quality: {last.OverallQualityScore:F0}). " +
+                    $"Last drill was {DayText(last.Timestamp)} (accuracy: {last.Accuracy:F0}%). " +
                     "A quick session keeps your streak alive.",
                     deliveryTime);
             }

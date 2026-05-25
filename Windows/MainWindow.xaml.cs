@@ -343,6 +343,16 @@ namespace CleanAimTracker.Windows
         // TRIAL BANNER
         public void UpdateTrialBanner()
         {
+            if (LicenseService.InitFailed)
+            {
+                TrialBannerText.Text       = "⚠  License check failed — check your connection and restart the app.";
+                TrialBannerText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));  // AccentOrange
+                TrialBannerText.Visibility = Visibility.Visible;
+                return;
+            }
+
+            TrialBannerText.ClearValue(System.Windows.Controls.TextBlock.ForegroundProperty);
             string banner = TrialService.GetBannerText();
             TrialBannerText.Text = banner;
             TrialBannerText.Visibility = string.IsNullOrEmpty(banner)
@@ -945,23 +955,37 @@ namespace CleanAimTracker.Windows
 
         private void MaybeShowValueMoment()
         {
-            // TASK-11: Value moment — show upgrade nudge at sessions 3, 10, 25
-            if (!TrialService.IsFullVersion())
-            {
-                int count = TrialService.SessionsCompleted();
-                if (TrialService.IsValueMoment(count))
-                {
-                    var result = MessageBox.Show(
-                        TrialService.GetValueMomentMessage(count) +
-                        "\n\nUpgrade now?",
-                        "🎯 Nice Work!",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.None);
+            if (TrialService.IsFullVersion()) return;
 
-                    if (result == MessageBoxResult.Yes)
-                        UpgradeDialog.Show("Pro Features");
-                }
-            }
+            int count = TrialService.SessionsCompleted();
+            if (!TrialService.IsValueMoment(count)) return;
+
+            ValueMomentBodyText.Text = TrialService.GetValueMomentMessage(count);
+            ValueMomentCard.Visibility = Visibility.Visible;
+            ValueMomentCard.BringIntoView();
+        }
+
+        private void ShowFreeLimitCard()
+        {
+            FreeLimitCard.Visibility = Visibility.Visible;
+            FreeLimitCard.BringIntoView();
+        }
+
+        private void ValueMomentUpgrade_Click(object sender, RoutedEventArgs e)
+        {
+            ValueMomentCard.Visibility = Visibility.Collapsed;
+            new UpgradeWindow { Owner = this }.ShowDialog();
+            UpdateTrialBanner();
+        }
+
+        private void ValueMomentDismiss_Click(object sender, RoutedEventArgs e)
+            => ValueMomentCard.Visibility = Visibility.Collapsed;
+
+        private void FreeLimitUpgrade_Click(object sender, RoutedEventArgs e)
+        {
+            FreeLimitCard.Visibility = Visibility.Collapsed;
+            new UpgradeWindow { Owner = this }.ShowDialog();
+            UpdateTrialBanner();
         }
 
         public void OpenRecommendation_Click(object sender, RoutedEventArgs e)
@@ -1008,27 +1032,8 @@ namespace CleanAimTracker.Windows
         {
             if (TrialService.IsAtFreeLimit())
             {
-                // User has used all 30 sessions — acknowledge the effort before the ask
-                var allDrills = AimTrainerStorage.LoadAll();
-                int sessions  = allDrills.Count;
-                double bestAcc = allDrills.Count > 0 ? allDrills.Max(r => r.Accuracy) : 0;
-                int streak     = SettingsService.Load().CurrentStreak;
-
-                string statLine = sessions > 0
-                    ? $"Best accuracy: {bestAcc:F0}%  ·  Current streak: {streak} day{(streak == 1 ? "" : "s")}"
-                    : "";
-
-                var result = MessageBox.Show(
-                    $"You've completed {sessions} sessions — that's serious commitment.\n\n" +
-                    (statLine.Length > 0 ? statLine + "\n\n" : "") +
-                    "Pro keeps your full history, AI coaching, and weekly reports going — " +
-                    "everything you've built stays with you.\n\nView upgrade options?",
-                    "Ready for Pro?",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.None);
-
-                if (result == MessageBoxResult.Yes)
-                    new UpgradeWindow { Owner = this }.ShowDialog();
+                ShowFreeLimitCard();
+                FreeLimitCard.BringIntoView();
             }
             else
             {
@@ -1502,10 +1507,10 @@ namespace CleanAimTracker.Windows
         };
 
         // Card MouseDown and Accept button both call the same logic
-        private void DailyChallenge_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        private void DailyChallenge_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
             => LaunchDailyChallenge();
 
-        private void DailyChallenge_Click(object sender, RoutedEventArgs e)
+        private void DailyChallenge_ButtonClick(object sender, RoutedEventArgs e)
             => LaunchDailyChallenge();
 
         private void LaunchDailyChallenge()

@@ -92,6 +92,18 @@ namespace CleanAimTracker.Services
             List<AimTrainerResult> history,
             SessionSummary? recentTrackerSession = null)
         {
+            if (result.Hits == 0)
+                return new AiCoachReport
+                {
+                    OverallRating       = "No Data",
+                    Headline            = "No targets hit this session — run a drill to get coaching.",
+                    Strengths           = new List<string> { "Click targets to generate coaching data." },
+                    Weaknesses          = new List<string>(),
+                    Advice              = new List<string> { "Use the Start button to begin a drill, then click the targets that appear on screen." },
+                    NextDrillSuggestion = "Try Precision on Easy — it is the best starting point for new players.",
+                    MotivationalClose   = "Every expert was a beginner once. Start clicking.",
+                };
+
             var context = BuildContext(result, history, recentTrackerSession);
             var report  = GenerateReport(result, context);
             var prescriptions = DrillPrescriptionEngine.Prescribe(result, context, recentTrackerSession);
@@ -183,7 +195,7 @@ namespace CleanAimTracker.Services
             var areas = new Dictionary<string, double>
             {
                 ["accuracy"]  = r.Accuracy,
-                ["reaction"]  = 100 - Math.Min(100, r.AvgReactionMs / 6.0),
+                ["reaction"]  = r.AvgReactionMs > 0 ? 100 - Math.Min(100, r.AvgReactionMs / 6.0) : 50,
                 ["streak"]    = Math.Min(100, r.MaxStreak * 7.0),
                 ["endurance"] = r.Misses == 0 ? 100 : 100.0 * r.Hits / (r.Hits + r.Misses)
             };
@@ -217,8 +229,12 @@ namespace CleanAimTracker.Services
 
         // ── Variant picker ────────────────────────────────────────────
         /// <summary>
-        /// Rotates through variants by session count so the same line never
-        /// repeats in consecutive sessions.
+        /// Rotates through variants by per-scenario session count so the same
+        /// coaching line never repeats in consecutive same-scenario sessions.
+        /// Using c.SessionCount (same-scenario history count + 1) rather than
+        /// c.TotalSessionsAll means the rotation is tied to how many times the
+        /// user has run THIS scenario, not their global session count — so
+        /// playing a new scenario doesn't shift the rotation for existing ones.
         /// </summary>
         private static string Pick(int sessionIndex, params string[] variants)
             => variants[sessionIndex % variants.Length];
@@ -275,21 +291,21 @@ namespace CleanAimTracker.Services
                 list.Add($"This session's {r.Accuracy:F0}% accuracy is {(r.Accuracy - c.OverallAvgAccuracy):F0}% above your overall average of {c.OverallAvgAccuracy:F0}% — your best relative performance recently.");
 
             if (c.AccuracyGrade == "elite")
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"Your {r.Accuracy:F0}% accuracy is elite level — most competitive players hover around {Bench.AccuracyGood(r.Scenario):F0}%. You're well above that.",
                     $"{r.Accuracy:F0}% accuracy puts you in the top tier. That's not luck — that's reps paying off.",
                     $"Elite accuracy at {r.Accuracy:F0}%. The consistency is the impressive part — anyone can have a good session, fewer can repeat it.",
                     $"Your {r.Accuracy:F0}% accuracy is the kind of number that shows up in ranked lobbies. Keep building on it."
                 ));
             else if (c.AccuracyGrade == "good")
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"{r.Accuracy:F0}% accuracy puts you in the good range for {r.Scenario}. You're making more right decisions than wrong ones.",
                     $"Solid {r.Accuracy:F0}% accuracy in {r.Scenario}. The fundamentals are there — now build consistency.",
                     $"{r.Accuracy:F0}% is a good number for {r.Scenario}. You're above average and trending in the right direction.",
                     $"Good accuracy at {r.Accuracy:F0}%. You're clicking with intent — that's the foundation everything else builds on."
                 ));
             else if (c.IsImproving && c.AccuracyDelta > 3)
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"Accuracy improved {c.AccuracyDelta:+0.0}% from your last session — that's real, measurable progress.",
                     $"Up {c.AccuracyDelta:F0}% accuracy since last session. The trajectory is pointing up.",
                     $"Accuracy trend: +{c.AccuracyDelta:F0}% from last time. Every improvement stacks.",
@@ -297,14 +313,14 @@ namespace CleanAimTracker.Services
                 ));
 
             if (c.ReactionGrade == "elite")
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"Your {r.AvgReactionMs:F0}ms average reaction is elite level — most players are 150-200ms slower than this.",
                     $"{r.AvgReactionMs:F0}ms reaction time is genuinely fast. You're in the range where raw speed becomes an advantage.",
                     $"Elite reaction at {r.AvgReactionMs:F0}ms average. Your reads are translating to clicks — that's the hard part.",
                     $"{r.AvgReactionMs:F0}ms average. At this speed, target acquisition is a real strength, not just a stat."
                 ));
             else if (c.ReactionGrade == "good")
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"{r.AvgReactionMs:F0}ms average reaction is competitive. You're in the range where pros operate.",
                     $"Good reaction time at {r.AvgReactionMs:F0}ms average. Speed isn't the bottleneck — build on this.",
                     $"{r.AvgReactionMs:F0}ms puts your reactions in a solid range. Consistent performance at this speed is what separates good from great.",
@@ -352,7 +368,7 @@ namespace CleanAimTracker.Services
                 && c.ReactionGrade == "slow"
                 && (r.Scenario == "Flicking" || r.Scenario == "Switching"))
             {
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"Your reaction time looks slow but your movement data tells a different story — you are overshooting " +
                     "and yanking back to correct. That correction cycle adds a significant delay artificially. " +
                     "The fix is smoother first motion, not faster reflexes.",
@@ -376,7 +392,7 @@ namespace CleanAimTracker.Services
                 && c.TrackerCmPer360.Value < 22
                 && r.Scenario == "Tracking")
             {
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     "Your mouse movement was inconsistent this session — and your sensitivity may be making it worse. " +
                     "When sensitivity is very high, small hand movements cause large cursor jumps which makes smooth tracking much harder. " +
                     "Try lowering your in-game sensitivity slightly before your next session and see if your movement feels more controlled.",
@@ -398,7 +414,7 @@ namespace CleanAimTracker.Services
                 && (c.AccuracyGrade == "average" || c.AccuracyGrade == "developing")
                 && r.Scenario == "Precision")
             {
-                list.Add(Pick(c.TotalSessionsAll,
+                list.Add(Pick(c.SessionCount,
                     $"Your accuracy is {r.Accuracy:F0}% but your consistency across sessions is actually good — " +
                     "you are consistently missing, which means the mechanics are repeatable. " +
                     "This usually points to crosshair placement — you are probably stopping just short of the target center. " +
@@ -581,35 +597,35 @@ namespace CleanAimTracker.Services
             }
 
             if (c.AccuracyGrade == "elite")
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     $"Try Hard or Nightmare difficulty — challenging yourself at {r.Accuracy:F0}% accuracy on {r.Difficulty} means you're ready for the next level.",
                     $"{r.Accuracy:F0}% accuracy on {r.Difficulty} is a strong signal — step up the difficulty and find your real ceiling.",
                     $"You've outgrown {r.Difficulty} for now. Harder targets will expose gaps that {r.Difficulty} hides.",
                     $"At {r.Accuracy:F0}% you're coasting on {r.Difficulty}. The growth is in the next difficulty tier — go find it."
                 ));
             else if (c.ReactionGrade == "slow")
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "Instead of trying to react faster, work on predicting — watch the target's pattern and move your cursor before it arrives, not after.",
                     "Anticipation beats reaction every time. Before a target appears, think about where it is likely to go. Pre-aim that spot.",
                     "Reaction time training works best when you stop trying to be fast. Relax, read the pattern, and let the click happen naturally.",
                     "Your best reaction times happen when you stop thinking about reacting. Focus on the target's movement, not on clicking fast."
                 ));
             else if (c.IsImproving)
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     $"You've improved {Math.Abs(c.AccuracyDelta):F0}% in accuracy recently — keep the same routine. When something is working, don't change it.",
                     "Improvement is happening — that means the current routine is working. Protect it from disruption.",
                     "The trend is up. The best thing you can do right now is show up consistently and let the progression continue.",
                     "Don't overthink it when you're improving. Same routine, same schedule, let the gains compound."
                 ));
             else if (!c.IsFirstSession && c.AccuracyDelta < -5)
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "A dip in performance is normal. Check if your sensitivity feels right today — sometimes a slight DPI or sens change explains a sudden dip.",
                     "Off sessions happen. Before your next session, check: same surface, same grip, same warmup? Small changes compound into big variance.",
                     "Performance variance is data. If this keeps happening, look at the conditions — time of day, warmup, sleep. Aim reacts to everything.",
                     "One bad session does not define the trend. Come back tomorrow with fresh hands and compare."
                 ));
             else
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "Do 3 warm-up drills at Easy before your main session. Cold muscles make cold aim — warming up moves your average up more than any other single habit.",
                     "Warmup before drilling. Easy mode for 3 minutes primes the neuromuscular connection. Cold hands produce cold aim.",
                     "If you're not warming up before drills, you're leaving 10-15% accuracy on the table. Easy mode for a few minutes first.",
@@ -617,21 +633,21 @@ namespace CleanAimTracker.Services
                 ));
 
             if (c.SessionCount < 5)
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "Track 3 sessions per week consistently. At 10 sessions in the same scenario you'll start seeing clear trend lines in your history.",
                     "The first 10 sessions in a scenario are baseline building. Don't judge the trend until you have 10 data points.",
                     "Consistency matters more than volume right now. Show up 3 times per week and let the data build.",
                     "You need about 10 sessions before the trend line becomes meaningful. Keep logging."
                 ));
             else if (c.IsConsistent)
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "Your consistency is excellent. The next step is deliberately pushing your ceiling — one session per week at a difficulty that feels uncomfortable.",
                     "Consistent performance is valuable but can become a plateau. Introduce one uncomfortable session per week to keep the ceiling moving up.",
                     "You've built a solid floor. Now it's time to work on the ceiling — harder difficulty, shorter duration, higher pressure.",
                     "Consistency achieved. The next level requires deliberately breaking consistency to find and fix the gaps."
                 ));
             else
-                tips.Add(Pick(c.TotalSessionsAll,
+                tips.Add(Pick(c.SessionCount,
                     "Aim training works best alongside your actual game time, not instead of it. 10 minutes of drills before a game session produces better results than long standalone sessions.",
                     "Short sessions immediately before you play are more effective than long standalone sessions. Keep it tight and purposeful.",
                     "The transfer from training to game is strongest when drilling and playing happen close together. Train, then play.",

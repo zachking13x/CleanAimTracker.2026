@@ -8,6 +8,16 @@ namespace CleanAimTracker.Services
     {
         private static StoreContext? _context;
         private static bool _initialized;
+        private static bool _initFailed;
+
+        /// <summary>
+        /// True if the Store context could not be initialized (e.g. no internet,
+        /// Store service unavailable). When InitFailed is true, IsFree returning
+        /// true does NOT mean the user is unlicensed — it means the license check
+        /// could not complete. UI should surface a warning rather than treating
+        /// the user as a free-tier user.
+        /// </summary>
+        public static bool InitFailed => _initFailed;
 
         // ── Store IDs (Microsoft-assigned — used for RequestPurchaseAsync) ──
         public const string STOREID_LIFETIME    = "9P9B8QZZTVX1";   // lifetime_unlock — LIVE
@@ -47,6 +57,7 @@ namespace CleanAimTracker.Services
             }
             catch (Exception ex)
             {
+                _initFailed = true;
                 LogService.Error("LicenseService init failed", ex);
             }
         }

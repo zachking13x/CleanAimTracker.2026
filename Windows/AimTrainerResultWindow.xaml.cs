@@ -16,15 +16,18 @@ namespace CleanAimTracker.Windows
     {
         private readonly AimTrainerResult _result;
         private readonly bool _isReplay;
+        private readonly bool _isOnboarding;
         private List<Achievement>? _newlyUnlocked;
 
         /// <param name="result">The drill result to display.</param>
         /// <param name="isReplay">True when opened via "Last Report" — hides Play Again, changes title.</param>
-        public AimTrainerResultWindow(AimTrainerResult result, bool isReplay = false)
+        /// <param name="isOnboarding">True when opened during the onboarding flow — suppresses achievement popups.</param>
+        public AimTrainerResultWindow(AimTrainerResult result, bool isReplay = false, bool isOnboarding = false)
         {
             InitializeComponent();
-            _result   = result;
-            _isReplay = isReplay;
+            _result       = result;
+            _isReplay     = isReplay;
+            _isOnboarding = isOnboarding;
 
             if (isReplay)
             {
@@ -49,6 +52,24 @@ namespace CleanAimTracker.Windows
                 // Show share button when accuracy warrants it
                 if (result.Accuracy >= 75)
                     ShareBtn.Visibility = Visibility.Visible;
+
+                // Check for pending upgrade reminder — show UpgradeWindow once after next session
+                var pendingSettings = SettingsService.Load();
+                if (pendingSettings.PendingUpgradeReminder && !TrialService.IsFullVersion())
+                {
+                    pendingSettings.PendingUpgradeReminder = false;
+                    SettingsService.Save(pendingSettings);
+
+                    Loaded += (_, _) =>
+                    {
+                        new UpgradeWindow
+                        {
+                            Owner = Window.GetWindow(this) ?? Application.Current.MainWindow
+                        }.ShowDialog();
+                        if (Application.Current.MainWindow is MainWindow main)
+                            main.UpdateTrialBanner();
+                    };
+                }
             }
         }
 
@@ -93,8 +114,8 @@ namespace CleanAimTracker.Windows
                         settings.CurrentStreak,
                         settings.ChallengesCompleted));
 
-                // Show achievement unlock popup (never on replay)
-                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0 && !_isReplay)
+                // Show achievement unlock popup (never on replay or during onboarding)
+                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0 && !_isReplay && !_isOnboarding)
                 {
                     Dispatcher.Invoke(() =>
                     {
@@ -162,10 +183,11 @@ namespace CleanAimTracker.Windows
 
                     // Collect which badges earned this session
                     var badgesToShow = new List<(string label, string bg)>();
-                    if (isBestScore)    badgesToShow.Add(("🏆 New Best Score!", "#1B5E20"));
-                    if (isBestAccuracy) badgesToShow.Add(("🎯 Best Accuracy!",  "#0D47A1"));
-                    if (isBestReaction) badgesToShow.Add(("⚡ Best Reaction!",  "#E65100"));
-                    if (isBestStreak)   badgesToShow.Add(("🔥 Best Streak!",    "#4A148C"));
+                    // #7A6010 — darkened gold from the --accent-gold family (DESIGN_SPEC)
+                    if (isBestScore)    badgesToShow.Add(("🏆 New Best Score!", "#7A6010"));
+                    if (isBestAccuracy) badgesToShow.Add(("🎯 Best Accuracy!",  "#7A6010"));
+                    if (isBestReaction) badgesToShow.Add(("⚡ Best Reaction!",  "#7A6010"));
+                    if (isBestStreak)   badgesToShow.Add(("🔥 Best Streak!",    "#7A6010"));
 
                     if (badgesToShow.Count > 0)
                     {
@@ -189,7 +211,7 @@ namespace CleanAimTracker.Windows
                             b.Child = new TextBlock
                             {
                                 Text       = label,
-                                FontSize   = 11,
+                                FontSize   = 10,
                                 FontWeight = FontWeights.Bold,
                                 Foreground = Brushes.White,
                             };
@@ -417,7 +439,7 @@ namespace CleanAimTracker.Windows
             var badge = new TextBlock
             {
                 Text       = _result.Scenario.ToUpperInvariant() + $"  •  {_result.Difficulty}  •  {_result.DurationSeconds}s",
-                FontSize   = 11,
+                FontSize   = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x9B, 0xAE)),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -517,10 +539,10 @@ namespace CleanAimTracker.Windows
             };
 
             AccuracyText.Foreground = r.Accuracy >= 80
-                ? System.Windows.Media.Brushes.LightGreen
+                ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE5, 0xA0))
                 : r.Accuracy >= 60
                     ? (System.Windows.Media.Brush)FindResource("AccentBrush")
-                    : System.Windows.Media.Brushes.OrangeRed;
+                    : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));
         }
 
         // ── Load AI coaching asynchronously ───────────────────────────
@@ -573,32 +595,59 @@ namespace CleanAimTracker.Windows
 
             RatingText.Foreground = report.OverallRating switch
             {
-                "Excellent" => System.Windows.Media.Brushes.LightGreen,
+                "Excellent" => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x00, 0xE5, 0xA0)),
                 "Great"     => (System.Windows.Media.Brush)FindResource("AccentBrush"),
                 "Good"      => (System.Windows.Media.Brush)FindResource("AccentBrush"),
                 "Developing"=> System.Windows.Media.Brushes.Orange,
-                _           => System.Windows.Media.Brushes.OrangeRed,
+                _           => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35)),
             };
+
+            bool isPro = TrialService.IsFullVersion();
 
             StrengthsList.ItemsSource  = report.Strengths;
             WeaknessesList.ItemsSource = report.Weaknesses;
             AdviceList.ItemsSource     = report.Advice;
 
-            if (report.Prescription != null)
+            WeaknessesSection.Visibility    = isPro ? Visibility.Visible : Visibility.Collapsed;
+            AdviceSection.Visibility        = isPro ? Visibility.Visible : Visibility.Collapsed;
+            NextDrillSection.Visibility     = isPro ? Visibility.Visible : Visibility.Collapsed;
+            CoachingLockedOverlay.Visibility = isPro ? Visibility.Collapsed : Visibility.Visible;
+
+            if (isPro)
             {
-                NextDrillText.Text = $"{report.Prescription.Scenario} • {report.Prescription.Difficulty}" +
-                                     (report.Prescription.SubVariant != "Standard"
-                                         ? $" • {report.Prescription.SubVariant}" : "");
-                NextDrillReasonText.Text   = report.Prescription.Reason;
-                NextDrillFocusCueText.Text = $"Focus cue: {report.Prescription.FocusCue}";
-                StartPrescribedDrillBtn.Visibility = Visibility.Visible;
-                StartPrescribedDrillBtn.Tag = report.Prescription;
-            }
-            else
-            {
-                NextDrillText.Text = report.NextDrillSuggestion;
+                if (report.Prescription != null)
+                {
+                    NextDrillText.Text = $"{report.Prescription.Scenario} • {report.Prescription.Difficulty}" +
+                                         (report.Prescription.SubVariant != "Standard"
+                                             ? $" • {report.Prescription.SubVariant}" : "");
+                    NextDrillReasonText.Text   = report.Prescription.Reason;
+                    NextDrillFocusCueText.Text = $"Focus cue: {report.Prescription.FocusCue}";
+                    StartPrescribedDrillBtn.Visibility = Visibility.Visible;
+                    StartPrescribedDrillBtn.Tag = report.Prescription;
+                }
+                else
+                {
+                    NextDrillText.Text = report.NextDrillSuggestion;
+                }
             }
             MotivationalText.Text = report.MotivationalClose;
+        }
+
+        // ── Coaching upgrade button ──────────────────────────────────
+        private void CoachingUpgrade_Click(object sender, RoutedEventArgs e)
+        {
+            new UpgradeWindow { Owner = Window.GetWindow(this) ?? Application.Current.MainWindow }
+                .ShowDialog();
+
+            if (TrialService.IsFullVersion())
+            {
+                // Re-run coaching with the now-unlocked full view
+                _ = LoadCoachingAsync(_result);
+            }
+
+            // Refresh trial banner on main window
+            if (Application.Current.MainWindow is MainWindow main)
+                main.UpdateTrialBanner();
         }
 
         // ── Buttons ───────────────────────────────────────────────────

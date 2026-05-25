@@ -638,8 +638,8 @@ namespace CleanAimTracker.Windows
                     ? $"What to work on next, plus {report.Advice.Count} coaching tips for {_result.Scenario}."
                     : $"{report.Advice.Count} coaching tips and your next drill prescription.";
 
-                if (CoachingLockedOverlay.FindName("CoachingLockedHint") is System.Windows.Controls.TextBlock hint)
-                    hint.Text = weakHint;
+                if (CoachingLockedHint != null)
+                    CoachingLockedHint.Text = weakHint;
 
                 MotivationalText.Text = "";
             }

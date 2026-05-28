@@ -17,6 +17,8 @@ namespace CleanAimTracker
         {
             base.OnStartup(e);
 
+            LogService.Initialize();
+
             // ── Global exception handlers ─────────────────────────────────────
             DispatcherUnhandledException += (_, args) =>
             {

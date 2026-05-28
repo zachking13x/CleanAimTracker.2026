@@ -11,9 +11,9 @@
 		<EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
 		<AssemblyName>CleanAimTracker</AssemblyName>
 		<RootNamespace>CleanAimTracker</RootNamespace>
-		<AssemblyVersion>1.0.39.0</AssemblyVersion>
-		<FileVersion>1.0.39.0</FileVersion>
-		<Version>1.0.39.0</Version>
+		<AssemblyVersion>1.0.49.0</AssemblyVersion>
+		<FileVersion>1.0.49.0</FileVersion>
+		<Version>1.0.49.0</Version>
 		<!-- DO NOT add DisableWinRTDesktopSupport — that breaks StoreContext later -->
 	</PropertyGroup>
 

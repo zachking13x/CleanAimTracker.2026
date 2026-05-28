@@ -56,6 +56,7 @@ namespace CleanAimTracker.Services
         {
             try
             {
+                Directory.CreateDirectory(_logFolder);   // no-op if already exists; self-heals if Initialize() was skipped
                 string fileName = $"log_{DateTime.Now:yyyy-MM-dd}.txt";
                 string filePath = Path.Combine(_logFolder, fileName);
                 string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}";

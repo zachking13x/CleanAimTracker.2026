@@ -228,7 +228,7 @@ namespace CleanAimTracker
 
             SessionStorage.ClearAll();
             foreach (var s in toSave)
-                SessionStorage.SaveSession(s);
+                SessionStorage.Save(s);
 
             LoadSessions();
         }

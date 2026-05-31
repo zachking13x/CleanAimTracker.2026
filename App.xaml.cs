@@ -18,6 +18,7 @@ namespace CleanAimTracker
             base.OnStartup(e);
 
             LogService.Initialize();
+            LogService.CleanOldLogs();
 
             // ── Global exception handlers ─────────────────────────────────────
             DispatcherUnhandledException += (_, args) =>

@@ -468,7 +468,7 @@ namespace CleanAimTracker.Windows
             try
             {
                 _pendingSessionSummary = BuildSessionSummary();
-                SessionStorage.SaveSession(_pendingSessionSummary);
+                SessionStorage.Save(_pendingSessionSummary);
                 _pendingStreak = StreakService.UpdateStreak();
                 LoadTodayStats();
                 UpdateTrialBanner();
@@ -796,7 +796,7 @@ namespace CleanAimTracker.Windows
             var summary = BuildSessionSummary();
             try
             {
-                SessionStorage.SaveSession(summary);
+                SessionStorage.Save(summary);
             }
             catch (Exception ex)
             {
@@ -909,13 +909,11 @@ namespace CleanAimTracker.Windows
 
         private void OpenAddProfile_Click(object sender, RoutedEventArgs e)
         {
-            if (!TrialService.RequestProAccess("Custom Profiles")) return;
-
-            var win = new AddProfileWindow();
-            win.ShowDialog();
-
-            if (win.ProfileSaved)
-                RefreshProfiles();
+            MessageBox.Show(
+                "Custom game profiles are coming soon.",
+                "Coming Soon",
+                MessageBoxButton.OK,
+                MessageBoxImage.None);
         }
 
         private void TrialBanner_Click(object sender, RoutedEventArgs e)
@@ -1254,8 +1252,10 @@ namespace CleanAimTracker.Windows
                 else
                     WeeklyAvgText.Text = "—";
 
-                // TASK-15: Tier badge
-                var tier = ProgressionService.GetTier(all);
+                // TASK-15: Tier badge — based on AimTrainer accuracy, not tracker quality
+                var aimDrillsForTier = AimTrainerStorage.LoadAll();
+                double aimAvgForTier = aimDrillsForTier.Count > 0 ? aimDrillsForTier.Average(r => r.Accuracy) : 0;
+                var tier = ProgressionService.GetTierForAvg(aimAvgForTier, aimDrillsForTier.Count);
                 TierText.Text = $"{tier.Emoji} {tier.Name}";
                 TierText.Foreground = new System.Windows.Media.SolidColorBrush(
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));
@@ -1283,15 +1283,17 @@ namespace CleanAimTracker.Windows
                     ? list.Average(s => s.OverallQualityScore)
                     : 0;
 
-                // ── TASK-08: Tier Hero Card ──────────────────────────────
-                var tier = ProgressionService.GetTier(list);
+                // ── TASK-08: Tier Hero Card — based on AimTrainer accuracy ──
+                var aimDrills  = AimTrainerStorage.LoadAll();
+                double aimAvg  = aimDrills.Count > 0 ? aimDrills.Average(r => r.Accuracy) : 0;
+                var tier       = ProgressionService.GetTierForAvg(aimAvg, aimDrills.Count);
                 TierEmojiText.Text = tier.Emoji;
                 TierNameText.Text  = tier.Name;
-                TierAvgText.Text   = list.Count > 0
-                    ? $"Avg quality: {avgQuality:F0} pts"
+                TierAvgText.Text   = aimDrills.Count > 0
+                    ? $"Avg accuracy: {aimAvg:F0}%"
                     : "No sessions yet";
                 TierNextGoalText.Text = tier.NextGoal;
-                double progressPct = CalculateTierProgress(avgQuality, tier.Name) * 100;
+                double progressPct = CalculateTierProgress(aimAvg, tier.Name) * 100;
                 if (!animate) TierProgressBar.Value = progressPct;  // animation handles it when animate=true
 
                 var tierColor = new System.Windows.Media.SolidColorBrush(
@@ -1358,7 +1360,7 @@ namespace CleanAimTracker.Windows
                 }
 
                 // ── TASK-03: Next action hint (first 5 sessions) ──────────
-                int sessionCount = AimTrainerStorage.LoadAll().Count;
+                int sessionCount = aimDrills.Count;
                 if (sessionCount == 0)
                 {
                     NextActionHint.Visibility = Visibility.Visible;

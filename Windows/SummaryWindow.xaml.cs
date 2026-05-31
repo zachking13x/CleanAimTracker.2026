@@ -208,11 +208,14 @@ namespace CleanAimTracker.Windows
 
             // Color: red for broken streak, gold for new best, green for active
             if (_streak.JustBrokeStreak)
-                StreakMessageText.Foreground = System.Windows.Media.Brushes.OrangeRed;
+                StreakMessageText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));
             else if (_streak.JustHitNewBest)
-                StreakMessageText.Foreground = System.Windows.Media.Brushes.Gold;
+                StreakMessageText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xFF, 0xD7, 0x00));
             else
-                StreakMessageText.Foreground = System.Windows.Media.Brushes.LightGreen;
+                StreakMessageText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x00, 0xE5, 0xA0));
         }
 
         // TASK-27: Copy personal best to clipboard

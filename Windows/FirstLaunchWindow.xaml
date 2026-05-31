@@ -38,7 +38,7 @@
                        HorizontalAlignment="Center"/>
 
             <!-- Tagline -->
-            <TextBlock Text="Real-time mouse analytics for FPS players."
+            <TextBlock Text="Do a 30 second drill. We'll tell you exactly what's wrong with your aim."
                        FontSize="17"
                        Foreground="#888888"
                        HorizontalAlignment="Center"
@@ -62,17 +62,17 @@
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                         <TextBlock Text="①" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
-                        <TextBlock Text="Click Hit Start below" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                        <TextBlock Text="Hit Start below" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                         <TextBlock Text="②" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
-                        <TextBlock Text="Move your mouse naturally for 90 seconds" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                        <TextBlock Text="Click the targets for 30 seconds" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                         <TextBlock Text="③" Foreground="#7B2FFF" FontSize="18" FontWeight="Bold" Margin="0,0,12,0"/>
-                        <TextBlock Text="Get your personalized aim analysis" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
+                        <TextBlock Text="Get your personalized coaching report" Foreground="#CCCCCC" FontSize="15" VerticalAlignment="Center"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

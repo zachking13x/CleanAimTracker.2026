@@ -74,8 +74,6 @@ namespace CleanAimTracker.Windows
         private DateTime _sessionStart;
         private readonly DispatcherTimer _timer = new();
         private double _sessionSeconds = 0;
-        private DispatcherTimer? _countdownTimer;
-        private int _onboardingCountdown = 3;
         private DispatcherTimer? _challengeCountdownTimer;
 
         // DPI + SENSITIVITY
@@ -168,176 +166,35 @@ namespace CleanAimTracker.Windows
                 settings.OnboardingAutoStart = false;
                 SettingsService.Save(settings);
 
-                OnboardingOverlay.Visibility = Visibility.Visible;
-                _onboardingCountdown = 3;
-                OnboardingCountdownText.Text = "3";
-
-                _countdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                _countdownTimer.Tick += (_, _) =>
-                {
-                    _onboardingCountdown--;
-                    if (_onboardingCountdown <= 0)
-                    {
-                        _countdownTimer?.Stop();
-                        _countdownTimer = null;
-                        LaunchOnboardingSession();
-                    }
-                    else
-                    {
-                        OnboardingCountdownText.Text = _onboardingCountdown.ToString();
-                    }
-                };
-                _countdownTimer.Start();
+                LaunchOnboardingSession();
             }
-        }
-
-        private void OnboardingGotIt_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer?.Stop();
-            _countdownTimer = null;
-            LaunchOnboardingSession();
         }
 
         private void LaunchOnboardingSession()
         {
-            OnboardingOverlay.Visibility = Visibility.Collapsed;
-
             var trainer = new AimTrainerWindow { Owner = this };
             trainer.OnboardingSessionCompleted += () =>
             {
-                Dispatcher.BeginInvoke(() => ShowAimTrainerHighlight());
+                Dispatcher.BeginInvoke(() => ShowPostOnboardingCard());
             };
             trainer.Show();
             trainer.BeginOnboardingSession();
         }
 
-        private void ShowAimTrainerHighlight()
+        private void ShowPostOnboardingCard()
         {
-            var pos = AimTrainerNavBtn.TranslatePoint(new Point(0, 0), this);
-            AimTrainerCallout.Margin = new Thickness(pos.X + 185, pos.Y - 4, 0, 0);
-            AimTrainerHighlight.Visibility = Visibility.Visible;
-        }
-
-        private void AimTrainerHighlight_Click(object sender, MouseButtonEventArgs e)
-        {
-            AimTrainerHighlight.Visibility = Visibility.Collapsed;
             var s = SettingsService.Load();
             s.FirstLaunchComplete = true;
             SettingsService.Save(s);
 
-            if (!s.OnboardingTourComplete)
-                StartTour();
+            PostOnboardingCard.Visibility = Visibility.Visible;
+            PostOnboardingCard.BringIntoView();
         }
 
-        // ─────────────────────────────────────────────────────────────
-        // GUIDED TOUR
-        // ─────────────────────────────────────────────────────────────
-        private int _tourStep = 0;
-
-        private static readonly (string Name, string Text)[] TourStops =
+        private void PostOnboardingDrill_Click(object sender, RoutedEventArgs e)
         {
-            ("TodayStatsCard",    "Your session stats live here. Quality score, streak, and personal best update after every drill."),
-            ("AimTrainerNavBtn",  "Start a drill here anytime. Five scenarios, four difficulty levels."),
-            ("StreakPanel",       "Your daily streak. Train every day to keep it alive."),
-            ("TierBadge",        "Your progression tier. It improves as your average quality score rises."),
-            ("NavHistoryBtn",    "Every session is logged here with a trend chart so you can see improvement over time."),
-            ("NavLastReportBtn", "Tap here anytime to re-read your last AI coaching report."),
-            ("NavSensitivityBtn","After a few sessions the app will recommend your optimal sensitivity based on your actual movement data."),
-        };
-
-        private void StartTour()
-        {
-            _tourStep = 0;
-            TourFinalCard.Visibility  = Visibility.Collapsed;
-            TourBubble.Visibility     = Visibility.Collapsed;
-            TourHighlight.Visibility  = Visibility.Collapsed;
-            TourOverlay.Visibility    = Visibility.Visible;
-            ShowTourStep(0);
-        }
-
-        private void ShowTourStep(int step)
-        {
-            if (step >= TourStops.Length) { ShowTourFinalScreen(); return; }
-
-            var (name, text) = TourStops[step];
-            if (FindName(name) is not FrameworkElement el) { AdvanceTour(); return; }
-
-            var pos = el.TranslatePoint(new Point(0, 0), this);
-            double w = el.ActualWidth;
-            double h = el.ActualHeight;
-
-            // Highlight ring
-            TourHighlight.Width   = w + 8;
-            TourHighlight.Height  = h + 8;
-            TourHighlight.Margin  = new Thickness(pos.X - 4, pos.Y - 4, 0, 0);
-            TourHighlight.Visibility = Visibility.Visible;
-
-            // Bubble text + last-step label
-            TourBubbleText.Text  = text;
-            TourNextBtn.Content  = step == TourStops.Length - 1 ? "Done →" : "Next →";
-
-            // Bubble positioning — prefer right of element, fall back to below, then above.
-            // All coordinates come from TranslatePoint so they're correct on any screen size.
-            const double BubbleW = 252, BubbleH = 110, Gap = 12;
-
-            double rightX = pos.X + w + Gap;
-            double belowY = pos.Y + h + Gap;
-            double aboveY = pos.Y - BubbleH - Gap;
-
-            double bx, by;
-            if (rightX + BubbleW <= ActualWidth)          // fits to the right
-            {
-                bx = rightX;
-                by = Math.Max(8, Math.Min(pos.Y, ActualHeight - BubbleH - 8));
-            }
-            else if (belowY + BubbleH <= ActualHeight)    // fits below
-            {
-                bx = Math.Max(8, Math.Min(pos.X, ActualWidth - BubbleW - 8));
-                by = belowY;
-            }
-            else                                           // place above
-            {
-                bx = Math.Max(8, Math.Min(pos.X, ActualWidth - BubbleW - 8));
-                by = Math.Max(8, aboveY);
-            }
-
-            TourBubble.Margin     = new Thickness(bx, by, 0, 0);
-            TourBubble.Visibility = Visibility.Visible;
-        }
-
-        private void ShowTourFinalScreen()
-        {
-            TourHighlight.Visibility = Visibility.Collapsed;
-            TourBubble.Visibility    = Visibility.Collapsed;
-            TourFinalCard.Visibility = Visibility.Visible;
-        }
-
-        private void AdvanceTour()
-        {
-            _tourStep++;
-            ShowTourStep(_tourStep);
-        }
-
-        private void CompleteTour()
-        {
-            TourOverlay.Visibility = Visibility.Collapsed;
-            var s = SettingsService.Load();
-            s.OnboardingTourComplete = true;
-            SettingsService.Save(s);
-        }
-
-        private void TourNext_Click(object sender, RoutedEventArgs e)    => AdvanceTour();
-        private void TourLetsGo_Click(object sender, RoutedEventArgs e)  => CompleteTour();
-
-        private void TourOverlay_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (_tourStep >= TourStops.Length) CompleteTour();
-            else AdvanceTour();
-        }
-
-        private void TourBubble_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true; // prevent click propagating to TourOverlay_MouseDown
+            PostOnboardingCard.Visibility = Visibility.Collapsed;
+            new AimTrainerWindow { Owner = this }.Show();
         }
 
         // TRIAL BANNER

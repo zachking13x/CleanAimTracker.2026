@@ -24,5 +24,11 @@ namespace CleanAimTracker.Trainer
         double BestReactionMs { get; }
         double AvgReactionMs { get; }
         int MaxStreak { get; }
+
+        /// <summary>
+        /// Base score awarded per hit (before hot-streak multiplier).
+        /// Default 100 — Shotgun overrides to 150.
+        /// </summary>
+        int ScorePerHit => 100;
     }
 }

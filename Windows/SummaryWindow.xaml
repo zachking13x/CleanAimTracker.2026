@@ -336,6 +336,27 @@
                     CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
                 <StackPanel>
 
+                    <!-- Free tracker session banner — TASK-18 -->
+                    <Border x:Name="FreeTrackerSessionBanner"
+                            Background="#14000000"
+                            BorderBrush="#4000E5A0"
+                            BorderThickness="0,0,0,1"
+                            Padding="12,10"
+                            Margin="0,0,0,10"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock Text="Your full in-game coaching report — everything unlocked."
+                                       FontSize="13" FontWeight="Bold"
+                                       Foreground="#00E5A0"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock Text="One-time preview after your third tracked session."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource MutedText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Header -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <TextBlock Text="🤖 " FontSize="14" VerticalAlignment="Center"/>

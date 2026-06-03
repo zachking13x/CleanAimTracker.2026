@@ -1252,10 +1252,36 @@ namespace CleanAimTracker.Windows
                 else
                     WeeklyAvgText.Text = "—";
 
-                // TASK-15: Tier badge — based on AimTrainer accuracy, not tracker quality
+                // TASK-15 / TASK-16: Tier + FreeCoachTeaser — both use AimTrainer data
                 var aimDrillsForTier = AimTrainerStorage.LoadAll();
                 double aimAvgForTier = aimDrillsForTier.Count > 0 ? aimDrillsForTier.Average(r => r.Accuracy) : 0;
                 var tier = ProgressionService.GetTierForAvg(aimAvgForTier, aimDrillsForTier.Count);
+
+                // TASK-16: Show/update FreeCoachTeaser
+                var freeSettings = SettingsService.Load();
+                int drillCount   = aimDrillsForTier.Count;
+                if (!freeSettings.HasUsedFreeFullSession && !TrialService.IsFullVersion())
+                {
+                    FreeCoachTeaser.Visibility = Visibility.Visible;
+                    FreeCoachProgress.Value    = Math.Min(drillCount, 5);
+
+                    if (drillCount >= 5)
+                    {
+                        FreeCoachTeaserTitle.Text = "🎯 Your full coaching report is ready.";
+                        FreeCoachTeaserBody.Text  = "Run any drill to unlock your complete analysis — free, one time.";
+                        FreeCoachProgressLabel.Text = "Ready — run a drill to unlock";
+                    }
+                    else
+                    {
+                        FreeCoachTeaserTitle.Text   = "🎯 Your full coaching report is almost ready.";
+                        FreeCoachTeaserBody.Text    = "After session 5 your coach unlocks a complete analysis — every strength, every weakness, exactly what to work on. No blur. No guessing.";
+                        FreeCoachProgressLabel.Text = $"{drillCount} of 5 sessions complete";
+                    }
+                }
+                else
+                {
+                    FreeCoachTeaser.Visibility = Visibility.Collapsed;
+                }
                 TierText.Text = $"{tier.Emoji} {tier.Name}";
                 TierText.Foreground = new System.Windows.Media.SolidColorBrush(
                     (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(tier.Color));

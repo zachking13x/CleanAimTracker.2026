@@ -59,6 +59,9 @@ namespace CleanAimTracker.Windows
             ["Switching"] = (0xFF, 0x6B, 0x35),   // AccentOrange
             ["Adaptive"]  = (0xA8, 0x55, 0xF7),   // AccentPurple
             ["WarmUp"]    = (0x00, 0xC8, 0x53),
+            ["Sniper"]    = (0x00, 0xE5, 0xA0),   // same as Precision — patience/precision
+            ["Shotgun"]   = (0xFF, 0x6B, 0x35),   // same as Switching — urgency/speed
+            ["SmgAr"]     = (0x00, 0xD4, 0xFF),   // same as Tracking — sustained movement
         };
 
         // Onboarding mode
@@ -226,6 +229,7 @@ namespace CleanAimTracker.Windows
             {
                 "Adaptive" => $"Adaptive → {_adaptiveWeakSpot}",
                 "WarmUp"   => "☀️ Daily Warm-Up",
+                "SmgAr"    => "SMG / AR",
                 _          => _scenario,
             };
 
@@ -284,6 +288,9 @@ namespace CleanAimTracker.Windows
                 "Precision" => new[] { "Standard", "Micro", "Double" },
                 "Flicking"  => new[] { "Standard", "Peripheral", "Pairs" },
                 "Switching" => new[] { "4-Target", "6-Target", "Speed Rush" },
+                "Sniper"    => new[] { "Standard", "Moving", "Wind" },
+                "Shotgun"   => new[] { "Standard", "Duels", "Peek" },
+                "SmgAr"     => new[] { "Standard", "Spray", "Strafe" },
                 _           => new[] { "Standard" },
             };
 
@@ -389,6 +396,9 @@ namespace CleanAimTracker.Windows
                         "Tracking"  => new TrackingScenario(_variant),
                         "Switching" => new SwitchingScenario(_variant),
                         "Flicking"  => new StaticScenario("Flicking", _variant),
+                        "Sniper"    => new SniperScenario(_variant),
+                        "Shotgun"   => new ShotgunScenario(_variant),
+                        "SmgAr"     => new SmgArScenario(_variant),
                         _           => new StaticScenario("Precision", _variant),
                     };
                 }
@@ -522,7 +532,7 @@ namespace CleanAimTracker.Windows
                 if (!_isHotStreak && _consecutiveHits >= 5)
                     ActivateHotStreak();
 
-                _score += (int)(100 * _scoreMultiplier);
+                _score += (int)(_scenarioInstance.ScorePerHit * _scoreMultiplier);
                 PlayHitEffect(pos);
             }
             else

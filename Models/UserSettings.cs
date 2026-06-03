@@ -53,5 +53,15 @@
 
         // Upgrade reminder — set when user clicks "Remind me after my next session"
         public bool PendingUpgradeReminder { get; set; } = false;
+
+        // Free full coaching session — aim trainer (unlocks at session 5, one time)
+        public bool   HasUsedFreeFullSession       { get; set; } = false;
+        public int    FreeFullSessionTrigger       { get; set; } = 5;
+        public string LastPrescribedScenario       { get; set; } = "";
+        public string LastPrescribedDifficulty     { get; set; } = "";
+        public int    LastPrescribedSessionIndex   { get; set; } = 0;
+
+        // Free full coaching session — tracker (unlocks at tracker session 3, one time)
+        public bool HasUsedFreeFullTrackerSession { get; set; } = false;
     }
 }

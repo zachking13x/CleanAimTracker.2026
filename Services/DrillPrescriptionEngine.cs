@@ -1,5 +1,6 @@
 using CleanAimTracker.Models;
 using System.Collections.Generic;
+using System.Linq;
 using static CleanAimTracker.Services.AiCoachService;
 
 namespace CleanAimTracker.Services
@@ -13,9 +14,153 @@ namespace CleanAimTracker.Services
         internal static List<DrillPrescription> Prescribe(
             AimTrainerResult result,
             CoachContext context,
+            CoachMemory memory,
             SessionSummary? recentTracker = null)
         {
             var prescriptions = new List<DrillPrescription>();
+
+            // ── RULE-NEW-1: WEAKNESS TARGETING ───────────────────────────────
+            // Prescribe weakest scenario when it hasn't been trained enough recently
+            if (!string.IsNullOrEmpty(memory.WeakestScenario)
+                && memory.WeakestScenario != result.Scenario
+                && memory.TotalDrillCount >= 3)
+            {
+                int recentWeakCount = memory.RecentDrills
+                    .Count(d => d.Scenario == memory.WeakestScenario);
+
+                if (recentWeakCount < 3)
+                {
+                    string weakReason = memory.WeakestScenario switch
+                    {
+                        "Sniper"  => "Your sniper accuracy is your lowest across all scenarios. " +
+                                     "Regular precision work here will improve your patience and first-shot discipline — " +
+                                     "skills that transfer to every other scenario.",
+                        "Shotgun" => "Shotgun is your weakest area right now. The reaction speed and commitment it builds " +
+                                     "transfers directly to any scenario where you need to click fast and accurately.",
+                        "SmgAr"   => "SMG / AR tracking is your weakest area. The sustained accuracy it trains is the " +
+                                     "foundation of all tracking scenarios — time here raises your floor across everything.",
+                        _         => $"You haven't trained {memory.WeakestScenario} much lately and it's where your accuracy is lowest. " +
+                                     "Regular reps here will raise your overall ceiling.",
+                    };
+
+                    prescriptions.Add(new DrillPrescription
+                    {
+                        Scenario    = memory.WeakestScenario,
+                        Difficulty  = result.Difficulty,
+                        SubVariant  = "Standard",
+                        DurationSec = result.DurationSeconds,
+                        Reason      = weakReason,
+                        FocusCue    = "Focus on accuracy over speed. This scenario is your growth zone right now."
+                    });
+                    return FinalizeAndReturn(prescriptions, memory);
+                }
+            }
+
+            // ── RULE-NEW-2: PLATEAU BREAK ────────────────────────────────────
+            if (memory.IsAccuracyPlateaued && memory.PlateauLength >= 3)
+            {
+                string nextDiff = result.Difficulty switch
+                {
+                    "Easy"   => "Medium",
+                    "Medium" => "Hard",
+                    "Hard"   => "Nightmare",
+                    _        => result.Difficulty  // already Nightmare — handled by guard below
+                };
+
+                // Guard: do not prescribe Nightmare unless 5+ Hard sessions with avg accuracy >= 75%
+                bool canPrescribeNightmare = false;
+                if (nextDiff == "Nightmare")
+                {
+                    var hardSessions = memory.AllDrills
+                        .Where(d => d.Scenario == result.Scenario && d.Difficulty == "Hard")
+                        .ToList();
+                    canPrescribeNightmare = hardSessions.Count >= 5
+                        && hardSessions.Average(d => d.Accuracy) >= 75;
+                    if (!canPrescribeNightmare)
+                        nextDiff = "Hard"; // safe fallback
+                }
+
+                if (nextDiff != result.Difficulty)
+                {
+                    prescriptions.Add(new DrillPrescription
+                    {
+                        Scenario    = result.Scenario,
+                        Difficulty  = nextDiff,
+                        SubVariant  = "Standard",
+                        DurationSec = result.DurationSeconds,
+                        Reason      = $"You've been consistent at {result.Difficulty} for a while. " +
+                                      $"Moving up to {nextDiff} will expose gaps that are hard to see at this level — " +
+                                      "even if your score drops at first.",
+                        FocusCue    = "Expect the score to drop. That's the point. Growth lives in the discomfort."
+                    });
+                    return FinalizeAndReturn(prescriptions, memory);
+                }
+            }
+
+            // ── RULE-NEW-3: FOLLOW-UP REINFORCEMENT ─────────────────────────
+            if (memory.LastPrescriptionFollowed
+                && !string.IsNullOrEmpty(memory.LastPrescribedScenario))
+            {
+                // Check if the metric it targeted improved
+                bool improved = false;
+                if (memory.BaselineAccuracy.TryGetValue(memory.LastPrescribedScenario, out double baseAcc))
+                    improved = result.Accuracy > baseAcc + 1.5;
+
+                if (improved)
+                {
+                    string sameOrHigher = result.Difficulty == "Hard" ? "Hard" :
+                        result.Difficulty switch
+                        {
+                            "Easy"   => "Medium",
+                            "Medium" => "Medium",
+                            _        => result.Difficulty
+                        };
+                    prescriptions.Add(new DrillPrescription
+                    {
+                        Scenario    = memory.LastPrescribedScenario,
+                        Difficulty  = sameOrHigher,
+                        SubVariant  = "Standard",
+                        DurationSec = result.DurationSeconds,
+                        Reason      = "What you did last session worked. Run it again and push a little harder this time.",
+                        FocusCue    = "Same scenario, same focus — a little more intent."
+                    });
+                    return FinalizeAndReturn(prescriptions, memory);
+                }
+            }
+
+            // ── RULE-NEW-4: CROSS-SCENARIO BALANCE ──────────────────────────
+            if (memory.TotalDrillCount >= 8)
+            {
+                var untried = memory.SessionsPerScenario
+                    .Where(kv => kv.Value == 0 && kv.Key != result.Scenario)
+                    .Select(kv => kv.Key)
+                    .FirstOrDefault();
+
+                if (untried != null)
+                {
+                    string untriedReason = untried switch
+                    {
+                        "Sniper"  => "You haven't tried Sniper yet. It trains a completely different discipline — " +
+                                     "patience and precision rather than speed. Worth seeing where you stand.",
+                        "Shotgun" => "You haven't tried Shotgun yet. Close-range reaction speed is a different skill " +
+                                     "from everything else here — give it a session.",
+                        "SmgAr"   => "You haven't tried SMG / AR yet. Dual target tracking is the hardest sustained " +
+                                     "accuracy test in the trainer — see how your tracking holds up.",
+                        _         => $"You haven't tried {untried} yet. It trains a different part of your aim — worth seeing where you stand.",
+                    };
+
+                    prescriptions.Add(new DrillPrescription
+                    {
+                        Scenario    = untried,
+                        Difficulty  = "Easy",
+                        SubVariant  = "Standard",
+                        DurationSec = 30,
+                        Reason      = untriedReason,
+                        FocusCue    = "Baseline session only. No expectations — just see what it feels like."
+                    });
+                    return FinalizeAndReturn(prescriptions, memory);
+                }
+            }
 
             // ── Rule 1: High correction sharpness → overshooting problem ──────
             if (context.WeakArea == "reaction"
@@ -32,7 +177,7 @@ namespace CleanAimTracker.Services
                                   "Flicking Single Target trains you to land your first motion cleanly.",
                     FocusCue    = "Commit to one movement. Do not correct — if you miss, let it go and hit the next one."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 2: Low smoothness in Tracking ────────────────────────────
@@ -52,7 +197,7 @@ namespace CleanAimTracker.Services
                                   "build the fluid movement pattern your muscle memory needs before adding speed.",
                     FocusCue    = "Keep your elbow on the desk. Move from the wrist only. Think fluid, not fast."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 3: Sensitivity too low for Precision ─────────────────────
@@ -73,7 +218,7 @@ namespace CleanAimTracker.Services
                                   "then run Precision Static at Easy to recalibrate.",
                     FocusCue    = "Fix the settings first. More drilling at the wrong sensitivity builds bad habits."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 4: Sensitivity too high for Precision ────────────────────
@@ -93,7 +238,7 @@ namespace CleanAimTracker.Services
                                   "Lower your in-game sensitivity and retest on Easy before increasing difficulty.",
                     FocusCue    = "Slow is smooth. Smooth is accurate. Speed comes after the mechanics are clean."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 5: Low accuracy in Switching ─────────────────────────────
@@ -114,7 +259,7 @@ namespace CleanAimTracker.Services
                                   $"Drop to {targetDiff} Two Target and prioritize click accuracy over speed.",
                     FocusCue    = "See the target clearly before you click. Speed will follow accuracy — not the other way around."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 6: Streak weakness → focus endurance ─────────────────────
@@ -134,7 +279,7 @@ namespace CleanAimTracker.Services
                                   "Endurance is a trainable skill.",
                     FocusCue    = "Set one goal: do not let your attention wander. Not speed, not accuracy — just presence."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 7: Slow reaction in Flicking ────────────────────────────
@@ -153,7 +298,7 @@ namespace CleanAimTracker.Services
                                   "without training you to be sloppy.",
                     FocusCue    = "React to the appearance of the target, not to the position. Trust your first instinct."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 8: High idle percentage ──────────────────────────────────
@@ -170,7 +315,7 @@ namespace CleanAimTracker.Services
                                   "because the target changes direction unpredictably.",
                     FocusCue    = "No cruise control. Stay engaged every second."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 9: Good accuracy → difficulty progression ────────────────
@@ -194,7 +339,7 @@ namespace CleanAimTracker.Services
                                   $"that earns a step up. {nextDiff} will expose the gaps that {result.Difficulty} hides.",
                     FocusCue    = "The difficulty is supposed to feel hard. That discomfort is where the growth happens."
                 });
-                return prescriptions;
+                return FinalizeAndReturn(prescriptions, memory);
             }
 
             // ── Rule 10: Fallback ─────────────────────────────────────────────
@@ -208,6 +353,29 @@ namespace CleanAimTracker.Services
                               "build consistency at this level before stepping up.",
                 FocusCue    = "Consistency over performance. Same scenario, same difficulty, until the accuracy stabilizes."
             });
+            return FinalizeAndReturn(prescriptions, memory);
+        }
+
+        /// <summary>
+        /// Saves the top prescription to UserSettings so follow-up coaching can reference it next session.
+        /// Called at every return point to ensure the save always happens.
+        /// </summary>
+        private static List<DrillPrescription> FinalizeAndReturn(
+            List<DrillPrescription> prescriptions,
+            CoachMemory memory)
+        {
+            if (prescriptions.Count > 0)
+            {
+                try
+                {
+                    var s = SettingsService.Load();
+                    s.LastPrescribedScenario   = prescriptions[0].Scenario;
+                    s.LastPrescribedDifficulty = prescriptions[0].Difficulty;
+                    s.LastPrescribedSessionIndex = memory.TotalDrillCount;
+                    SettingsService.Save(s);
+                }
+                catch { /* non-critical — swallow */ }
+            }
             return prescriptions;
         }
     }

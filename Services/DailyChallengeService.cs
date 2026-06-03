@@ -11,7 +11,7 @@ namespace CleanAimTracker.Services
     public static class DailyChallengeService
     {
         // ── Possible challenge templates ─────────────────────────────────────
-        private static readonly string[] Scenarios   = { "Tracking", "Flicking", "Precision", "Switching" };
+        private static readonly string[] Scenarios   = { "Tracking", "Flicking", "Precision", "Switching", "Sniper", "Shotgun", "SmgAr" };
         private static readonly string[] Difficulties = { "Easy", "Medium", "Hard" };
 
         private record Template(string GoalType, string Label, double[] Values);

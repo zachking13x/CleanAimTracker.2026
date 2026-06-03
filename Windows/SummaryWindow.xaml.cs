@@ -50,8 +50,20 @@ namespace CleanAimTracker.Windows
             RecommendedCm360RangeText.Text =
                 $"Range: {_rec.Cm360RangeMin:F1} – {_rec.Cm360RangeMax:F1} cm";
 
-            // Warning if user is outside recommended range
-            if (_s.CmPer360 < _rec.Cm360RangeMin)
+            // TASK-03: guard against uninitialized/invalid cm/360 values (< 1.0 or > 500)
+            // A value below 1.0 means sensitivity has not been entered or calculated yet.
+            // Showing a red "below recommended range" warning in that case is misleading.
+            bool cmIsValid = _s.CmPer360 >= 1.0 && _s.CmPer360 <= 500.0;
+
+            if (!cmIsValid)
+            {
+                // No real sensitivity data — show a muted prompt, not a warning
+                RecommendedCm360WarningText.Text = "Enter your DPI and sensitivity in the Sensitivity screen to get a personalized recommendation.";
+                RecommendedCm360WarningText.Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0x88, 0x88, 0x88));
+                RecommendedCm360WarningText.FontWeight = System.Windows.FontWeights.Normal;
+            }
+            else if (_s.CmPer360 < _rec.Cm360RangeMin)
             {
                 RecommendedCm360WarningText.Text =
                     $"Your current cm/360 ({_s.CmPer360:F1}) is below the recommended range.";
@@ -73,8 +85,8 @@ namespace CleanAimTracker.Windows
             // Explanation
             ExplanationText.Text = _rec.Explanation;
 
-            // If there's an active warning, ensure explanation acknowledges it
-            bool hasWarning = !string.IsNullOrEmpty(RecommendedCm360WarningText.Text);
+            // Only replace explanation when there's a real out-of-range warning (not the data-missing prompt)
+            bool hasWarning = cmIsValid && !string.IsNullOrEmpty(RecommendedCm360WarningText.Text);
             if (hasWarning && (_rec.Explanation.Contains("well-balanced") || _rec.Explanation.Contains("fine-tune")))
             {
                 ExplanationText.Text = _rec.Explanation.Replace(
@@ -247,7 +259,21 @@ namespace CleanAimTracker.Windows
                     .Take(10)
                     .ToList();
 
-                var report = TrackerCoachService.Analyze(_s, history);
+                // TASK-18: Build CoachMemory for cross-coach insights
+                // Pass null for current AimTrainerResult — this is the tracker coach context
+                var settings      = SettingsService.Load();
+                var memory        = CoachMemoryBuilder.Build(null, settings);
+                int trackerCount  = SessionStorage.LoadAll()?.Count ?? 0;
+
+                // Free tracker session check
+                if (FreeCoachSessionService.ShouldTriggerFreeTrackerSession(settings, trackerCount))
+                {
+                    FreeCoachSessionService.MarkFreeTrackerSessionUsed(settings);
+                    if (FreeTrackerSessionBanner != null)
+                        FreeTrackerSessionBanner.Visibility = Visibility.Visible;
+                }
+
+                var report = TrackerCoachService.Analyze(_s, history, memory);
 
                 CoachHeadlineText.Text             = report.Headline;
                 CoachObservationsList.ItemsSource  = report.Observations;

@@ -279,9 +279,28 @@ namespace CleanAimTracker.Windows
         // ── XP system ────────────────────────────────────────────────
         private async Task ShowXpAsync(AimTrainerResult result)
         {
+            // Calculate the earned amount FIRST — pure math, no file I/O.
+            int xpEarned = XPService.CalculateSessionXP(result);
+
+            // Set the earned text immediately and unconditionally so it always
+            // displays even if the level/progress logic below throws or is slow.
+            Dispatcher.Invoke(() => XpEarnedText.Text = $"+{xpEarned} XP");
+
             try
             {
-                var (xpEarned, oldLevel, newLevel) = await Task.Run(() => XPService.AwardXP(result));
+                // Award XP to persistent storage (may fail if another writer is mid-save)
+                int oldLevel = 1, newLevel = 1;
+                try
+                {
+                    var awarded = await Task.Run(() => XPService.AwardXP(result));
+                    oldLevel = awarded.oldLevel;
+                    newLevel = awarded.newLevel;
+                }
+                catch (Exception ex)
+                {
+                    LogService.Error("XP award/save failed — display will still show earned amount", ex);
+                }
+
                 var settings = await Task.Run(() => SettingsService.Load());
                 var (current, range) = XPService.LevelProgress(settings.TotalXP, newLevel);
 
@@ -438,7 +457,7 @@ namespace CleanAimTracker.Windows
 
             var badge = new TextBlock
             {
-                Text       = _result.Scenario.ToUpperInvariant() + $"  •  {_result.Difficulty}  •  {_result.DurationSeconds}s",
+                Text       = GetDisplayScenario(_result.Scenario).ToUpperInvariant() + $"  •  {_result.Difficulty}  •  {_result.DurationSeconds}s",
                 FontSize   = 10,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = new SolidColorBrush(Color.FromRgb(0x8A, 0x9B, 0xAE)),
@@ -517,12 +536,26 @@ namespace CleanAimTracker.Windows
             return rtb;
         }
 
+        // ── Scenario display-name mapping ─────────────────────────────
+        private static string GetDisplayScenario(string scenario) => scenario switch
+        {
+            "SmgAr" => "SMG / AR",
+            _       => scenario,
+        };
+
+        // ── Variant display-name mapping ──────────────────────────────
+        private static string GetDisplayVariant(string variant) => variant switch
+        {
+            "Wind" => "Wind Drift",
+            _      => variant,
+        };
+
         // ── Populate stats immediately ────────────────────────────────
         private void PopulateStats(AimTrainerResult r)
         {
             ScoreText.Text        = r.Score.ToString("N0");
-            string variantPart = string.IsNullOrEmpty(r.SubVariant) ? "" : $"  •  {r.SubVariant}";
-            ScenarioBadgeText.Text = $"{r.Scenario}{variantPart}  •  {r.Difficulty}  •  {r.DurationSeconds}s";
+            string variantPart = string.IsNullOrEmpty(r.SubVariant) ? "" : $"  •  {GetDisplayVariant(r.SubVariant)}";
+            ScenarioBadgeText.Text = $"{GetDisplayScenario(r.Scenario)}{variantPart}  •  {r.Difficulty}  •  {r.DurationSeconds}s";
 
             AccuracyText.Text    = $"{r.Accuracy:F0}%";
             AvgReactionText.Text = $"{r.AvgReactionMs:F0}ms";
@@ -545,6 +578,9 @@ namespace CleanAimTracker.Windows
                     : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));
         }
 
+        // ── Free session state (TASK-12) ──────────────────────────────
+        private bool _isFullSession = false;
+
         // ── Load AI coaching asynchronously ───────────────────────────
         private async Task LoadCoachingAsync(AimTrainerResult result)
         {
@@ -554,12 +590,45 @@ namespace CleanAimTracker.Windows
 
             try
             {
-                var history       = await Task.Run(() => AimTrainerStorage.LoadAll());
-                var recentTracker = await Task.Run(() => SessionStorage.LoadAll()
-                                        ?.OrderByDescending(s => s.Timestamp)
-                                        .FirstOrDefault(s => s.SessionSeconds >= 45));
-                var report        = await Task.Run(() => AiCoachService.Analyze(result, history, recentTracker));
-                PopulateCoaching(report);
+                // TASK-12: Build CoachMemory and check free session eligibility
+                var settings = await Task.Run(() => SettingsService.Load());
+                var memory   = await Task.Run(() => CoachMemoryBuilder.Build(result, settings));
+
+                if (FreeCoachSessionService.ShouldTriggerFreeSession(settings, memory))
+                {
+                    // Mark used immediately — before window renders — so it can't show twice
+                    FreeCoachSessionService.MarkFreeSessionUsed(settings);
+                    _isFullSession = true;
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (FreeSessionBanner != null)
+                            FreeSessionBanner.Visibility = Visibility.Visible;
+                    });
+                }
+
+                var report = await Task.Run(() => AiCoachService.Analyze(result, memory));
+
+                // TASK-13: Save prescription for follow-up next session
+                bool showFull = TrialService.IsFullVersion() || _isFullSession;
+                if (showFull && report.Prescription != null)
+                {
+                    try
+                    {
+                        // DrillPrescriptionEngine already saves via FinalizeAndReturn;
+                        // ensure settings index is up to date for session counting
+                        var s = SettingsService.Load();
+                        if (string.IsNullOrEmpty(s.LastPrescribedScenario))
+                        {
+                            s.LastPrescribedScenario   = report.Prescription.Scenario;
+                            s.LastPrescribedDifficulty = report.Prescription.Difficulty;
+                            s.LastPrescribedSessionIndex = memory.TotalDrillCount;
+                            SettingsService.Save(s);
+                        }
+                    }
+                    catch { /* non-critical */ }
+                }
+
+                PopulateCoaching(report, showFull);
             }
             catch (Exception ex)
             {
@@ -570,8 +639,12 @@ namespace CleanAimTracker.Windows
         }
 
         // ── Populate coaching panel ───────────────────────────────────
-        private void PopulateCoaching(AiCoachReport report)
+        // TASK-12: accepts showFull = true for Pro users OR free session trigger
+        private void PopulateCoaching(AiCoachReport report, bool showFull = false)
         {
+            // Ensure showFull always true for Pro
+            if (TrialService.IsFullVersion()) showFull = true;
+
             CoachingLoading.Visibility = Visibility.Collapsed;
             CoachingError.Visibility   = Visibility.Collapsed;
             CoachingContent.Visibility = Visibility.Visible;
@@ -602,18 +675,16 @@ namespace CleanAimTracker.Windows
                 _           => new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35)),
             };
 
-            bool isPro = TrialService.IsFullVersion();
-
-            StrengthsList.ItemsSource  = isPro ? report.Strengths : report.Strengths.Take(1).ToList();
+            StrengthsList.ItemsSource  = showFull ? report.Strengths : report.Strengths.Take(1).ToList();
             WeaknessesList.ItemsSource = report.Weaknesses;
             AdviceList.ItemsSource     = report.Advice;
 
-            WeaknessesSection.Visibility    = isPro ? Visibility.Visible : Visibility.Collapsed;
-            AdviceSection.Visibility        = isPro ? Visibility.Visible : Visibility.Collapsed;
-            NextDrillSection.Visibility     = isPro ? Visibility.Visible : Visibility.Collapsed;
-            CoachingLockedOverlay.Visibility = isPro ? Visibility.Collapsed : Visibility.Visible;
+            WeaknessesSection.Visibility     = showFull ? Visibility.Visible : Visibility.Collapsed;
+            AdviceSection.Visibility         = showFull ? Visibility.Visible : Visibility.Collapsed;
+            NextDrillSection.Visibility      = showFull ? Visibility.Visible : Visibility.Collapsed;
+            CoachingLockedOverlay.Visibility = showFull ? Visibility.Collapsed : Visibility.Visible;
 
-            if (isPro)
+            if (showFull)
             {
                 if (report.Prescription != null)
                 {
@@ -633,7 +704,7 @@ namespace CleanAimTracker.Windows
             }
             else
             {
-                // Build a teaser hint for the locked overlay
+                // Build a teaser hint for the locked overlay (free users before session 5)
                 string weakHint = report.Weaknesses.Count > 0
                     ? $"What to work on next, plus {report.Advice.Count} coaching tips for {_result.Scenario}."
                     : $"{report.Advice.Count} coaching tips and your next drill prescription.";

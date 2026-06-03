@@ -128,6 +128,9 @@ namespace CleanAimTracker.Services
                 "Precision" => 88,
                 "Switching" => 80,
                 "Adaptive"  => 80,
+                "Sniper"    => 90,
+                "Shotgun"   => 80,
+                "SmgAr"     => 82,
                 _           => 82,
             };
             if (result.Accuracy >= eliteThreshold) TryUnlock("elite_grade");
@@ -151,8 +154,10 @@ namespace CleanAimTracker.Services
             }
 
             var scenariosTried = allResults.Select(r => r.Scenario).Distinct().ToHashSet();
-            if (scenariosTried.Contains("Tracking") && scenariosTried.Contains("Flicking") &&
-                scenariosTried.Contains("Precision") && scenariosTried.Contains("Switching"))
+            if (scenariosTried.Contains("Tracking")  && scenariosTried.Contains("Flicking") &&
+                scenariosTried.Contains("Precision") && scenariosTried.Contains("Switching") &&
+                scenariosTried.Contains("Sniper")    && scenariosTried.Contains("Shotgun") &&
+                scenariosTried.Contains("SmgAr"))
                 TryUnlock("all_scenarios");
 
             if (currentStreakDays >= 3)  TryUnlock("streak_3");

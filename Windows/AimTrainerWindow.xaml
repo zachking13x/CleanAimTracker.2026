@@ -356,6 +356,138 @@
                         </Grid>
                     </Border>
 
+                    <!-- SNIPER — #00E5A0, difficulty 2/4 -->
+                    <Border x:Name="ScenarioBtn_Sniper"
+                            Tag="Sniper"
+                            CornerRadius="12" Margin="0,0,0,6"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#00E5A0" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#071410" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1E00E5A0" VerticalAlignment="Center">
+                                <TextBlock Text="🎯" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Sniper" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
+                                <TextBlock Text="Small distant targets — builds patience and precision under pressure"
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00E5A0"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00E5A0"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- SHOTGUN — #FF6B35, difficulty 3/4 -->
+                    <Border x:Name="ScenarioBtn_Shotgun"
+                            Tag="Shotgun"
+                            CornerRadius="12" Margin="0,0,0,6"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#FF6B35" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#100906" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1EFF6B35" VerticalAlignment="Center">
+                                <TextBlock Text="💥" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="Shotgun" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
+                                <TextBlock Text="Close-range fast targets — builds reaction speed and first-shot commitment"
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#FF6B35"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- SMG/AR — #00D4FF, difficulty 3/4 -->
+                    <Border x:Name="ScenarioBtn_SmgAr"
+                            Tag="SmgAr"
+                            CornerRadius="12" Margin="0,0,0,6"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#00D4FF" BorderThickness="3,0,0,0">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#070F14" Offset="0"/>
+                                <GradientStop Color="#0D1117" Offset="1"/>
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <Grid Margin="16,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="44"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Width="44" Height="44" CornerRadius="8"
+                                    Background="#1E00D4FF" VerticalAlignment="Center">
+                                <TextBlock Text="🎮" FontSize="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,8,0">
+                                <TextBlock Text="SMG / AR" Foreground="#F0F4F8"
+                                           FontSize="14" FontWeight="Bold"
+                                           TextWrapping="NoWrap"/>
+                                <TextBlock Text="Dual moving targets — builds sustained tracking and spray control"
+                                           Foreground="#8A9BAE" FontSize="10" TextWrapping="Wrap"
+                                           Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                <TextBlock Text="SKILL" FontSize="7" Foreground="#4A5A6A"
+                                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00D4FF"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00D4FF"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#00D4FF"/>
+                                    <Ellipse Width="10" Height="10" Margin="2,0" Fill="#131B24"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
                     <!-- WARM-UP — #00C853, special routine -->
                     <Border x:Name="ScenarioBtn_WarmUp"
                             Tag="WarmUp"

@@ -352,6 +352,27 @@
                                            FontSize="13" FontStyle="Italic"/>
                             </StackPanel>
 
+                            <!-- Free session banner — TASK-14 -->
+                            <Border x:Name="FreeSessionBanner"
+                                    Background="#14000000"
+                                    BorderBrush="#4000E5A0"
+                                    BorderThickness="0,0,0,1"
+                                    Padding="12,10"
+                                    Margin="0,0,0,0"
+                                    Visibility="Collapsed">
+                                <StackPanel>
+                                    <TextBlock Text="Your first full coaching report — everything unlocked."
+                                               FontSize="13" FontWeight="Bold"
+                                               Foreground="#00E5A0"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="This is a one-time preview so you know exactly what Pro gives you. Nothing held back."
+                                               FontSize="12"
+                                               Foreground="{DynamicResource MutedText}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Loaded state -->
                             <StackPanel x:Name="CoachingContent" Visibility="Collapsed">
 

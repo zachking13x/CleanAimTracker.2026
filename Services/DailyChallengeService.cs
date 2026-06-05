@@ -85,9 +85,18 @@ namespace CleanAimTracker.Services
 
             if (!met) return false;
 
+            // Load fresh immediately before saving so any concurrent write
+            // (e.g. LastTomorrowPromptDate from Close_Click) is preserved —
+            // we only stamp in the challenge fields, nothing else.
+            var fresh = SettingsService.Load();
+            fresh.LastChallengeDate    = DateTime.Today;
+            fresh.ChallengesCompleted += 1;
+            SettingsService.Save(fresh);
+
+            // Keep the caller's in-memory object in sync so EvaluateAchievementsAsync
+            // passes the correct ChallengesCompleted count to AchievementService.
             settings.LastChallengeDate    = DateTime.Today;
-            settings.ChallengesCompleted += 1;
-            SettingsService.Save(settings);
+            settings.ChallengesCompleted  = fresh.ChallengesCompleted;
             return true;
         }
     }

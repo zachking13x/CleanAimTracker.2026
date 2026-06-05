@@ -755,6 +755,11 @@ namespace CleanAimTracker.Windows
                 return;
             _selectedProfile = _gameProfiles[GameProfileCombo.SelectedIndex];
             LogService.Info($"Profile changed to {_selectedProfile.Name}");
+
+            // Persist so the same profile is selected on next launch
+            var settings = SettingsService.Load();
+            settings.SelectedProfile = _selectedProfile.Name;
+            SettingsService.Save(settings);
         }
 
         private void OpenSummary_Click(object sender, RoutedEventArgs e)
@@ -1018,28 +1023,61 @@ namespace CleanAimTracker.Windows
 
         private void DpiInput_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (double.TryParse(DpiInput.Text, out double dpi) && dpi > 0)
+            if (!double.TryParse(DpiInput.Text, out double dpi) || dpi <= 0)
+                return;
+
+            // Warn for unusual values — but still save, some hardware is outside typical range
+            if (dpi < 100 || dpi > 32000)
             {
-                _dpi = dpi;
-                var settings = SettingsService.Load();
-                settings.DPI = (int)dpi;
-                SettingsService.Save(settings);
-                LogService.Info($"DPI saved: {settings.DPI}");
-                UpdateSensitivityDisplay();
+                MessageBox.Show(
+                    "DPI is typically between 400 and 3200. Check your mouse settings.",
+                    "Unusual DPI",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
+
+            _dpi = dpi;
+            var settings = SettingsService.Load();
+            settings.DPI = (int)dpi;
+            SettingsService.Save(settings);
+            LogService.Info($"DPI saved: {settings.DPI}");
+            UpdateSensitivityDisplay();
         }
 
         private void SensitivityInput_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (double.TryParse(SensitivityInput.Text, out double sens) && sens > 0)
+            if (!double.TryParse(SensitivityInput.Text, out double sens))
+                return;
+
+            if (sens > 200.0)
             {
-                _sensitivity = sens;
-                var settings = SettingsService.Load();
-                settings.Sensitivity = sens;
-                SettingsService.Save(settings);
-                LogService.Info($"Sensitivity saved: {settings.Sensitivity}");
-                UpdateSensitivityDisplay();
+                // Almost certainly a data-entry error — DPI entered in the sensitivity field
+                MessageBox.Show(
+                    "That sensitivity looks unusually high — did you mean to enter your DPI here instead?\n\n" +
+                    "In-game sensitivities are typically between 0.1 and 20. " +
+                    "Check your game settings and try again.",
+                    "Check your sensitivity",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return; // do not save
             }
+
+            if (sens <= 0)
+            {
+                MessageBox.Show(
+                    "Sensitivity must be greater than 0.",
+                    "Invalid sensitivity",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            _sensitivity = sens;
+            var settings = SettingsService.Load();
+            settings.Sensitivity = sens;
+            SettingsService.Save(settings);
+            LogService.Info($"Sensitivity saved: {settings.Sensitivity}");
+            UpdateSensitivityDisplay();
         }
 
         // HELPERS

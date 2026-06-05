@@ -55,21 +55,27 @@ namespace CleanAimTracker.Services
         /// </summary>
         public static (int xpEarned, int oldLevel, int newLevel) AwardXP(AimTrainerResult result)
         {
-            var settings = SettingsService.Load();
+            // Read the current XP / level baseline.
+            var baseline = SettingsService.Load();
             int earned   = CalculateSessionXP(result);
-            int oldLevel = settings.CurrentLevel;
+            int oldLevel = baseline.CurrentLevel;
 
-            settings.TotalXP += earned;
+            // Compute new totals without touching the baseline object.
+            int newTotalXP = baseline.TotalXP + earned;
+            int newLevel   = baseline.CurrentLevel;
 
             // Level-up loop (cap at 99 to prevent infinite while)
-            while (settings.CurrentLevel < 99 &&
-                   settings.TotalXP >= ThresholdForLevel(settings.CurrentLevel + 1))
-            {
-                settings.CurrentLevel++;
-            }
+            while (newLevel < 99 && newTotalXP >= ThresholdForLevel(newLevel + 1))
+                newLevel++;
 
+            // Load fresh immediately before saving so any field written by a concurrent
+            // save (e.g. Close_Click writing LastTomorrowPromptDate) is preserved —
+            // we only stamp in the XP / level delta, nothing else.
+            var settings = SettingsService.Load();
+            settings.TotalXP      = newTotalXP;
+            settings.CurrentLevel = newLevel;
             SettingsService.Save(settings);
-            return (earned, oldLevel, settings.CurrentLevel);
+            return (earned, oldLevel, newLevel);
         }
 
         /// <summary>

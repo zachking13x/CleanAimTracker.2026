@@ -30,7 +30,12 @@ namespace CleanAimTracker.Trainer.Scenarios
 
         // Confirmation variant: track hover start per target
         private readonly Dictionary<Ellipse, long> _hoverStart = new();
-        private static readonly long ConfirmationTicksRequired = (long)(0.12 * Stopwatch.Frequency);
+
+        // Difficulty-scaled timing (set in Start)
+        private double _moveSpeed;
+        private long   _spawnDelayTicks;
+        private long   _confirmDurationTicks;
+        private readonly Queue<long> _pendingSpawns = new();
 
         private readonly Stopwatch _reactionTimer = new();
         private double _totalReactionMs;
@@ -41,6 +46,9 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double BestReactionMs { get; private set; } = double.MaxValue;
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
+
+        /// <summary>Canvas-space center of the most recently hit target.</summary>
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
 
         public StaticClickingScenario(string variant = "Standard")
         {
@@ -53,6 +61,12 @@ namespace CleanAimTracker.Trainer.Scenarios
             _rng        = rng;
             _targetSize = _variant == "Micro" ? targetSize * 0.6 : targetSize;
 
+            _moveSpeed = moveSpeed > 0 ? moveSpeed : 2.5;
+            double spawnDelayMs   = Math.Max(80,  400 - (_moveSpeed - 1.5) * 100);
+            _spawnDelayTicks      = (long)(spawnDelayMs   / 1000.0 * Stopwatch.Frequency);
+            double confirmMs      = Math.Max(30,  120 - (_moveSpeed - 1.5) * 30);
+            _confirmDurationTicks = (long)(confirmMs      / 1000.0 * Stopwatch.Frequency);
+
             int count = _variant == "Confirmation" ? 3 : 6;
             for (int i = 0; i < count; i++)
                 SpawnOne();
@@ -60,7 +74,15 @@ namespace CleanAimTracker.Trainer.Scenarios
             _reactionTimer.Restart();
         }
 
-        public void Update(Canvas canvas) { }
+        public void Update(Canvas canvas)
+        {
+            long now = Stopwatch.GetTimestamp();
+            while (_pendingSpawns.Count > 0 && _pendingSpawns.Peek() <= now)
+            {
+                _pendingSpawns.Dequeue();
+                SpawnOne();
+            }
+        }
 
         public bool HandleClick(Point clickPos)
         {
@@ -85,11 +107,12 @@ namespace CleanAimTracker.Trainer.Scenarios
                             _hoverStart[target] = now;
                             return false; // not a confirmed hit yet
                         }
-                        if (now - _hoverStart[target] < ConfirmationTicksRequired)
+                        if (now - _hoverStart[target] < _confirmDurationTicks)
                             return false; // not yet held long enough
                         _hoverStart.Remove(target);
                     }
 
+                    LastHitCenter = new Point(cx, cy);
                     RegisterHit(target);
                     return true;
                 }
@@ -106,6 +129,7 @@ namespace CleanAimTracker.Trainer.Scenarios
                 canvas.Children.Remove(t);
             _targets.Clear();
             _hoverStart.Clear();
+            _pendingSpawns.Clear();
         }
 
         // ── Helpers ──────────────────────────────────────────────────────
@@ -123,7 +147,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             _canvas.Children.Remove(target);
             _targets.Remove(target);
-            SpawnOne();
+            _pendingSpawns.Enqueue(Stopwatch.GetTimestamp() + _spawnDelayTicks);
         }
 
         private void SpawnOne()

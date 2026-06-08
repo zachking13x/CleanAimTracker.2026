@@ -144,6 +144,27 @@ namespace CleanAimTracker.Windows
             Close();
         }
 
+        private void ShowFreeReportBtn_Click(object sender, RoutedEventArgs e)
+        {
+            if (_results.Count == 0) return;
+
+            // Mark the entitlement used so the button doesn't reappear next time
+            var settings = SettingsService.Load();
+            settings.HasUsedFreeAssessmentReport = true;
+            SettingsService.Save(settings);
+            ShowFreeReportBtn.Visibility = Visibility.Collapsed;
+
+            // Use the result with the highest Hits+Misses count as the representative session
+            var best = _results
+                .OrderByDescending(r => r.Hits + r.Misses)
+                .First();
+
+            new AimTrainerResultWindow(best, isFullSession: true)
+            {
+                Owner = this
+            }.ShowDialog();
+        }
+
         private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
 
         private void TestCanvas_MouseDown(object sender, MouseButtonEventArgs e)
@@ -306,8 +327,12 @@ namespace CleanAimTracker.Windows
             SettingsService.Save(settings);
 
             // Show results UI
-            ResultsPanel.Visibility          = Visibility.Visible;
-            StartRecommendedBtn.Visibility   = Visibility.Visible;
+            ResultsPanel.Visibility        = Visibility.Visible;
+            StartRecommendedBtn.Visibility = Visibility.Visible;
+
+            // TASK-06: free coaching report — show once if the entitlement hasn't been used
+            if (!settings.HasUsedFreeAssessmentReport)
+                ShowFreeReportBtn.Visibility = Visibility.Visible;
 
             CurrentTestLabel.Text = "Assessment Complete!";
             CurrentTestDesc.Text  = $"Weakest: {DiagnosticAssessmentService.GetDimensionLabel(_profile.WeakestDimension)}  ·  Strongest: {DiagnosticAssessmentService.GetDimensionLabel(_profile.StrongestDimension)}";

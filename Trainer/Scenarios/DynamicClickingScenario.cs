@@ -52,6 +52,9 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
 
+        /// <summary>Canvas-space center of the most recently hit target.</summary>
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
+
         public DynamicClickingScenario(string variant = "Standard")
         {
             _variant = variant;
@@ -176,6 +179,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             if (dx * dx + dy * dy <= (_targetSize / 2) * (_targetSize / 2))
             {
+                LastHitCenter = new Point(cx, cy);
                 Hits++;
                 _streak++;
                 MaxStreak = Math.Max(MaxStreak, _streak);

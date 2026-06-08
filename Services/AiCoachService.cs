@@ -207,8 +207,14 @@ namespace CleanAimTracker.Services
 
             double pbAccuracy = isFirst ? r.Accuracy      : Math.Max(r.Accuracy,      same.Max(h => h.Accuracy));
             double pbReaction = isFirst ? r.AvgReactionMs : Math.Min(r.AvgReactionMs, same.Min(h => h.AvgReactionMs));
-            bool   newAccPB   = !isFirst && r.Accuracy      > same.Max(h => h.Accuracy);
-            bool   newReactPB = !isFirst && r.AvgReactionMs < same.Min(h => h.AvgReactionMs);
+            bool   newAccPB   = same.Count >= 2 && r.Accuracy >= 40.0
+                                    && r.Accuracy > same.Max(h => h.Accuracy) + 1.5;
+            bool   newReactPB = same.Count >= 2 && r.Accuracy >= 40.0
+                                    && r.AvgReactionMs > 0
+                                    && r.AvgReactionMs < same.Where(h => h.AvgReactionMs > 0)
+                                                               .Select(h => h.AvgReactionMs)
+                                                               .DefaultIfEmpty(double.MaxValue)
+                                                               .Min() - 10.0;
 
             bool improving  = !isFirst && same.Count >= 2
                 && r.Score > same.Take(3).Average(h => h.Score);
@@ -445,7 +451,7 @@ namespace CleanAimTracker.Services
             // Accuracy strength — reference trend/consistency when history exists
             if (c.AccuracyGrade == "elite")
             {
-                if (hasHistory && memory.AccuracyTrend > 0)
+                if (hasHistory && memory.AccuracyTrend > 0 && r.Accuracy >= 40.0)
                 {
                     // Improving trend at elite level
                     list.Add(PickGlobal(memory, 0,
@@ -466,7 +472,7 @@ namespace CleanAimTracker.Services
             }
             else if (c.AccuracyGrade == "good")
             {
-                if (hasHistory && memory.BaselineAccuracy.TryGetValue(r.Scenario, out double baseline) && r.Accuracy >= baseline)
+                if (hasHistory && memory.BaselineAccuracy.TryGetValue(r.Scenario, out double baseline) && r.Accuracy >= baseline && r.Accuracy >= 40.0)
                 {
                     list.Add(PickGlobal(memory, 0,
                         $"Your {r.Scenario} accuracy has been consistently around {baseline:F0}% or better. That floor is real — build on it.",
@@ -484,7 +490,7 @@ namespace CleanAimTracker.Services
                     ));
                 }
             }
-            else if (c.IsImproving && c.AccuracyDelta > 3)
+            else if (c.IsImproving && c.AccuracyDelta > 3 && r.Accuracy >= 40.0)
             {
                 list.Add(Pick(c.SessionCount,
                     $"Accuracy improved {c.AccuracyDelta:+0.0}% from your last session — that's real, measurable progress.",
@@ -497,9 +503,12 @@ namespace CleanAimTracker.Services
             // ── Reaction trend strength (TASK-01) — fires independently ─────
             // Fires when reaction is genuinely improving across sessions, regardless
             // of accuracy strength. Both can appear. Max-2 cap applied at the end.
+            // TASK-02: suppressed when accuracy < 50 — trend data from history must not
+            // appear as a strength when the current session itself was poor.
             if (memory.TotalDrillCount >= 3
                 && memory.ReactionTrend < -10
-                && r.AvgReactionMs > 0)
+                && r.AvgReactionMs > 0
+                && r.Accuracy >= 40.0)
             {
                 if (memory.ReactionTrend < -20)
                 {
@@ -550,15 +559,59 @@ namespace CleanAimTracker.Services
                     list.Add($"A streak of {r.MaxStreak} is exceptional — it shows you can maintain focus and rhythm under pressure.");
                 else if (c.StreakGrade == "good")
                     list.Add($"Your {r.MaxStreak}-hit streak shows you have the ability to lock in when it counts.");
-                else if (c.IsConsistent)
+                else if (c.IsConsistent && r.Accuracy >= 40.0)
                     list.Add("Your accuracy has been consistent across your last few sessions — that reliability is harder to build than people think.");
+            }
+
+            // ── TASK-05 Fix 6: telemetry improvement acknowledgement ──────────
+            // Moved here from GetTelemetryObservations — positive progress belongs in Strengths.
+            // Only fires when there is a free slot and session quality is sufficient.
+            if (list.Count < 2 && r.Accuracy >= 40.0)
+            {
+                var prevSameScenario = memory.AllDrills
+                    .Where(h => h.Scenario == r.Scenario && h.Timestamp != r.Timestamp)
+                    .OrderByDescending(h => h.Timestamp)
+                    .FirstOrDefault();
+
+                if (prevSameScenario != null)
+                {
+                    double effDelta = r.PathEfficiency - prevSameScenario.PathEfficiency;
+                    double ovDelta  = prevSameScenario.OvershootPct - r.OvershootPct;
+                    double lagDelta = prevSameScenario.AvgDirectionChangeLagMs - r.AvgDirectionChangeLagMs;
+
+                    if (r.PathEfficiency > 0 && effDelta > 0.05)
+                        list.Add(Pick(c.SessionCount,
+                            $"Path efficiency improved {effDelta * 100:F0} points this session — your routes to targets are getting cleaner. That's the movement mechanics improving.",
+                            $"Your movement is getting more direct — {effDelta * 100:F0}% better path efficiency vs last {r.Scenario} session. The technique is solidifying.",
+                            $"Path efficiency up {effDelta * 100:F0} points. That kind of improvement doesn't happen by accident — your mouse movement is becoming more intentional.",
+                            $"Movement quality trending up: {effDelta * 100:F0}% better path efficiency. What you're doing is working."
+                        ));
+                    else if (r.OvershootPct > 0 && ovDelta > 8)
+                        list.Add(Pick(c.SessionCount,
+                            $"Overshoot rate dropped {ovDelta:F0}% since your last {r.Scenario} session — your stopping mechanics are improving.",
+                            $"{ovDelta:F0}% fewer overshoots than last time. The deceleration work is paying off.",
+                            $"Overshoot is down {ovDelta:F0}% — your commits are getting more accurate. Keep the same approach.",
+                            $"Less overshoot this session — {ovDelta:F0}% improvement. That tells me your first movement is getting more precise."
+                        ));
+                    else if (r.AvgDirectionChangeLagMs > 0 && lagDelta > 15)
+                        list.Add(Pick(c.SessionCount,
+                            $"Direction change response improved {lagDelta:F0}ms since last session — you're reading the patterns better.",
+                            $"{lagDelta:F0}ms faster on direction changes. Your anticipation is kicking in.",
+                            $"Direction lag dropped {lagDelta:F0}ms. You're starting to lead the movement instead of chasing it.",
+                            $"{lagDelta:F0}ms improvement on direction changes. That's anticipation developing — keep it going."
+                        ));
+                }
             }
 
             if (list.Count == 0)
             {
-                list.Add(r.Hits > r.Misses
-                    ? $"You hit more than you missed — {r.Hits} hits vs {r.Misses} misses. That's the foundation to build on."
-                    : $"You completed a full {r.DurationSeconds}-second drill. Every session builds muscle memory, even the tough ones.");
+                // TASK-02: below 50% accuracy with no session-specific strengths gets a
+                // neutral honest observation rather than a hollow positivity fallback.
+                list.Add(r.Accuracy < 40.0
+                    ? "This session was below your usual level. The data below shows where to focus next."
+                    : r.Hits > r.Misses
+                        ? $"You hit more than you missed — {r.Hits} hits vs {r.Misses} misses. That's the foundation to build on."
+                        : $"You completed a full {r.DurationSeconds}-second drill. Every session builds muscle memory, even the tough ones.");
             }
 
             // TASK-06: maximum 2 strengths
@@ -1176,18 +1229,12 @@ namespace CleanAimTracker.Services
                     "One bad session does not define the trend. Come back tomorrow with fresh hands and compare."
                 ));
             else
-                tips.Add(PickGlobal(memory, 3,
-                    "Do 3 warm-up drills at Easy before your main session. Cold muscles make cold aim — warming up moves your average up more than any other single habit.",
-                    "Warmup before drilling. Easy mode for 3 minutes primes the neuromuscular connection. Cold hands produce cold aim.",
-                    "If you're not warming up before drills, you're leaving 10-15% accuracy on the table. Easy mode for a few minutes first.",
-                    "The first drill of a session is always your worst. Accept it, use it as warmup, and save your real performance for the second and third sessions."
-                ));
+                tips.Add("The first drill of a session is always your worst. Accept it, use it as warmup, and save your real performance for the second and third sessions.");
 
             if (c.SessionCount < 5)
                 tips.Add(Pick(c.SessionCount,
                     "Track 3 sessions per week consistently. At 10 sessions in the same scenario you'll start seeing clear trend lines in your history.",
                     "The first 10 sessions in a scenario are baseline building. Don't judge the trend until you have 10 data points.",
-                    "Consistency matters more than volume right now. Show up 3 times per week and let your session history build.",
                     "You need about 10 sessions before the trend line becomes meaningful. Keep logging."
                 ));
             else if (c.IsConsistent)
@@ -1268,8 +1315,10 @@ namespace CleanAimTracker.Services
             int idx  = c.SessionCount;   // rotation index per scenario session count
 
             // ── 1. PATH EFFICIENCY ────────────────────────────────────
-            // Low path efficiency = wobbly/indirect route to target (< 0.60)
-            if (r.PathEfficiency > 0 && r.PathEfficiency < 0.60)
+            // Clicking pillar only (>= 5 hits) — low path efficiency (< 0.80) means
+            // wobbly/indirect routes; tracking/peek scenarios have different movement intent.
+            if (r.PathEfficiency > 0 && r.PathEfficiency < 0.80
+                && r.Pillar == "Clicking" && r.Hits >= 5)
             {
                 double pct = r.PathEfficiency * 100;
                 obs.Add(Pick(idx,
@@ -1397,54 +1446,6 @@ namespace CleanAimTracker.Services
                         "Work on the decision trigger: the moment you see chest/head, fire. Don't wait for 'perfect alignment.'",
                         $"High late-click rate at {r.PeekLateClickPct:F0}% indicates an over-cautious trigger. " +
                         "Trust the first moment of exposure more. Aim to halve your decision-to-fire time over the next 3 sessions."
-                    ));
-                    return obs;
-                }
-            }
-
-            // ── 7. IMPROVEMENT ACKNOWLEDGEMENT ───────────────────────
-            // Any telemetry metric that improved vs the previous session gets a positive obs.
-            // Check PathEfficiency improvement (> 0.05 delta = meaningful)
-            var prevSameScenario = memory.AllDrills
-                .Where(h => h.Scenario == r.Scenario && h.Timestamp != r.Timestamp)
-                .OrderByDescending(h => h.Timestamp)
-                .FirstOrDefault();
-
-            if (prevSameScenario != null)
-            {
-                double effDelta  = r.PathEfficiency - prevSameScenario.PathEfficiency;
-                double ovDelta   = prevSameScenario.OvershootPct - r.OvershootPct;   // lower is better
-                double lagDelta  = prevSameScenario.AvgDirectionChangeLagMs - r.AvgDirectionChangeLagMs;
-
-                if (r.PathEfficiency > 0 && effDelta > 0.05)
-                {
-                    obs.Add(Pick(idx,
-                        $"Path efficiency improved {effDelta * 100:F0} points this session — your routes to targets are getting cleaner. That's the movement mechanics improving.",
-                        $"Your movement is getting more direct — {effDelta * 100:F0}% better path efficiency vs last {r.Scenario} session. The technique is solidifying.",
-                        $"Path efficiency up {effDelta * 100:F0} points. That kind of improvement doesn't happen by accident — your mouse movement is becoming more intentional.",
-                        $"Movement quality trending up: {effDelta * 100:F0}% better path efficiency. What you're doing is working."
-                    ));
-                    return obs;
-                }
-
-                if (r.OvershootPct > 0 && ovDelta > 8)
-                {
-                    obs.Add(Pick(idx,
-                        $"Overshoot rate dropped {ovDelta:F0}% since your last {r.Scenario} session — your stopping mechanics are improving.",
-                        $"{ovDelta:F0}% fewer overshoots than last time. The deceleration work is paying off.",
-                        $"Overshoot is down {ovDelta:F0}% — your commits are getting more accurate. Keep the same approach.",
-                        $"Less overshoot this session — {ovDelta:F0}% improvement. That tells me your first movement is getting more precise."
-                    ));
-                    return obs;
-                }
-
-                if (r.AvgDirectionChangeLagMs > 0 && lagDelta > 15)
-                {
-                    obs.Add(Pick(idx,
-                        $"Direction change response improved {lagDelta:F0}ms since last session — you're reading the patterns better.",
-                        $"{lagDelta:F0}ms faster on direction changes. Your anticipation is kicking in.",
-                        $"Direction lag dropped {lagDelta:F0}ms. You're starting to lead the movement instead of chasing it.",
-                        $"{lagDelta:F0}ms improvement on direction changes. That's anticipation developing — keep it going."
                     ));
                     return obs;
                 }

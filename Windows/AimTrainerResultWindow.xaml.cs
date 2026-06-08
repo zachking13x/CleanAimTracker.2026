@@ -22,12 +22,18 @@ namespace CleanAimTracker.Windows
         /// <param name="result">The drill result to display.</param>
         /// <param name="isReplay">True when opened via "Last Report" — hides Play Again, changes title.</param>
         /// <param name="isOnboarding">True when opened during the onboarding flow — suppresses achievement popups.</param>
-        public AimTrainerResultWindow(AimTrainerResult result, bool isReplay = false, bool isOnboarding = false)
+        /// <param name="isFullSession">True when opened after a Diagnostic Assessment free report unlock — forces full coaching to show.</param>
+        public AimTrainerResultWindow(AimTrainerResult result, bool isReplay = false, bool isOnboarding = false, bool isFullSession = false)
         {
             InitializeComponent();
             _result       = result;
             _isReplay     = isReplay;
             _isOnboarding = isOnboarding;
+
+            // TASK-06: assessment free report passes isFullSession=true — elevate before
+            // LoadCoachingAsync runs so showFull is true when PopulateCoaching is called.
+            if (isFullSession)
+                _isFullSession = true;
 
             if (isReplay)
             {
@@ -167,15 +173,38 @@ namespace CleanAimTracker.Windows
                 var same = all.Where(r => r.Scenario  == result.Scenario
                                        && r.Timestamp != result.Timestamp).ToList();
 
-                bool isBestScore    = same.Count == 0 || result.Score        >= same.Max(r => r.Score);
-                bool isBestAccuracy = same.Count == 0 || result.Accuracy     >= same.Max(r => r.Accuracy);
-                bool isBestStreak   = same.Count == 0 || result.MaxStreak    >= same.Max(r => r.MaxStreak);
-                bool isBestReaction = result.BestReactionMs > 0 &&
-                                      (same.Count == 0 ||
-                                       result.BestReactionMs <= same.Where(r => r.BestReactionMs > 0)
-                                                                    .Select(r => r.BestReactionMs)
-                                                                    .DefaultIfEmpty(double.MaxValue)
-                                                                    .Min());
+                // TASK-02: PB celebration requires minimum thresholds to be meaningful:
+                //   1. At least 2 prior sessions for this scenario (same.Count >= 2)
+                //   2. result.Accuracy >= 40% (below 40% is not worth celebrating)
+                //   3. Meaningful improvement per metric — not just any marginal gain:
+                //      Accuracy: +1.5% over previous best
+                //      Score:    +3% over previous best
+                //      Reaction: -10ms improvement on best single reaction
+                //      Streak:   any beat is meaningful (no percentage threshold)
+                bool isBestScore    = false;
+                bool isBestAccuracy = false;
+                bool isBestStreak   = false;
+                bool isBestReaction = false;
+
+                if (same.Count >= 2 && result.Accuracy >= 40.0)
+                {
+                    double prevBestAccuracy = same.Max(r => r.Accuracy);
+                    isBestAccuracy = result.Accuracy > prevBestAccuracy + 1.5;
+
+                    double prevBestScore = same.Max(r => r.Score);
+                    isBestScore = result.Score > prevBestScore * 1.03;
+
+                    int prevBestStreak = same.Max(r => r.MaxStreak);
+                    isBestStreak = result.MaxStreak > prevBestStreak;
+
+                    var prevReactions = same.Where(r => r.BestReactionMs > 0)
+                                           .Select(r => r.BestReactionMs).ToList();
+                    if (result.BestReactionMs > 0 && prevReactions.Count > 0)
+                    {
+                        double prevBestReaction = prevReactions.Min();
+                        isBestReaction = result.BestReactionMs < prevBestReaction - 10.0;
+                    }
+                }
 
                 Dispatcher.Invoke(() =>
                 {
@@ -231,9 +260,9 @@ namespace CleanAimTracker.Windows
                     }
                 });
 
-                // Delayed gold celebration banner for any new personal best
-                bool anyPB = isBestScore || isBestAccuracy || isBestReaction || isBestStreak;
-                if (anyPB)
+                // Delayed gold celebration banner — only fires when accuracy PB is genuine.
+                // Score/reaction/streak PBs show their individual badges but not the full banner.
+                if (isBestAccuracy)
                     _ = CelebratePersonalBests(isBestScore, isBestAccuracy, isBestReaction, isBestStreak);
 
                 // ── TASK-17: Top 5 by score for this scenario ─────────────

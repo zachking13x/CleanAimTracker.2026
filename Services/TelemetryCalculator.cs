@@ -66,6 +66,43 @@ namespace CleanAimTracker.Services
             return Math.Sqrt(dx * dx + dy * dy);
         }
 
+        /// <summary>
+        /// Derives per-session click-offset metrics from a list of hit samples.
+        /// <list type="bullet">
+        ///   <item><c>AvgOffset</c> — mean Euclidean distance from click to target centre</item>
+        ///   <item><c>OvershootPct</c> — % of hits where click landed &gt;8 px from centre</item>
+        ///   <item><c>UndershootPct</c> — % of hits where click landed 3–8 px from centre</item>
+        /// </list>
+        /// </summary>
+        public static (double AvgOffset, double OvershootPct, double UndershootPct)
+            CalculateClickOffsets(List<ClickOffsetSample> samples)
+        {
+            if (samples == null || samples.Count == 0) return (0, 0, 0);
+
+            double totalOffset = 0;
+            int overshoot  = 0;
+            int undershoot = 0;
+
+            foreach (var s in samples)
+            {
+                double dx   = s.ClickPoint.X - s.TargetCenter.X;
+                double dy   = s.ClickPoint.Y - s.TargetCenter.Y;
+                double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                totalOffset += dist;
+                if (dist > 8.0)
+                    overshoot++;
+                else if (dist >= 3.0)
+                    undershoot++;
+            }
+
+            double count = samples.Count;
+            return (
+                totalOffset / count,
+                overshoot  / count * 100.0,
+                undershoot / count * 100.0);
+        }
+
         // ------------------------------------------------------------------ //
         //  3. Direction-Change Lag (ms)
         // ------------------------------------------------------------------ //
@@ -95,6 +132,46 @@ namespace CleanAimTracker.Services
             }
 
             return totalLagMs / directionChangePairs.Count;
+        }
+
+        /// <summary>
+        /// Overload for Reactive-style scenarios where the "direction change" event is
+        /// a new target spawning at a random location.
+        /// For each spawn timestamp the method scans the raw-input buffer to find the
+        /// first sample after that timestamp where mouse movement is significant
+        /// (magnitude ≥ 8 raw counts).  The elapsed time is the direction-change lag.
+        /// Requires at least 3 valid lag measurements; returns 0 if insufficient data.
+        /// </summary>
+        /// <param name="targetChangeTimes">Stopwatch timestamps of target spawn events.</param>
+        /// <param name="rawBuffer">Raw hardware mouse-delta samples from the session.</param>
+        public static double CalculateDirectionChangeLag(
+            List<long> targetChangeTimes,
+            List<RawInputSample> rawBuffer)
+        {
+            if (targetChangeTimes == null || targetChangeTimes.Count < 3) return 0;
+            if (rawBuffer         == null || rawBuffer.Count         < 5) return 0;
+
+            double ticksPerMs = (double)Stopwatch.Frequency / 1000.0;
+            var lags = new List<double>();
+
+            foreach (long changeTs in targetChangeTimes)
+            {
+                foreach (var s in rawBuffer)
+                {
+                    if (s.Timestamp <= changeTs) continue;
+
+                    double mag = Math.Sqrt((double)s.Dx * s.Dx + (double)s.Dy * s.Dy);
+                    if (mag < 8.0) continue;  // ignore micro-movement / sensor jitter
+
+                    double lagMs = (s.Timestamp - changeTs) / ticksPerMs;
+                    if (lagMs > 0 && lagMs < 2000)
+                        lags.Add(lagMs);
+                    break;   // only the FIRST significant movement after the spawn counts
+                }
+            }
+
+            if (lags.Count < 3) return 0;
+            return lags.Average();
         }
 
         // ------------------------------------------------------------------ //

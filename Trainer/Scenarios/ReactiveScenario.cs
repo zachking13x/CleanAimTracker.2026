@@ -28,6 +28,10 @@ namespace CleanAimTracker.Trainer.Scenarios
         private Ellipse? _target;
         private long     _targetSpawnTick;
         private long     _exposureWindowTicks;
+        private double   _moveSpeed;
+        private long     _spawnDelayTicks;
+        private bool     _waitingToSpawn;
+        private long     _waitStartTick;
 
         // Chaotic variant: 3 independent targets with individual windows
         private const int ChaoticCount = 3;
@@ -45,6 +49,16 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
 
+        /// <summary>Canvas-space center of the most recently hit target.</summary>
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
+
+        /// <summary>
+        /// Stopwatch timestamps recorded each time a new target spawns after the first one.
+        /// Each spawn forces a new movement direction, making these "direction change" events
+        /// for AvgDirectionChangeLagMs telemetry.
+        /// </summary>
+        public System.Collections.Generic.List<long> DirectionChangeTimestamps { get; } = new();
+
         public ReactiveScenario(string variant = "Standard")
         {
             _variant = variant;
@@ -56,9 +70,17 @@ namespace CleanAimTracker.Trainer.Scenarios
             _rng        = rng;
             _targetSize = targetSize;
 
-            _exposureWindowTicks = _variant == "SpeedBurst"
-                ? (long)(0.25 * Stopwatch.Frequency)
-                : (long)(0.50 * Stopwatch.Frequency);
+            _moveSpeed = moveSpeed > 0 ? moveSpeed : 2.5;
+
+            double baseWindowMs = _variant switch
+            {
+                "SpeedBurst" => Math.Max(150, 600 - (_moveSpeed - 1.5) * 75),
+                _            => Math.Max(250, 900 - (_moveSpeed - 1.5) * 150)
+            };
+            _exposureWindowTicks = (long)(baseWindowMs / 1000.0 * Stopwatch.Frequency);
+
+            double spawnDelayMs = Math.Max(50, 300 - (_moveSpeed - 1.5) * 75);
+            _spawnDelayTicks = (long)(spawnDelayMs / 1000.0 * Stopwatch.Frequency);
 
             if (_variant == "Chaotic")
             {
@@ -94,6 +116,16 @@ namespace CleanAimTracker.Trainer.Scenarios
             }
             else
             {
+                if (_waitingToSpawn)
+                {
+                    if (now >= _waitStartTick + _spawnDelayTicks)
+                    {
+                        _waitingToSpawn = false;
+                        SpawnTarget();
+                    }
+                    return;
+                }
+
                 if (_target != null && now >= _targetSpawnTick + _exposureWindowTicks)
                 {
                     // Expired
@@ -101,7 +133,8 @@ namespace CleanAimTracker.Trainer.Scenarios
                     _target = null;
                     Misses++;
                     _streak = 0;
-                    SpawnTarget();
+                    _waitingToSpawn = true;
+                    _waitStartTick  = now;
                 }
             }
         }
@@ -120,10 +153,12 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             if (dx * dx + dy * dy <= (_targetSize / 2) * (_targetSize / 2))
             {
+                LastHitCenter = new Point(cx, cy);
                 RegisterHit();
                 _canvas.Children.Remove(_target);
                 _target = null;
-                SpawnTarget();
+                _waitingToSpawn = true;
+                _waitStartTick  = Stopwatch.GetTimestamp();
                 return true;
             }
 
@@ -162,6 +197,11 @@ namespace CleanAimTracker.Trainer.Scenarios
             _target          = TargetFactory.CreateTarget(_targetSize, x, y);
             _targetSpawnTick = Stopwatch.GetTimestamp();
 
+            // Every spawn after the first forces a new movement direction.
+            // Record it as a direction-change event for AvgDirectionChangeLagMs telemetry.
+            if (Hits + Misses > 0)
+                DirectionChangeTimestamps.Add(_targetSpawnTick);
+
             if (_variant == "Blink")
                 _target.Opacity = 0.3;
 
@@ -175,7 +215,10 @@ namespace CleanAimTracker.Trainer.Scenarios
             double h    = Math.Max(1, _canvas.ActualHeight - _targetSize);
             double x    = _rng.NextDouble() * w;
             double y    = _rng.NextDouble() * h;
-            long   winMs = 300 + (long)(_rng.NextDouble() * 300); // 300-600 ms
+            double speedFactor = (_moveSpeed - 1.5) * 50;
+            double minMs = Math.Max(100, 300 - speedFactor);
+            double maxMs = Math.Max(minMs + 100, 600 - speedFactor);
+            long   winMs = (long)(minMs + _rng.NextDouble() * (maxMs - minMs));
 
             _chaoticTargets[slot]   = TargetFactory.CreateTarget(_targetSize, x, y);
             _chaoticSpawnTick[slot] = Stopwatch.GetTimestamp();

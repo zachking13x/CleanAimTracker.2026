@@ -23,6 +23,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         private Canvas _canvas    = null!;
         private Random _rng       = null!;
         private double _targetSize;
+        private double _moveSpeed;
         private int    _visibleMs;
 
         // ── Standard / Peek single-target state ──────────────────────
@@ -73,7 +74,8 @@ namespace CleanAimTracker.Trainer.Scenarios
             double maxSize = Math.Min(canvas.ActualWidth, canvas.ActualHeight) * 0.4;
             _targetSize = Math.Max(10, Math.Min(targetSize * 1.6,
                                    maxSize > 0 ? maxSize : targetSize * 1.6));
-            _visibleMs = Math.Max(200, 1200 - (int)(moveSpeed * 80));
+            _moveSpeed = moveSpeed;
+            _visibleMs = _moveSpeed < 2 ? 900 : _moveSpeed < 3 ? 650 : _moveSpeed < 5 ? 400 : 200;
 
             // Peek timing: total exposure ≈ 600/400/250/150 ms at Easy/Med/Hard/NM
             _peekHalfMs      = moveSpeed < 2 ? 300 : moveSpeed < 3 ? 200 : moveSpeed < 5 ? 125 : 75;

@@ -27,6 +27,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         private Canvas _canvas     = null!;
         private Random _rng        = null!;
         private double _targetSize;
+        private double _moveSpeed;
 
         // Wall cover (Rectangle drawn over the target position)
         private Rectangle? _wall;
@@ -75,6 +76,9 @@ namespace CleanAimTracker.Trainer.Scenarios
             _rng       = rng;
             _targetSize = targetSize;
 
+            _moveSpeed = moveSpeed > 0 ? moveSpeed : 2.5;
+            double diffMult = Math.Max(0.4, 1.0 - (_moveSpeed - 1.5) * 0.12);
+
             double w = canvas.ActualWidth;
             double h = canvas.ActualHeight;
 
@@ -104,14 +108,14 @@ namespace CleanAimTracker.Trainer.Scenarios
             switch (_variant)
             {
                 case "Jiggle":
-                    _hiddenDurationTicks      = TicksFromMs(400);
-                    _exposedDurationTicks     = TicksFromMs(200);
-                    _transitionDurationTicks  = TicksFromMs(80);
+                    _hiddenDurationTicks      = TicksFromMs(400 * diffMult);
+                    _exposedDurationTicks     = TicksFromMs(Math.Max(80, 200 * diffMult));
+                    _transitionDurationTicks  = TicksFromMs(80 * diffMult);
                     break;
                 case "JumpPeek":
-                    _hiddenDurationTicks      = TicksFromMs(600);
-                    _exposedDurationTicks     = TicksFromMs(400);
-                    _transitionDurationTicks  = TicksFromMs(300);
+                    _hiddenDurationTicks      = TicksFromMs(600 * diffMult);
+                    _exposedDurationTicks     = TicksFromMs(Math.Max(80, 400 * diffMult));
+                    _transitionDurationTicks  = TicksFromMs(300 * diffMult);
                     // JumpPeek: arc from bottom cover
                     _targetHomeY  = h - targetSize * 2;
                     _targetPeekY  = h / 2 - targetSize;
@@ -119,17 +123,17 @@ namespace CleanAimTracker.Trainer.Scenarios
                     _targetPeekX  = _targetHomeX;
                     break;
                 case "CounterStrafe":
-                    _hiddenDurationTicks      = TicksFromMs(500);
-                    _exposedDurationTicks     = TicksFromMs(350);
-                    _transitionDurationTicks  = TicksFromMs(200);
+                    _hiddenDurationTicks      = TicksFromMs(500 * diffMult);
+                    _exposedDurationTicks     = TicksFromMs(Math.Max(80, 350 * diffMult));
+                    _transitionDurationTicks  = TicksFromMs(200 * diffMult);
                     _strafeX = wallW + targetSize;
                     _strafeY = _targetHomeY;
                     _strafeVx = moveSpeed > 0 ? moveSpeed : 3.5;
                     break;
                 default: // WideSwing
-                    _hiddenDurationTicks      = TicksFromMs(700);
-                    _exposedDurationTicks     = TicksFromMs(600);
-                    _transitionDurationTicks  = TicksFromMs(400);
+                    _hiddenDurationTicks      = TicksFromMs(700 * diffMult);
+                    _exposedDurationTicks     = TicksFromMs(Math.Max(80, 600 * diffMult));
+                    _transitionDurationTicks  = TicksFromMs(400 * diffMult);
                     break;
             }
 

@@ -50,6 +50,15 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
 
+        /// <summary>Canvas-space centre of the tracking target at this frame.</summary>
+        public Point CurrentTargetCenter =>
+            _target == null
+                ? new Point(double.NaN, double.NaN)
+                : new Point(_x + _targetSize / 2, _y + _targetSize / 2);
+
+        /// <summary>Canvas-space center of the most recently hit tracking target.</summary>
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
+
         public AirTrackingScenario(string variant = "Diagonal")
         {
             _variant = variant;
@@ -159,6 +168,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             if (dx * dx + dy * dy <= (_targetSize / 2) * (_targetSize / 2))
             {
+                LastHitCenter = new Point(cx, cy);
                 Hits++;
                 _streak++;
                 MaxStreak = Math.Max(MaxStreak, _streak);

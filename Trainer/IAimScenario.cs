@@ -30,5 +30,19 @@ namespace CleanAimTracker.Trainer
         /// Default 100 — Shotgun overrides to 150.
         /// </summary>
         int ScorePerHit => 100;
+
+        /// <summary>
+        /// Canvas-space center of the most recently registered hit target.
+        /// Scenarios that support click-offset telemetry override this property.
+        /// Returns <c>new Point(double.NaN, double.NaN)</c> by default.
+        /// </summary>
+        Point LastHitCenter => new Point(double.NaN, double.NaN);
+
+        /// <summary>
+        /// Canvas-space center of the primary moving target, sampled each frame.
+        /// Tracking-pillar scenarios override this to feed per-frame axis-split data.
+        /// Returns <c>new Point(double.NaN, double.NaN)</c> by default.
+        /// </summary>
+        Point CurrentTargetCenter => new Point(double.NaN, double.NaN);
     }
 }

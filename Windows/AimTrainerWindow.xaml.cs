@@ -28,6 +28,10 @@ namespace CleanAimTracker.Windows
         private readonly List<RawInputSample> _rawInputBuffer = new();
         private bool _isDrillActive = false;
 
+        // Telemetry buffers — cleared at drill start; read at drill end
+        private readonly List<ClickOffsetSample> _clickOffsets   = new();
+        private readonly List<TrackingFrame>     _trackingFrames = new();
+
         private bool _isRunning = false;
         private bool _uiReady = false;
 
@@ -520,6 +524,8 @@ namespace CleanAimTracker.Windows
             UpdateTimerDisplay();
             _scenarioInstance.Start(TargetCanvas, _config.TargetSize, _config.MoveSpeed, _rng);
             _rawInputBuffer.Clear();
+            _clickOffsets.Clear();
+            _trackingFrames.Clear();
             _isDrillActive = true;
             _rawInput.Start();
             _gameTimer.Start();
@@ -621,6 +627,37 @@ namespace CleanAimTracker.Windows
                         result.PeekLateClickPct  = latePct;
                     }
 
+                    // Click offset metrics — Clicking pillar scenarios
+                    if (_clickOffsets.Count >= 3)
+                    {
+                        var (avgOffset, overshootPct, undershootPct) =
+                            TelemetryCalculator.CalculateClickOffsets(_clickOffsets);
+                        result.AvgClickOffset = avgOffset;
+                        result.OvershootPct   = overshootPct;
+                        result.UndershootPct  = undershootPct;
+                    }
+
+                    // Direction-change lag — Reactive scenario (target spawn = direction change)
+                    if (statsSource is ReactiveScenario reactive
+                        && reactive.DirectionChangeTimestamps.Count >= 3)
+                    {
+                        result.AvgDirectionChangeLagMs =
+                            TelemetryCalculator.CalculateDirectionChangeLag(
+                                reactive.DirectionChangeTimestamps, _rawInputBuffer);
+                    }
+
+                    // Axis split — AirTracking only
+                    if (_trackingFrames.Count >= 100)
+                    {
+                        var frames = _trackingFrames
+                            .Select(f => (f.CursorPos, f.TargetPos))
+                            .ToList();
+                        var (hAcc, vAcc) = TelemetryCalculator.CalculateAxisSplit(
+                            frames, _config.TargetSize / 2);
+                        result.HorizontalTrackingAcc = hAcc;
+                        result.VerticalTrackingAcc   = vAcc;
+                    }
+
                     // ── Difficulty unlock update ────────────────────────────────
                     try
                     {
@@ -630,8 +667,10 @@ namespace CleanAimTracker.Windows
                     }
                     catch (Exception ex) { LogService.Error("Telemetry post-session update failed", ex); }
 
-                    // ── Clear raw input buffer ─────────────────────────────────
+                    // ── Clear telemetry buffers ────────────────────────────────
                     _rawInputBuffer.Clear();
+                    _clickOffsets.Clear();
+                    _trackingFrames.Clear();
 
                     SaveResult(result);
                     CheckNightmareUnlock(result);
@@ -664,6 +703,17 @@ namespace CleanAimTracker.Windows
                 return;
 
             _scenarioInstance.Update(TargetCanvas);
+
+            // TASK-05: collect per-frame axis-split data for AirTracking
+            if (_isDrillActive && _scenario == "AirTracking")
+            {
+                var targetCenter = _scenarioInstance.CurrentTargetCenter;
+                if (!double.IsNaN(targetCenter.X))
+                {
+                    var cursorPos = System.Windows.Input.Mouse.GetPosition(TargetCanvas);
+                    _trackingFrames.Add(new TrackingFrame(cursorPos, targetCenter));
+                }
+            }
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -679,6 +729,11 @@ namespace CleanAimTracker.Windows
 
             if (hit)
             {
+                // TASK-05: record click offset for post-session telemetry
+                var center = _scenarioInstance.LastHitCenter;
+                if (!double.IsNaN(center.X))
+                    _clickOffsets.Add(new ClickOffsetSample(pos, center));
+
                 _consecutiveHits++;
                 if (!_isHotStreak && _consecutiveHits >= 5)
                     ActivateHotStreak();

@@ -227,14 +227,27 @@
                                 Visibility="Collapsed"
                                 Style="{DynamicResource SecondaryButtonStyle}"/>
 
-                        <!-- Start recommended drill (shown on results panel) -->
-                        <Button x:Name="StartRecommendedBtn"
-                                Content="▶  Start Recommended Drill"
-                                Height="36"
-                                HorizontalAlignment="Right"
-                                Click="StartRecommendedBtn_Click"
-                                Visibility="Collapsed"
-                                Style="{DynamicResource PrimaryButtonStyle}"/>
+                        <!-- Results-panel actions: free report + recommended drill -->
+                        <StackPanel HorizontalAlignment="Right"
+                                    Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <!-- Free coaching report — one-time unlock after assessment -->
+                            <Button x:Name="ShowFreeReportBtn"
+                                    Content="📊  View Full Report"
+                                    Height="36"
+                                    Click="ShowFreeReportBtn_Click"
+                                    Visibility="Collapsed"
+                                    Style="{DynamicResource SecondaryButtonStyle}"
+                                    Margin="0 0 8 0"/>
+
+                            <!-- Start recommended drill (shown on results panel) -->
+                            <Button x:Name="StartRecommendedBtn"
+                                    Content="▶  Start Recommended Drill"
+                                    Height="36"
+                                    Click="StartRecommendedBtn_Click"
+                                    Visibility="Collapsed"
+                                    Style="{DynamicResource PrimaryButtonStyle}"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
             </Grid>

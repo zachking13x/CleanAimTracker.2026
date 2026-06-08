@@ -194,6 +194,43 @@ namespace CleanAimTracker.Windows
             int idx   = match != null ? GameOptions.IndexOf(match) : 0;
             GameCombo.SelectedIndex = idx;
             SelectedGame = GameOptions[idx];
+
+            // ── TASK-25: Populate TransitionPlanCard if an active plan exists ─
+            PopulateTransitionPlanCard();
+        }
+
+        // ── TASK-25: Transition plan card ────────────────────────────────────
+        private void PopulateTransitionPlanCard()
+        {
+            var settings = SettingsService.Load();
+            var plan = settings.ActiveTransitionPlan;
+
+            if (plan == null || plan.IsComplete)
+            {
+                TransitionPlanCard.Visibility = System.Windows.Visibility.Collapsed;
+                return;
+            }
+
+            TransitionPlanCard.Visibility = System.Windows.Visibility.Visible;
+            TransitionTypeText.Text = $"{plan.TransitionType} Plan";
+
+            int stepNum = plan.CurrentStepIndex + 1;
+            int total   = plan.Steps.Count;
+            TransitionProgressText.Text = $"Step {stepNum} / {total}";
+
+            // Progress bar width — fill proportional to current step
+            double frac = total > 0 ? (double)stepNum / total : 0;
+            // Bar max width is roughly the card content width; set to 300 as safe default
+            TransitionProgressBar.Width = 300 * frac;
+
+            if (plan.CurrentStepIndex < plan.Steps.Count)
+            {
+                var step = plan.Steps[plan.CurrentStepIndex];
+                TransitionCurrentTargetText.Text =
+                    $"{step.TargetSensitivity:F4} sens  ·  {step.TargetCmPer360:F1} cm/360";
+                TransitionSessionsText.Text =
+                    $"{step.CompletedSessions} / {step.RequiredSessions}";
+            }
         }
 
         private void GameCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

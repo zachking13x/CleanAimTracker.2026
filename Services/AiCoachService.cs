@@ -1081,9 +1081,22 @@ namespace CleanAimTracker.Services
                         : "Add the Tracking scenario to your warmup — smooth movement between targets is what separates good Switching players from great ones.");
                     break;
                 default:
-                    if (c.AccuracyGrade is "developing" or "average")
+                {
+                    // TASK-26: try telemetry-based observation first (data-specific > generic)
+                    var telemetry = GetTelemetryObservations(r, c, memory);
+                    if (telemetry.Count > 0)
                     {
-                        tips.Add("Accuracy over speed — every time. A slow hit is worth more than a fast miss. Trust your cursor.");
+                        tips.AddRange(telemetry.Take(1));
+                    }
+                    else if (c.AccuracyGrade is "developing" or "average")
+                    {
+                        // No telemetry data yet — use scenario-specific grounding instead of pure generic
+                        tips.Add(Pick(c.SessionCount,
+                            $"At {r.Accuracy:F0}% in {r.Scenario}, prioritise placement over speed. A slow hit scores more than a fast miss.",
+                            $"{r.Scenario} accuracy builds fastest when you commit fully to each click — hesitation between decision and execution is what costs you.",
+                            $"Your {r.Accuracy:F0}% accuracy in {r.Scenario} has room to grow. Start with slowing the motion to target, then speed it up once the placement is consistent.",
+                            $"In {r.Scenario}, the common miss pattern is moving to the target edge rather than center. Focus on committing to center pixel."
+                        ));
                     }
                     else
                     {
@@ -1113,6 +1126,7 @@ namespace CleanAimTracker.Services
                         }
                     }
                     break;
+                }
             }
 
             if (c.AccuracyGrade == "elite")
@@ -1234,6 +1248,209 @@ namespace CleanAimTracker.Services
             if (!c.IsFirstSession && c.AccuracyDelta > 5)
                 return $"Repeat {r.Scenario} at {r.Difficulty} to reinforce today's improvement — back-to-back sessions on the same scenario lock in gains faster.";
             return $"Run {r.Scenario} again at {r.Difficulty} — consistency in the same scenario builds the muscle memory that transfers directly to your game.";
+        }
+
+        // ── TASK-26: Telemetry-based observations ─────────────────────
+        //
+        // COACHING LANGUAGE RULES (4):
+        //   1. Specificity first — always embed the actual measured value in the observation.
+        //   2. No observation without action — every line ends with a concrete next step.
+        //   3. Rotate 4 variants per observation so the same line never repeats consecutively.
+        //   4. Single diagnosis — return the highest-signal observation only; don't pile on.
+        //
+        // All guards use a 0-check because these fields are 0 when TASK-28 hasn't fired yet.
+        // The ordering of checks is priority order: Path → Overshoot → Undershoot →
+        //   DirectionLag → AxisSplit → PeekTiming → ImprovementAck.
+        private static List<string> GetTelemetryObservations(
+            AimTrainerResult r, CoachContext c, CoachMemory memory)
+        {
+            var obs = new List<string>();
+            int idx  = c.SessionCount;   // rotation index per scenario session count
+
+            // ── 1. PATH EFFICIENCY ────────────────────────────────────
+            // Low path efficiency = wobbly/indirect route to target (< 0.60)
+            if (r.PathEfficiency > 0 && r.PathEfficiency < 0.60)
+            {
+                double pct = r.PathEfficiency * 100;
+                obs.Add(Pick(idx,
+                    $"Path efficiency is {pct:F0}% — your mouse is travelling further than the straight-line distance to each target. " +
+                    "That extra distance is dead movement that costs time. Focus on driving directly to the center rather than approaching from the side.",
+                    $"Your routing efficiency is {pct:F0}%. Every wasted curve adds 30–80ms to your effective reaction time. " +
+                    "Before each click, visualize the straight line to the target and commit to it.",
+                    $"Movement efficiency at {pct:F0}% — you're orbiting targets before clicking rather than moving through them. " +
+                    "Practice 5-second explosive move-and-click drills: move once, click, stop. No corrections.",
+                    $"{pct:F0}% path efficiency means roughly {(100 - pct):F0}% of your mouse movement is wasted. " +
+                    "Straighter paths start with a slower, deliberate first movement that goes exactly where you intend — then speed that up."
+                ));
+                return obs;
+            }
+
+            // ── 2. OVERSHOOT ──────────────────────────────────────────
+            // High overshoot = consistent overreaching (> 35%)
+            if (r.OvershootPct > 35)
+            {
+                obs.Add(Pick(idx,
+                    $"You're overshooting {r.OvershootPct:F0}% of clicks — your hand is committing more force than the target requires. " +
+                    "Reduce your swing amplitude slightly and let the cursor settle rather than correcting after overshoot.",
+                    $"Overshoot rate: {r.OvershootPct:F0}%. That's the most common sign that sensitivity is slightly too high for this scenario. " +
+                    "Try reducing in-game sensitivity by 5% and retest — the overshoot pattern usually disappears.",
+                    $"{r.OvershootPct:F0}% of your clicks go past the target before landing. The fix is deceleration, not speed. " +
+                    "Mentally aim for a point 20% before the target center — your natural momentum will carry you to center.",
+                    $"High overshoot at {r.OvershootPct:F0}% indicates your stopping mechanics need work more than your speed. " +
+                    "Practice stopping exercises: move to a target, stop completely, then move to the next. Train the deceleration phase."
+                ));
+                return obs;
+            }
+
+            // ── 3. UNDERSHOOT ─────────────────────────────────────────
+            // High undershoot = consistently falling short (> 35%)
+            if (r.UndershootPct > 35)
+            {
+                obs.Add(Pick(idx,
+                    $"You're undershooting {r.UndershootPct:F0}% of clicks — you're stopping short of the target rather than committing through it. " +
+                    "Aim for a point slightly past target center; natural deceleration will land you on it.",
+                    $"Undershoot rate: {r.UndershootPct:F0}%. This often means sensitivity is slightly too low or you're hesitating at the end of each movement. " +
+                    "Try committing fully to the motion — don't slow down in the last 20% of the movement.",
+                    $"{r.UndershootPct:F0}% undershoot — you're braking too early. The target center should feel like the midpoint of your swing, not the endpoint. " +
+                    "Extend your follow-through and the accuracy will improve.",
+                    $"High undershoot at {r.UndershootPct:F0}% is a confidence pattern — you're not fully committing to the destination. " +
+                    "In your next session, practice movements that intentionally go 10% past the target, then work backwards to center."
+                ));
+                return obs;
+            }
+
+            // ── 4. DIRECTION CHANGE LAG ───────────────────────────────
+            // High lag between target direction change and player response (> 120ms)
+            if (r.AvgDirectionChangeLagMs > 120)
+            {
+                obs.Add(Pick(idx,
+                    $"You're lagging {r.AvgDirectionChangeLagMs:F0}ms behind direction changes on average. " +
+                    "That gap means you're reacting to changes rather than anticipating them. " +
+                    "Study the bounce/reversal pattern for 2 seconds at the start of each drill before committing to it.",
+                    $"Direction change response lag: {r.AvgDirectionChangeLagMs:F0}ms. " +
+                    "Your current approach is 'track then correct' — the faster approach is 'anticipate and lead.' " +
+                    "Watch the target's velocity, not just its position, and start moving before the reversal.",
+                    $"{r.AvgDirectionChangeLagMs:F0}ms average lag on direction changes is the primary reason your tracking accuracy drops during reversals. " +
+                    "Use the pattern's rhythm: if a target reverses every ~0.8s, start your counter-movement at 0.7s.",
+                    $"Direction lag at {r.AvgDirectionChangeLagMs:F0}ms. The players who close this gap aren't reacting faster — they're reading the pattern. " +
+                    "In your next session, spend the first 5 seconds observing without clicking to learn the reversal timing."
+                ));
+                return obs;
+            }
+
+            // ── 5. AXIS SPLIT ─────────────────────────────────────────
+            // Significant H/V tracking imbalance (> 20 point gap between axes)
+            double horizAcc = r.HorizontalTrackingAcc;
+            double vertAcc  = r.VerticalTrackingAcc;
+            if (horizAcc > 0 && vertAcc > 0)
+            {
+                double axisDelta = Math.Abs(horizAcc - vertAcc);
+                if (axisDelta > 20)
+                {
+                    string weakAxis   = horizAcc < vertAcc ? "horizontal" : "vertical";
+                    double weakScore  = Math.Min(horizAcc, vertAcc);
+                    double strongScore = Math.Max(horizAcc, vertAcc);
+
+                    obs.Add(Pick(idx,
+                        $"You're {strongScore:F0}% accurate on the strong axis but only {weakScore:F0}% on {weakAxis} tracking — a {axisDelta:F0}-point split. " +
+                        $"That gap usually means your wrist mechanics are weaker for {weakAxis} movement. " +
+                        "Drill that axis specifically: use an Air Tracking Diagonal variant to isolate it.",
+                        $"Axis imbalance detected: {axisDelta:F0} points between your horizontal and vertical tracking accuracy. " +
+                        $"Your {weakAxis} axis is the bottleneck — all the tracking gains are stuck there. " +
+                        "Use Air Tracking to isolate the weak axis and close the gap.",
+                        $"A {axisDelta:F0}-point gap between your horizontal and vertical accuracy is a clear signal that one axis needs dedicated work. " +
+                        $"Your {weakAxis} tracking is at {weakScore:F0}% — that's the ceiling you're working against. " +
+                        "Add one Air Tracking session focused exclusively on that axis to your weekly routine.",
+                        $"Your tracking splits {strongScore:F0}% vs {weakScore:F0}% across axes — the {weakAxis} side is limiting your ceiling. " +
+                        "Axis imbalances rarely resolve on their own. Isolate it with horizontal-only or vertical-only drills for 2 sessions."
+                    ));
+                    return obs;
+                }
+            }
+
+            // ── 6. PEEK TIMING ────────────────────────────────────────
+            // High early or late click percentage in PeekTraining (> 30%)
+            if (r.Scenario == "PeekTraining")
+            {
+                if (r.PeekEarlyClickPct > 30)
+                {
+                    obs.Add(Pick(idx,
+                        $"You're clicking early {r.PeekEarlyClickPct:F0}% of the time — firing before the target is fully exposed. " +
+                        "In real games that means whiffing on a peeking enemy. Wait for center-mass, then fire.",
+                        $"{r.PeekEarlyClickPct:F0}% early clicks means you're anticipating the peek instead of reacting to it. " +
+                        "The fix: don't pre-fire. Let the target fully appear, confirm it's there, then commit.",
+                        $"Early click rate: {r.PeekEarlyClickPct:F0}%. You're trading for unpredictability when you fire early — and usually losing. " +
+                        "Hold your shot until the center of the target is visible, even if it feels late.",
+                        $"High early-click rate at {r.PeekEarlyClickPct:F0}%. That pattern means you're guessing the peek timing rather than reading it. " +
+                        "In WideSwing and Jiggle variants, the peak exposure time is consistent — learn the window and fire inside it, not before."
+                    ));
+                    return obs;
+                }
+                if (r.PeekLateClickPct > 30)
+                {
+                    obs.Add(Pick(idx,
+                        $"You're clicking late {r.PeekLateClickPct:F0}% of the time — firing after the target has already started retreating. " +
+                        "In game that's shooting at where they were, not where they are. Tighten your window: commit when you first see center-mass.",
+                        $"{r.PeekLateClickPct:F0}% late clicks means hesitation is costing you. You're seeing the target but waiting too long to pull the trigger. " +
+                        "One session of deliberate early-commit practice closes this faster than volume alone.",
+                        $"Late click rate: {r.PeekLateClickPct:F0}%. The target is giving you the window — you're just not using it. " +
+                        "Work on the decision trigger: the moment you see chest/head, fire. Don't wait for 'perfect alignment.'",
+                        $"High late-click rate at {r.PeekLateClickPct:F0}% indicates an over-cautious trigger. " +
+                        "Trust the first moment of exposure more. Aim to halve your decision-to-fire time over the next 3 sessions."
+                    ));
+                    return obs;
+                }
+            }
+
+            // ── 7. IMPROVEMENT ACKNOWLEDGEMENT ───────────────────────
+            // Any telemetry metric that improved vs the previous session gets a positive obs.
+            // Check PathEfficiency improvement (> 0.05 delta = meaningful)
+            var prevSameScenario = memory.AllDrills
+                .Where(h => h.Scenario == r.Scenario && h.Timestamp != r.Timestamp)
+                .OrderByDescending(h => h.Timestamp)
+                .FirstOrDefault();
+
+            if (prevSameScenario != null)
+            {
+                double effDelta  = r.PathEfficiency - prevSameScenario.PathEfficiency;
+                double ovDelta   = prevSameScenario.OvershootPct - r.OvershootPct;   // lower is better
+                double lagDelta  = prevSameScenario.AvgDirectionChangeLagMs - r.AvgDirectionChangeLagMs;
+
+                if (r.PathEfficiency > 0 && effDelta > 0.05)
+                {
+                    obs.Add(Pick(idx,
+                        $"Path efficiency improved {effDelta * 100:F0} points this session — your routes to targets are getting cleaner. That's the movement mechanics improving.",
+                        $"Your movement is getting more direct — {effDelta * 100:F0}% better path efficiency vs last {r.Scenario} session. The technique is solidifying.",
+                        $"Path efficiency up {effDelta * 100:F0} points. That kind of improvement doesn't happen by accident — your mouse movement is becoming more intentional.",
+                        $"Movement quality trending up: {effDelta * 100:F0}% better path efficiency. What you're doing is working."
+                    ));
+                    return obs;
+                }
+
+                if (r.OvershootPct > 0 && ovDelta > 8)
+                {
+                    obs.Add(Pick(idx,
+                        $"Overshoot rate dropped {ovDelta:F0}% since your last {r.Scenario} session — your stopping mechanics are improving.",
+                        $"{ovDelta:F0}% fewer overshoots than last time. The deceleration work is paying off.",
+                        $"Overshoot is down {ovDelta:F0}% — your commits are getting more accurate. Keep the same approach.",
+                        $"Less overshoot this session — {ovDelta:F0}% improvement. That tells me your first movement is getting more precise."
+                    ));
+                    return obs;
+                }
+
+                if (r.AvgDirectionChangeLagMs > 0 && lagDelta > 15)
+                {
+                    obs.Add(Pick(idx,
+                        $"Direction change response improved {lagDelta:F0}ms since last session — you're reading the patterns better.",
+                        $"{lagDelta:F0}ms faster on direction changes. Your anticipation is kicking in.",
+                        $"Direction lag dropped {lagDelta:F0}ms. You're starting to lead the movement instead of chasing it.",
+                        $"{lagDelta:F0}ms improvement on direction changes. That's anticipation developing — keep it going."
+                    ));
+                    return obs;
+                }
+            }
+
+            return obs;   // empty — caller will fall through to variance tips
         }
 
         private static string GetMotivation(AimTrainerResult r, CoachContext c)

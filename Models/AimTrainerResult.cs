@@ -19,5 +19,24 @@
         public double BestReactionMs { get; set; }
 
         public int MaxStreak { get; set; }
+
+        // Raw input derived metrics
+        public double PathEfficiency          { get; set; } = 0;
+        public double AvgClickOffset          { get; set; } = 0;
+        public double OvershootPct            { get; set; } = 0;
+        public double UndershootPct           { get; set; } = 0;
+        public double AvgDirectionChangeLagMs { get; set; } = 0;
+        public double FirstMotionAccuracy     { get; set; } = 0;
+        public double HorizontalTrackingAcc   { get; set; } = 0;
+        public double VerticalTrackingAcc     { get; set; } = 0;
+        public double PeekEarlyClickPct       { get; set; } = 0;
+        public double PeekLateClickPct        { get; set; } = 0;
+
+        // Scenario classification
+        public string Pillar                  { get; set; } = "";
+
+        // Diagnostic assessment flag
+        public bool   IsAssessmentSession     { get; set; } = false;
+        public string AssessmentDimension     { get; set; } = "";
     }
 }

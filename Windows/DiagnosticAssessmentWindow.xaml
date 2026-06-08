@@ -1,0 +1,243 @@
+<Window x:Class="CleanAimTracker.Windows.DiagnosticAssessmentWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Aim Assessment"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Width="900" Height="640"
+        WindowStartupLocation="CenterOwner">
+
+    <Border Background="{DynamicResource AppBackground}"
+            CornerRadius="14"
+            BorderBrush="#22FFFFFF"
+            BorderThickness="1">
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="260"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- LEFT PANEL — test list + progress                          -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource CardBackground}"
+                    CornerRadius="14 0 0 14"
+                    Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <Border Grid.Row="0" Padding="20 20 20 16">
+                    <StackPanel>
+                        <TextBlock Text="🎯 Aim Assessment"
+                                   FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   Margin="0 0 0 4"/>
+                        <TextBlock Text="8 tests · ~4 minutes"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource MutedText}"/>
+
+                        <!-- Overall progress bar -->
+                        <Grid Margin="0 12 0 0">
+                            <Border Background="#1AFFFFFF" CornerRadius="3" Height="6"/>
+                            <Border x:Name="OverallProgressBar"
+                                    Background="{DynamicResource AccentBrush}"
+                                    CornerRadius="3" Height="6"
+                                    HorizontalAlignment="Left"
+                                    Width="0"/>
+                        </Grid>
+                        <TextBlock x:Name="OverallProgressText"
+                                   Text="0 / 8 complete"
+                                   FontSize="10"
+                                   Foreground="{DynamicResource MutedText}"
+                                   Margin="0 4 0 0"/>
+                    </StackPanel>
+                    </Border>
+
+                    <!-- Test list -->
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="TestListPanel" Margin="12 0 12 12"/>
+                    </ScrollViewer>
+
+                    <!-- Close button -->
+                    <Border Grid.Row="2" Padding="16 12">
+                        <Button x:Name="CloseBtn"
+                                Content="✕  Close"
+                                Height="36"
+                                Click="CloseBtn_Click"
+                                Style="{DynamicResource SecondaryButtonStyle}"/>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <!-- RIGHT PANEL — active area                                   -->
+            <!-- ═══════════════════════════════════════════════════════════ -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Sub-header: current test name + timer -->
+                <Border Grid.Row="0"
+                        Background="#0DFFFFFF"
+                        Padding="20 14">
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock x:Name="CurrentTestLabel"
+                                       Text="Ready to begin"
+                                       FontSize="15" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryText}"/>
+                            <TextBlock x:Name="CurrentTestDesc"
+                                       Text="Press Start to begin the assessment"
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MutedText}"
+                                       Margin="0 3 0 0"/>
+                        </StackPanel>
+
+                        <StackPanel HorizontalAlignment="Right"
+                                    VerticalAlignment="Center"
+                                    Orientation="Horizontal">
+                            <TextBlock x:Name="TimerText"
+                                       Text="0:30"
+                                       FontSize="22" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- ── Intro panel ── -->
+                <Border x:Name="IntroPanel"
+                        Grid.Row="1"
+                        Padding="32">
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                MaxWidth="400">
+                        <TextBlock Text="Baseline Your Aim"
+                                   FontSize="22" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   TextAlignment="Center" Margin="0 0 0 12"/>
+                        <TextBlock TextWrapping="Wrap" TextAlignment="Center"
+                                   FontSize="13" LineHeight="20"
+                                   Foreground="{DynamicResource MutedText}"
+                                   Margin="0 0 0 24">
+                            This 8-part assessment measures your accuracy and reaction
+                            time across Clicking, Tracking, and Switching skills.
+                            Each test lasts 30 seconds.  Results are used to personalise
+                            your coaching and drill recommendations.
+                        </TextBlock>
+
+                        <!-- Dimension chips -->
+                        <WrapPanel HorizontalAlignment="Center" Margin="0 0 0 28">
+                            <Border Background="#1A00D4FF" CornerRadius="4" Padding="8 4" Margin="3">
+                                <TextBlock Text="Clicking" Foreground="#00D4FF" FontSize="11"/>
+                            </Border>
+                            <Border Background="#1A00D4FF" CornerRadius="4" Padding="8 4" Margin="3">
+                                <TextBlock Text="Tracking" Foreground="#00D4FF" FontSize="11"/>
+                            </Border>
+                            <Border Background="#1A00D4FF" CornerRadius="4" Padding="8 4" Margin="3">
+                                <TextBlock Text="Switching" Foreground="#00D4FF" FontSize="11"/>
+                            </Border>
+                            <Border Background="#1A00D4FF" CornerRadius="4" Padding="8 4" Margin="3">
+                                <TextBlock Text="Reaction" Foreground="#00D4FF" FontSize="11"/>
+                            </Border>
+                        </WrapPanel>
+
+                        <Button x:Name="StartBtn"
+                                Content="▶  Start Assessment"
+                                Height="46" FontSize="14" FontWeight="SemiBold"
+                                Click="StartBtn_Click"
+                                Style="{DynamicResource PrimaryButtonStyle}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Active test canvas ── -->
+                <Canvas x:Name="TestCanvas"
+                        Grid.Row="1"
+                        Background="Transparent"
+                        Visibility="Collapsed"
+                        MouseDown="TestCanvas_MouseDown"/>
+
+                <!-- ── Results panel ── -->
+                <ScrollViewer x:Name="ResultsPanel"
+                              Grid.Row="1"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Visibility="Collapsed"
+                              Padding="24 20">
+                    <StackPanel x:Name="ResultsContent"/>
+                </ScrollViewer>
+
+                <!-- Footer actions -->
+                <Border Grid.Row="2"
+                        Background="#0AFFFFFF"
+                        Padding="20 12">
+                    <Grid>
+                        <!-- Live stats (shown during test) -->
+                        <StackPanel x:Name="LiveStatsPanel"
+                                    Orientation="Horizontal"
+                                    Visibility="Collapsed">
+                            <StackPanel Margin="0 0 24 0">
+                                <TextBlock Text="HITS"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="{DynamicResource MutedText}"/>
+                                <TextBlock x:Name="LiveHitsText"
+                                           Text="0"
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0 0 24 0">
+                                <TextBlock Text="ACC"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="{DynamicResource MutedText}"/>
+                                <TextBlock x:Name="LiveAccText"
+                                           Text="--"
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryText}"/>
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="AVG REACT"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="{DynamicResource MutedText}"/>
+                                <TextBlock x:Name="LiveReactText"
+                                           Text="--"
+                                           FontSize="18" FontWeight="Bold"
+                                           Foreground="{DynamicResource PrimaryText}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Next / Done button (shown during test or after last test) -->
+                        <Button x:Name="NextTestBtn"
+                                Content="Skip Test →"
+                                Height="36"
+                                HorizontalAlignment="Right"
+                                Click="NextTestBtn_Click"
+                                Visibility="Collapsed"
+                                Style="{DynamicResource SecondaryButtonStyle}"/>
+
+                        <!-- Start recommended drill (shown on results panel) -->
+                        <Button x:Name="StartRecommendedBtn"
+                                Content="▶  Start Recommended Drill"
+                                Height="36"
+                                HorizontalAlignment="Right"
+                                Click="StartRecommendedBtn_Click"
+                                Visibility="Collapsed"
+                                Style="{DynamicResource PrimaryButtonStyle}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

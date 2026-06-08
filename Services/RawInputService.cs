@@ -7,7 +7,7 @@ namespace CleanAimTracker.Services
 {
     public class RawInputService
     {
-        public event Action<int, int>? MouseMoved;
+        public event Action<int, int, long>? MouseMoved;
 
         private HwndSource? _source;
         private IntPtr _hwnd;
@@ -149,7 +149,8 @@ namespace CleanAimTracker.Services
                 int dy = Marshal.ReadInt32(mousePtr, 16);
 
                 if (dx != 0 || dy != 0)
-                    MouseMoved?.Invoke(dx, dy);
+                    MouseMoved?.Invoke(dx, dy,
+                        System.Diagnostics.Stopwatch.GetTimestamp());
             }
             finally
             {

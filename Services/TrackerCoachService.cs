@@ -131,7 +131,7 @@ namespace CleanAimTracker.Services
 
             // ── TASK-10 NEW OBSERVATIONS ──────────────────────────────────────
 
-            // OBSERVATION-NEW-1: IN-GAME VS DRILL COMPARISON
+            // OBSERVATION-NEW-1: IN-GAME VS DRILL COMPARISON (TASK-27 — 4 variants each path)
             if (memory != null
                 && memory.RecentDrills.Count >= 3
                 && history?.Count >= 2
@@ -142,7 +142,7 @@ namespace CleanAimTracker.Services
                     ? session.SmoothnessScore / drillBaseline
                     : 1.0;
 
-                int v = sessionIndex % 3;
+                int v = sessionIndex % 4;
                 if (smoothRatio < 0.7)
                 {
                     observations.Add(v switch
@@ -152,8 +152,10 @@ namespace CleanAimTracker.Services
                              "Your drills are working — the transfer just needs more time.",
                         1 => $"Your drills average {drillBaseline:F0}% accuracy but in-game smoothness is lower than expected. " +
                              "Real matches add pressure that drills don't — your mechanics are there, the consistency will follow.",
-                        _ => "In-game movement is below your drill baseline. That's normal at this stage. " +
-                             "The gap closes as the muscle memory builds. Keep drilling before you play."
+                        2 => "Drill performance is stronger than in-game movement right now. That gap is normal at this stage — " +
+                             "muscle memory transfers after 15–20 sessions of the same pattern, not after 5. Stay patient.",
+                        _ => "Strong drill numbers but in-game is lagging. The transfer is strongest when you drill immediately before you play. " +
+                             "Even 5 minutes of Tracking before a session accelerates the transfer."
                     });
                 }
                 else if (smoothRatio >= 0.9)
@@ -162,12 +164,13 @@ namespace CleanAimTracker.Services
                     {
                         0 => "Your in-game movement matches your drill performance closely. The training is transferring well.",
                         1 => $"In-game smoothness is tracking with your drill accuracy of {drillBaseline:F0}%. The habits are holding under real match pressure.",
-                        _ => "Good alignment between your drill performance and in-game mechanics. That's the outcome you're training for."
+                        2 => "Good alignment between your drill performance and in-game mechanics. That's the outcome you're training for.",
+                        _ => $"Your in-game quality is running parallel to your {drillBaseline:F0}% drill baseline. The practice is landing."
                     });
                 }
             }
 
-            // OBSERVATION-NEW-2: SESSION FATIGUE DETECTION
+            // OBSERVATION-NEW-2: SESSION FATIGUE DETECTION (TASK-27 — 4 variants)
             if (history?.Count >= 3)
             {
                 var recentHistory = history
@@ -181,21 +184,23 @@ namespace CleanAimTracker.Services
                     double recentAvg = recentHistory.Average(h => h.OverallQualityScore);
                     if (recentAvg > 0 && session.OverallQualityScore < recentAvg * 0.85)
                     {
-                        int v = sessionIndex % 3;
+                        int v = sessionIndex % 4;
                         observations.Add(v switch
                         {
                             0 => "This session was noticeably below your recent average. One off session isn't a concern — " +
                                  "but if it happens two or three times in a row, it's worth checking if you're playing tired or on tilt. Quality over quantity always.",
                             1 => $"Quality {session.OverallQualityScore:F0}/100 vs your recent average of {recentAvg:F0}. " +
                                  "That kind of drop is usually conditions, not skill. Note the time of day and how you felt.",
-                            _ => "Below your recent baseline this session. Fatigue, tilt, and time of day affect aim more than most people expect. " +
-                                 "Track the pattern — if it keeps happening at the same time, that's your answer."
+                            2 => "Below your recent baseline this session. Fatigue, tilt, and time of day affect aim more than most people expect. " +
+                                 "Track the pattern — if it keeps happening at the same time, that's your answer.",
+                            _ => $"Quality dipped to {session.OverallQualityScore:F0} this session against a recent average of {recentAvg:F0}. " +
+                                 "Before diagnosing mechanics, check the basics: sleep, session length, warmup, tilt. Fix those first."
                         });
                     }
                 }
             }
 
-            // OBSERVATION-NEW-3: CONSISTENCY TREND
+            // OBSERVATION-NEW-3: CONSISTENCY TREND (TASK-27 — 4 variants each path)
             if (history?.Count >= 4)
             {
                 var prior4 = history
@@ -211,7 +216,7 @@ namespace CleanAimTracker.Services
                     double newest = (prior4[0].SmoothnessScore + prior4[1].SmoothnessScore) / 2.0;
                     double trend  = newest - oldest;
 
-                    int v = sessionIndex % 3;
+                    int v = sessionIndex % 4;
                     if (trend > 8)
                     {
                         observations.Add(v switch
@@ -219,7 +224,8 @@ namespace CleanAimTracker.Services
                             0 => "Your in-game movement has been getting smoother over your last four sessions. " +
                                  "That's the kind of improvement that shows up in your accuracy in ranked.",
                             1 => $"Smoothness trending up — {oldest:F0} to {newest:F0} over your last four sessions. The fundamentals are compounding.",
-                            _ => "Consistent improvement in movement quality over four sessions. That's the trajectory you want."
+                            2 => "Consistent improvement in movement quality over four sessions. That's the trajectory you want.",
+                            _ => $"Four sessions of improving smoothness: {oldest:F0} → {newest:F0}. The habits are building. Don't change what's working."
                         });
                     }
                     else if (trend < -8)
@@ -236,11 +242,13 @@ namespace CleanAimTracker.Services
                         {
                             observations.Add(v switch
                             {
-                                0 => "Your in-game consistency has dipped three sessions in a row. " +
+                                0 => "Your in-game consistency has dipped across your last few sessions. " +
                                      "Before your next session, run a quick Tracking drill to reset your baseline.",
-                                1 => "Three consecutive sessions of declining smoothness. That pattern points to accumulated tension or overtraining. " +
+                                1 => $"Smoothness has dropped from {oldest:F0} to {newest:F0} over four sessions. That pattern points to accumulated tension or overtraining. " +
                                      "One rest day, then drill before you play.",
-                                _ => "Movement quality has been dropping session over session. Take a reset day — one easy drill, no pressure, just feel."
+                                2 => "Movement quality has been dropping session over session. Take a reset day — one easy drill, no pressure, just feel.",
+                                _ => $"Declining smoothness trend: {oldest:F0} → {newest:F0}. Before diagnosing mechanics, check session length and fatigue level. " +
+                                     "Shorter sessions often fix this faster than more drilling."
                             });
                         }
                     }
@@ -265,24 +273,57 @@ namespace CleanAimTracker.Services
                 }
             }
 
-            // ── Suggestions ───────────────────────────────────────────────────
+            // ── Suggestions (TASK-27 — 4 variants per condition) ─────────────
             if (session.CorrectionSharpness > 65 && session.SmoothnessScore < 60)
-                suggestions.Add(
-                    "High corrections and low smoothness together suggest tension. " +
-                    "Before your next session try 2 minutes of slow Tracking Easy — " +
-                    "it primes fluid movement before you need precision.");
+            {
+                int v = sessionIndex % 4;
+                suggestions.Add(v switch
+                {
+                    0 => "High corrections and low smoothness together suggest tension. " +
+                         "Before your next session try 2 minutes of slow Tracking Easy — " +
+                         "it primes fluid movement before you need precision.",
+                    1 => $"Correction sharpness at {session.CorrectionSharpness:F0} with smoothness at {session.SmoothnessScore:F0} — " +
+                         "those two together usually mean grip tension. Consciously loosen your grip mid-session and see if smoothness rises.",
+                    2 => "The combination of rough movement and high corrections is a tension signature. " +
+                         "Take 10 deep breaths before your next game and keep your grip lighter than feels natural.",
+                    _ => $"Your corrections are high and your smoothness is low — that's a tension feedback loop. " +
+                         "Run one Tracking Easy drill before your next session: it breaks the pattern in under 2 minutes."
+                });
+            }
 
             if (session.SmoothnessScore < 50)
-                suggestions.Add(
-                    "Low smoothness in this session is worth tracking over time. " +
-                    "If it consistently drops during gameplay compared to drills, " +
-                    "it points to grip tension under pressure — a very common and very fixable pattern.");
+            {
+                int v = sessionIndex % 4;
+                suggestions.Add(v switch
+                {
+                    0 => "Low smoothness in this session is worth tracking over time. " +
+                         "If it consistently drops during gameplay compared to drills, " +
+                         "it points to grip tension under pressure — a very common and very fixable pattern.",
+                    1 => $"Smoothness at {session.SmoothnessScore:F0}/100 is below the useful threshold. " +
+                         "Before your next session, set a physical reminder to relax your grip — post-it on the monitor, whatever works.",
+                    2 => "That smoothness score is telling you something. Low smoothness almost always has a physical cause: " +
+                         "tight grip, arm tension, or cold hands. Address those before diagnosing mechanics.",
+                    _ => $"Smoothness at {session.SmoothnessScore:F0} is flagging a real issue. " +
+                         "Run one 60-second Tracking drill immediately before your next game — it's the fastest reset for choppy movement."
+                });
+            }
 
             if (session.LargeFlickCount > session.SmallFlickCount && session.FlickCount > 5)
-                suggestions.Add(
-                    "More large flicks than small suggests reactive aiming — " +
-                    "running Flicking Timed Pressure in your next drill session " +
-                    "builds faster target initiation which reduces the need for large corrections.");
+            {
+                int v = sessionIndex % 4;
+                suggestions.Add(v switch
+                {
+                    0 => "More large flicks than small suggests reactive aiming — " +
+                         "running Flicking in your next drill session builds faster target initiation, " +
+                         "which reduces the need for large corrections.",
+                    1 => $"Your ratio of large to small flicks is high ({session.LargeFlickCount} vs {session.SmallFlickCount}). " +
+                         "Large flicks usually mean getting caught out of position. Improve crosshair placement and the flick size shrinks.",
+                    2 => "High large-flick count means you're reacting to targets rather than pre-aiming them. " +
+                         "Practice holding crosshair at common head-height positions — it converts large flicks to small corrections.",
+                    _ => $"{session.LargeFlickCount} large flicks this session. That's a pre-aim problem as much as an aim problem. " +
+                         "Before your next game, consciously hold your crosshair at the head position of where enemies typically appear."
+                });
+            }
 
             // ── TASK-04: Guaranteed fallback — suggestions must never be empty ──
             if (suggestions.Count == 0)

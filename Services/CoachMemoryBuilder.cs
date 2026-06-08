@@ -201,6 +201,42 @@ namespace CleanAimTracker.Services
                     ? Math.Max(0, priorDrills.Count - settings.LastPrescribedSessionIndex)
                     : 0;
 
+                // ── TASK-29: Telemetry averages + prev-session deltas ─────────
+                if (current != null)
+                {
+                    // Same-scenario prior sessions only (exclude current by Timestamp)
+                    var samePrior = priorDrills
+                        .Where(d => d.Scenario == current.Scenario)
+                        .Take(5)
+                        .ToList();
+
+                    if (samePrior.Count > 0)
+                    {
+                        var withEff  = samePrior.Where(d => d.PathEfficiency > 0).ToList();
+                        var withOff  = samePrior.Where(d => d.AvgClickOffset > 0).ToList();
+                        var withLag  = samePrior.Where(d => d.AvgDirectionChangeLagMs > 0).ToList();
+
+                        if (withEff.Count  > 0) memory.AvgPathEfficiency     = withEff.Average(d => d.PathEfficiency);
+                        if (withOff.Count  > 0) memory.AvgClickOffset        = withOff.Average(d => d.AvgClickOffset);
+                        if (withLag.Count  > 0) memory.AvgDirectionChangeLag = withLag.Average(d => d.AvgDirectionChangeLagMs);
+
+                        // Prev-session values (the single most recent prior same-scenario session)
+                        var prevSess = samePrior.FirstOrDefault();
+                        if (prevSess != null)
+                        {
+                            memory.PrevSessionPathEfficiency     = prevSess.PathEfficiency;
+                            memory.PrevSessionOvershootPct       = prevSess.OvershootPct;
+                            memory.PrevSessionDirectionChangeLag = prevSess.AvgDirectionChangeLagMs;
+                        }
+                    }
+                }
+
+                // ── TASK-29: Latest diagnostic profile ────────────────────────
+                if (settings.DiagnosticHistory.Count > 0)
+                    memory.LatestDiagnostic = settings.DiagnosticHistory
+                        .OrderByDescending(d => d.SessionNumber)
+                        .FirstOrDefault();
+
                 // ── Tracker history ───────────────────────────────────────────
                 memory.RecentTrackerSessions = allTracker.Take(5).ToList();
 

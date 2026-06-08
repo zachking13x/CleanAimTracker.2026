@@ -239,7 +239,7 @@ namespace CleanAimTracker.Windows
         private const int MIN_DELTA = -50;
         private const int JITTER_THRESHOLD = 2;
 
-        private void OnRawMouseMove(int dx, int dy)
+        private void OnRawMouseMove(int dx, int dy, long timestamp)
         {
             if (Math.Abs(dx) <= JITTER_THRESHOLD && Math.Abs(dy) <= JITTER_THRESHOLD)
                 return;
@@ -574,6 +574,38 @@ namespace CleanAimTracker.Windows
             VelocityVerdictText.Text   = velocityVerdict;
             QualityVerdictText.Text    = qualityVerdict;
             SmoothnessVerdictText.Text = smoothnessVerdict;
+        }
+
+        // ── Assessment Prompt Card ──────────────────────────────────────────
+
+        private void AssessmentPromptCard_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            // Allow clicking anywhere on the card to open the assessment
+            OpenDiagnosticAssessment();
+        }
+
+        private void AssessmentPromptBegin_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true; // prevent card MouseDown from also firing
+            OpenDiagnosticAssessment();
+        }
+
+        private void AssessmentPromptDismiss_Click(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            AssessmentPromptCard.Visibility = Visibility.Collapsed;
+
+            var settings = SettingsService.Load();
+            settings.DismissedAssessmentPrompt = true;
+            SettingsService.Save(settings);
+        }
+
+        private void OpenDiagnosticAssessment()
+        {
+            var win = new DiagnosticAssessmentWindow { Owner = this };
+            win.ShowDialog();
+            // Refresh the dashboard after assessment completes
+            LoadTodayStats();
         }
 
         public void ResetButton_Click(object sender, RoutedEventArgs e)
@@ -1295,9 +1327,19 @@ namespace CleanAimTracker.Windows
                 double aimAvgForTier = aimDrillsForTier.Count > 0 ? aimDrillsForTier.Average(r => r.Accuracy) : 0;
                 var tier = ProgressionService.GetTierForAvg(aimAvgForTier, aimDrillsForTier.Count);
 
-                // TASK-16: Show/update FreeCoachTeaser
+                // Assessment Prompt Card — shown to new users who haven't taken the assessment yet
                 var freeSettings = SettingsService.Load();
                 int drillCount   = aimDrillsForTier.Count;
+
+                bool showAssessmentPrompt =
+                    drillCount < 5
+                    && freeSettings.DiagnosticHistory.Count == 0
+                    && !freeSettings.DismissedAssessmentPrompt;
+                AssessmentPromptCard.Visibility = showAssessmentPrompt
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
+                // TASK-16: Show/update FreeCoachTeaser
                 if (!freeSettings.HasUsedFreeFullSession && !TrialService.IsFullVersion())
                 {
                     FreeCoachTeaser.Visibility = Visibility.Visible;

@@ -50,5 +50,25 @@ namespace CleanAimTracker.Models
         public string StrongestScenario     { get; set; } = "";
         public double PersonalBestAccuracy  { get; set; } = 0;  // best from PRIOR sessions only
         public string PersonalBestScenario  { get; set; } = "";
+
+        // ── TASK-29: Telemetry averages (per-scenario, from prior sessions) ──
+        /// <summary>Average path efficiency across the last 5 same-scenario drills (0..1).</summary>
+        public double AvgPathEfficiency      { get; set; } = 0;
+        /// <summary>Average click offset (px) across the last 5 same-scenario drills.</summary>
+        public double AvgClickOffset         { get; set; } = 0;
+        /// <summary>Average direction-change lag (ms) across the last 5 same-scenario drills.</summary>
+        public double AvgDirectionChangeLag  { get; set; } = 0;
+
+        // ── TASK-29: Previous-session telemetry (for delta comparisons) ───────
+        /// <summary>PathEfficiency from the immediately preceding same-scenario session.</summary>
+        public double PrevSessionPathEfficiency     { get; set; } = 0;
+        /// <summary>OvershootPct from the immediately preceding same-scenario session.</summary>
+        public double PrevSessionOvershootPct       { get; set; } = 0;
+        /// <summary>DirectionChangeLag from the immediately preceding same-scenario session.</summary>
+        public double PrevSessionDirectionChangeLag { get; set; } = 0;
+
+        // ── TASK-29: Latest diagnostic profile ───────────────────────────────
+        /// <summary>Most recent DiagnosticProfile, or null if no assessment has been run.</summary>
+        public DiagnosticProfile? LatestDiagnostic  { get; set; } = null;
     }
 }

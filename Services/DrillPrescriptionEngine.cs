@@ -32,15 +32,28 @@ namespace CleanAimTracker.Services
                 {
                     string weakReason = memory.WeakestScenario switch
                     {
-                        "Sniper"  => "Your sniper accuracy is your lowest across all scenarios. " +
-                                     "Regular precision work here will improve your patience and first-shot discipline — " +
-                                     "skills that transfer to every other scenario.",
-                        "Shotgun" => "Shotgun is your weakest area right now. The reaction speed and commitment it builds " +
-                                     "transfers directly to any scenario where you need to click fast and accurately.",
-                        "SmgAr"   => "SMG / AR tracking is your weakest area. The sustained accuracy it trains is the " +
-                                     "foundation of all tracking scenarios — time here raises your floor across everything.",
-                        _         => $"You haven't trained {memory.WeakestScenario} much lately and it's where your accuracy is lowest. " +
-                                     "Regular reps here will raise your overall ceiling.",
+                        "Sniper"         => "Your sniper accuracy is your lowest across all scenarios. " +
+                                            "Regular precision work here will improve your patience and first-shot discipline — " +
+                                            "skills that transfer to every other scenario.",
+                        "Shotgun"        => "Shotgun is your weakest area right now. The reaction speed and commitment it builds " +
+                                            "transfers directly to any scenario where you need to click fast and accurately.",
+                        "SmgAr"          => "SMG / AR tracking is your weakest area. The sustained accuracy it trains is the " +
+                                            "foundation of all tracking scenarios — time here raises your floor across everything.",
+                        // TASK-33: New scenario prescriptions
+                        "StaticClicking" => "Static Clicking is your weakest scenario. Precise placement on stationary targets " +
+                                            "is the bedrock of all aim — fixing this raises your floor in every other scenario.",
+                        "DynamicClicking"=> "Dynamic Clicking is where you're losing the most accuracy right now. " +
+                                            "Clean clicks on moving targets reduce the noise in your overall aim profile.",
+                        "Reactive"       => "Reactive is your weakest area. Building your recognition speed here directly " +
+                                            "shortens your reaction time in all other scenarios.",
+                        "AirTracking"    => "Air Tracking is your weakest pillar. The diagonal and parabolic paths expose " +
+                                            "axis imbalances that can hide in standard tracking — worth targeting specifically.",
+                        "Evasive"        => "Evasive targeting is your lowest score. The chase-and-corner pattern it builds " +
+                                            "is the same skill you need when enemies strafe unpredictably in-game.",
+                        "PeekTraining"   => "Peek Training is your weakest area. Refining your peek timing window is one of " +
+                                            "the highest-value skills in any FPS — the return on these sessions is high.",
+                        _                => $"You haven't trained {memory.WeakestScenario} much lately and it's where your accuracy is lowest. " +
+                                            "Regular reps here will raise your overall ceiling.",
                     };
 
                     prescriptions.Add(new DrillPrescription
@@ -140,13 +153,26 @@ namespace CleanAimTracker.Services
                 {
                     string untriedReason = untried switch
                     {
-                        "Sniper"  => "You haven't tried Sniper yet. It trains a completely different discipline — " +
-                                     "patience and precision rather than speed. Worth seeing where you stand.",
-                        "Shotgun" => "You haven't tried Shotgun yet. Close-range reaction speed is a different skill " +
-                                     "from everything else here — give it a session.",
-                        "SmgAr"   => "You haven't tried SMG / AR yet. Dual target tracking is the hardest sustained " +
-                                     "accuracy test in the trainer — see how your tracking holds up.",
-                        _         => $"You haven't tried {untried} yet. It trains a different part of your aim — worth seeing where you stand.",
+                        "Sniper"          => "You haven't tried Sniper yet. It trains a completely different discipline — " +
+                                             "patience and precision rather than speed. Worth seeing where you stand.",
+                        "Shotgun"         => "You haven't tried Shotgun yet. Close-range reaction speed is a different skill " +
+                                             "from everything else here — give it a session.",
+                        "SmgAr"           => "You haven't tried SMG / AR yet. Dual target tracking is the hardest sustained " +
+                                             "accuracy test in the trainer — see how your tracking holds up.",
+                        // TASK-33: New scenario untried prescriptions
+                        "StaticClicking"  => "You haven't tried Static Clicking yet. It's the purest accuracy test in the trainer — " +
+                                             "a good baseline for your raw click precision.",
+                        "DynamicClicking" => "You haven't tried Dynamic Clicking. It adds movement to accuracy testing " +
+                                             "and exposes whether your aim holds under velocity changes.",
+                        "Reactive"        => "You haven't tried Reactive yet. Timed exposure targets are one of the fastest ways " +
+                                             "to measure and train your raw reaction time.",
+                        "AirTracking"     => "You haven't tried Air Tracking. Non-linear movement paths are a different tracking " +
+                                             "challenge from standard scenarios — worth testing your axis balance.",
+                        "Evasive"         => "You haven't tried Evasive targeting. Targets that actively avoid your cursor test " +
+                                             "a dimension of aim that standard scenarios don't cover.",
+                        "PeekTraining"    => "You haven't tried Peek Training yet. It directly simulates the timing challenge " +
+                                             "of dueling peeking enemies — highly transferable to real gameplay.",
+                        _                 => $"You haven't tried {untried} yet. It trains a different part of your aim — worth seeing where you stand.",
                     };
 
                     prescriptions.Add(new DrillPrescription

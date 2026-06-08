@@ -63,5 +63,35 @@
 
         // Free full coaching session — tracker (unlocks at tracker session 3, one time)
         public bool HasUsedFreeFullTrackerSession { get; set; } = false;
+
+        // Per-scenario difficulty tracking
+        public Dictionary<string, ScenarioDifficultyState>
+            ScenarioDifficulties { get; set; } = new();
+
+        // Diagnostic assessment history
+        public List<DiagnosticProfile>
+            DiagnosticHistory { get; set; } = new();
+
+        // Whether the free assessment coaching report has been used
+        public bool HasUsedFreeAssessmentReport { get; set; } = false;
+
+        // Active sensitivity transition plan
+        public SensitivityTransitionPlan?
+            ActiveTransitionPlan { get; set; } = null;
+
+        // Sessions logged at current sensitivity (used for transition tracking)
+        public int SessionsAtCurrentSensitivity { get; set; } = 0;
+
+        // Dismissed assessment prompt card
+        public bool DismissedAssessmentPrompt { get; set; } = false;
+
+        public ScenarioDifficultyState GetScenarioState(
+            string scenario, string variant)
+        {
+            string key = $"{scenario}_{variant}";
+            if (!ScenarioDifficulties.ContainsKey(key))
+                ScenarioDifficulties[key] = new ScenarioDifficultyState();
+            return ScenarioDifficulties[key];
+        }
     }
 }

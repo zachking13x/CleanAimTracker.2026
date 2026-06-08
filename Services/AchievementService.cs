@@ -55,6 +55,14 @@ namespace CleanAimTracker.Services
             new() { Id = "first_challenge", Name = "Challenger",       Emoji = "📋", Category = "Training",   Description = "Complete your first daily challenge" },
             new() { Id = "challenge_7",     Name = "Weekly Warrior",   Emoji = "🗓️", Category = "Dedication", Description = "Complete 7 daily challenges" },
             new() { Id = "challenge_30",    Name = "Monthly Grind",    Emoji = "📆", Category = "Dedication", Description = "Complete 30 daily challenges" },
+
+            // TASK-30: New scenario mastery achievements
+            new() { Id = "air_elite",        Name = "Airborne",         Emoji = "✈️", Category = "Mastery",    Description = "Hit elite accuracy in Air Tracking" },
+            new() { Id = "peek_master",      Name = "Peek Master",      Emoji = "👀", Category = "Mastery",    Description = "Achieve 80%+ accuracy in Peek Training on any difficulty" },
+            new() { Id = "full_assessment",  Name = "Fully Assessed",   Emoji = "📊", Category = "Mastery",    Description = "Complete all 8 assessment tests" },
+            new() { Id = "reactive_sub100",  Name = "Reflex Arc",       Emoji = "⚡", Category = "Accuracy",   Description = "Achieve average reaction time under 100ms in Reactive" },
+            new() { Id = "straight_shot",    Name = "Straight Shot",    Emoji = "📏", Category = "Mastery",    Description = "Achieve 90%+ path efficiency in any drill" },
+            new() { Id = "all_scenarios_v2", Name = "Full Rotation",    Emoji = "🌐", Category = "Mastery",    Description = "Complete a drill in all 12 scenarios (including new pillar scenarios)" },
         };
 
         public static List<Achievement> LoadUnlocked()
@@ -160,6 +168,39 @@ namespace CleanAimTracker.Services
                 scenariosTried.Contains("SmgAr"))
                 TryUnlock("all_scenarios");
 
+            // ── TASK-30: New scenario mastery achievements ────────────────────
+            // air_elite: AirTracking elite accuracy threshold
+            if (result.Scenario == "AirTracking" && result.Accuracy >= 78)
+                TryUnlock("air_elite");
+
+            // peek_master: 80%+ accuracy in PeekTraining
+            if (result.Scenario == "PeekTraining" && result.Accuracy >= 80)
+                TryUnlock("peek_master");
+
+            // full_assessment: all 8 tests completed (DiagnosticHistory has at least one profile)
+            // Evaluated via settings rather than result — check via overload that accepts UserSettings
+            // (basic version: unlock after any result if DiagnosticHistory is non-empty)
+
+            // reactive_sub100: under 100ms reaction in Reactive scenario
+            if (result.Scenario == "Reactive" && result.AvgReactionMs > 0 && result.AvgReactionMs < 100)
+                TryUnlock("reactive_sub100");
+
+            // straight_shot: 90%+ path efficiency in any drill
+            if (result.PathEfficiency >= 0.90)
+                TryUnlock("straight_shot");
+
+            // all_scenarios_v2: completed all 12 (legacy 7 + new 5)
+            bool triedAll12 =
+                scenariosTried.Contains("Tracking")       && scenariosTried.Contains("Flicking") &&
+                scenariosTried.Contains("Precision")      && scenariosTried.Contains("Switching") &&
+                scenariosTried.Contains("Sniper")         && scenariosTried.Contains("Shotgun") &&
+                scenariosTried.Contains("SmgAr")          &&
+                scenariosTried.Contains("StaticClicking") && scenariosTried.Contains("DynamicClicking") &&
+                scenariosTried.Contains("Reactive")       &&
+                scenariosTried.Contains("AirTracking")    && scenariosTried.Contains("PeekTraining");
+            if (triedAll12)
+                TryUnlock("all_scenarios_v2");
+
             if (currentStreakDays >= 3)  TryUnlock("streak_3");
             if (currentStreakDays >= 7)  TryUnlock("streak_7");
             if (currentStreakDays >= 14) TryUnlock("streak_14");
@@ -188,6 +229,46 @@ namespace CleanAimTracker.Services
                 SaveUnlocked(unlocked);
 
             return newlyUnlocked;
+        }
+
+        /// <summary>
+        /// Overload that also accepts UserSettings so full_assessment can be checked.
+        /// TASK-30.
+        /// </summary>
+        public static List<Achievement> EvaluateAfterSession(
+            AimTrainerResult result,
+            List<AimTrainerResult> allResults,
+            int currentStreakDays,
+            UserSettings settings,
+            int challengesCompleted = 0)
+        {
+            // Run the base evaluation first
+            var newly = EvaluateAfterSession(result, allResults, currentStreakDays, challengesCompleted);
+
+            // full_assessment: user has completed at least one DiagnosticProfile where all 8 scores are set
+            if (settings.DiagnosticHistory.Any(p =>
+                    p.CloseRangeStatic > 0 && p.LongRangeStatic > 0 &&
+                    p.HorizontalTracking > 0 && p.VerticalTracking > 0 &&
+                    p.DiagonalTracking > 0 && p.CloseSwitching > 0 &&
+                    p.FarSwitching > 0 && p.PeekReaction > 0))
+            {
+                var unlocked    = LoadUnlocked();
+                var unlockedIds = unlocked.Select(a => a.Id).ToHashSet();
+                if (!unlockedIds.Contains("full_assessment"))
+                {
+                    var def = GetAllDefinitions().FirstOrDefault(d => d.Id == "full_assessment");
+                    if (def != null)
+                    {
+                        def.IsUnlocked = true;
+                        def.UnlockedAt = DateTime.UtcNow;
+                        unlocked.Add(def);
+                        newly.Add(def);
+                        SaveUnlocked(unlocked);
+                    }
+                }
+            }
+
+            return newly;
         }
 
         public static List<Achievement> GetAllWithStatus()

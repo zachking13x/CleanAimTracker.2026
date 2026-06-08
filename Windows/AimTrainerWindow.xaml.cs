@@ -23,6 +23,11 @@ namespace CleanAimTracker.Windows
         private IAimScenario? _scenarioInstance;
         private readonly Random _rng = new();
 
+        // Raw input — collects hardware mouse deltas during active drills
+        private readonly RawInputService _rawInput = new();
+        private readonly List<RawInputSample> _rawInputBuffer = new();
+        private bool _isDrillActive = false;
+
         private bool _isRunning = false;
         private bool _uiReady = false;
 
@@ -53,20 +58,40 @@ namespace CleanAimTracker.Windows
         // Per-scenario accent colors — matches DESIGN_SPEC.md
         private static readonly Dictionary<string, (byte R, byte G, byte B)> ScenarioColors = new()
         {
-            ["Tracking"]  = (0x00, 0xD4, 0xFF),   // AccentPrimary
-            ["Flicking"]  = (0xFF, 0xB3, 0x47),   // AccentWarm
-            ["Precision"] = (0x00, 0xE5, 0xA0),   // AccentGreen
-            ["Switching"] = (0xFF, 0x6B, 0x35),   // AccentOrange
-            ["Adaptive"]  = (0xA8, 0x55, 0xF7),   // AccentPurple
-            ["WarmUp"]    = (0x00, 0xC8, 0x53),
-            ["Sniper"]    = (0x00, 0xE5, 0xA0),   // same as Precision — patience/precision
-            ["Shotgun"]   = (0xFF, 0x6B, 0x35),   // same as Switching — urgency/speed
-            ["SmgAr"]     = (0x00, 0xD4, 0xFF),   // same as Tracking — sustained movement
+            // ── Legacy / weapon scenarios ──────────────────────────────
+            ["Tracking"]       = (0x00, 0xD4, 0xFF),   // AccentPrimary
+            ["Flicking"]       = (0xFF, 0xB3, 0x47),   // AccentWarm
+            ["Precision"]      = (0x00, 0xE5, 0xA0),   // AccentGreen
+            ["Switching"]      = (0xFF, 0x6B, 0x35),   // AccentOrange
+            ["Adaptive"]       = (0xA8, 0x55, 0xF7),   // AccentPurple
+            ["WarmUp"]         = (0x00, 0xC8, 0x53),
+            ["Sniper"]         = (0x00, 0xE5, 0xA0),   // patience / precision
+            ["Shotgun"]        = (0xFF, 0x6B, 0x35),   // urgency / speed
+            ["SmgAr"]          = (0x00, 0xD4, 0xFF),   // sustained movement
+            // ── Clicking pillar ───────────────────────────────────────
+            ["StaticClicking"] = (0xFF, 0xB3, 0x47),   // AccentWarm — same family as Flicking
+            ["DynamicClicking"]= (0xFF, 0x80, 0x00),   // Deeper orange — movement + accuracy
+            ["Reactive"]       = (0xFF, 0x45, 0x45),   // Red-orange — reflex / speed
+            // ── Tracking pillar ──────────────────────────────────────
+            ["AirTracking"]    = (0x00, 0xBF, 0xFF),   // Lighter cyan — air movement
+            // ── Switching pillar ─────────────────────────────────────
+            ["SpeedSwitching"] = (0xFF, 0x55, 0x20),   // Brighter orange — speed focus
+            ["Evasive"]        = (0xFF, 0x6B, 0x35),   // AccentOrange — chase / switch
+            ["PeekTraining"]   = (0xE0, 0x60, 0x50),   // Warm red — peek / timing
         };
 
         // Onboarding mode
         private bool _isOnboarding = false;
         public event Action? OnboardingSessionCompleted;
+
+        // ── Drill Instruction Card (TASK-22) ──────────────────────────────
+        // Tracks how many times user has played each scenario+variant combo.
+        // Shows the coaching card for the first 5 plays, then auto-dismisses.
+        private readonly Dictionary<string, int> _drillPlayCounts = new();
+        private readonly DispatcherTimer _instructionTimer = new()
+            { Interval = TimeSpan.FromMilliseconds(100) };
+        private int    _instructionTicksLeft = 40;   // 40 × 100ms = 4 s
+        private double _instructionBarMaxWidth = 364; // set on first show
 
         // Daily Warm-Up state
         private bool   _isWarmupMode       = false;
@@ -99,6 +124,12 @@ namespace CleanAimTracker.Windows
         {
             InitializeComponent();
 
+            SourceInitialized += (s, e) =>
+            {
+                _rawInput.Initialize(this);
+                _rawInput.MouseMoved += OnAimTrainerRawInput;
+            };
+
             Loaded += (_, _) =>
             {
                 _uiReady = true;
@@ -112,6 +143,8 @@ namespace CleanAimTracker.Windows
 
             _updateTimer.Interval = TimeSpan.FromMilliseconds(16);
             _updateTimer.Tick += UpdateScenario_Tick;
+
+            _instructionTimer.Tick += InstructionTimer_Tick;
 
             TargetCanvas.SizeChanged += (_, _) =>
             {
@@ -203,15 +236,8 @@ namespace CleanAimTracker.Windows
             ScenarioLabel.Text = scenario;
             UpdateVariantCombo(scenario);
 
-            // ── Difficulty combo ────────────────────────────────────────
-            foreach (ComboBoxItem item in DifficultyCombo.Items)
-            {
-                if (item.Tag?.ToString() == difficulty)
-                {
-                    DifficultyCombo.SelectedItem = item;
-                    break;
-                }
-            }
+            // ── Difficulty buttons (TASK-23) ────────────────────────────
+            SelectDifficultyButton(difficulty);
 
             _difficulty      = difficulty;
             _config          = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
@@ -227,29 +253,50 @@ namespace CleanAimTracker.Windows
 
             ScenarioLabel.Text = _scenario switch
             {
-                "Adaptive" => $"Adaptive → {_adaptiveWeakSpot}",
-                "WarmUp"   => "☀️ Daily Warm-Up",
-                "SmgAr"    => "SMG / AR",
-                _          => _scenario,
+                "Adaptive"       => $"Adaptive → {_adaptiveWeakSpot}",
+                "WarmUp"         => "☀️ Daily Warm-Up",
+                "SmgAr"          => "SMG / AR",
+                "StaticClicking" => "Static Clicking",
+                "DynamicClicking"=> "Dynamic Clicking",
+                "AirTracking"    => "Air Tracking",
+                "SpeedSwitching" => "Speed Switching",
+                "PeekTraining"   => "Peek Training",
+                _                => _scenario,
             };
 
             ApplyScenarioSelection(btn);
             UpdateVariantCombo(_scenario);
         }
 
-        // Highlight selected scenario card — restores gradient on deselect, adds glow on select
+        // Highlight selected scenario card — restores gradient on deselect, adds glow on select.
+        // Searches ALL pillar content panels so cross-pillar deselection works correctly.
         private void ApplyScenarioSelection(Border selected)
         {
-            if (selected.Parent is not StackPanel parent) return;
-
-            // Reset all: restore XAML gradient background, clear glow, dim accent bar
-            foreach (var child in parent.Children.OfType<Border>())
+            // Collect all scenario card Borders from every pillar panel + standalone slots
+            var allPanels = new StackPanel?[]
             {
-                child.ClearValue(Border.BackgroundProperty);
-                child.ClearValue(UIElement.EffectProperty);
-                string tag = child.Tag?.ToString() ?? "";
-                if (ScenarioColors.TryGetValue(tag, out var c))
-                    child.BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, c.R, c.G, c.B));
+                PillarContent_Clicking,
+                PillarContent_Tracking,
+                PillarContent_Switching,
+                // Adaptive and WarmUp live directly in the outer sidebar scroll StackPanel.
+                // Walk up from selected's parent to find the outermost StackPanel if needed.
+                selected.Parent as StackPanel,
+            };
+
+            foreach (var panel in allPanels)
+            {
+                if (panel == null) continue;
+                foreach (var child in panel.Children.OfType<Border>())
+                {
+                    // Skip pillar-header Borders (no Tag that maps to ScenarioColors)
+                    string tag = child.Tag?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(tag)) continue;
+
+                    child.ClearValue(Border.BackgroundProperty);
+                    child.ClearValue(UIElement.EffectProperty);
+                    if (ScenarioColors.TryGetValue(tag, out var c))
+                        child.BorderBrush = new SolidColorBrush(Color.FromArgb(0x55, c.R, c.G, c.B));
+                }
             }
 
             // Selected: brighten left accent bar + glow shadow
@@ -267,15 +314,55 @@ namespace CleanAimTracker.Windows
             }
         }
 
-        private void DifficultyCombo_Changed(object sender, SelectionChangedEventArgs e)
+        // ── Difficulty button selector (TASK-23) ─────────────────────
+        private void DiffBtn_Click(object sender, MouseButtonEventArgs e)
         {
-            if (!_uiReady) return;
+            if (sender is not Border btn) return;
+            string tag = btn.Tag?.ToString() ?? "Medium";
 
-            if (DifficultyCombo.SelectedItem is not ComboBoxItem item)
-                return;
+            // Block locked tiers
+            if (tag == "Nightmare" && !IsNightmareUnlocked()) return;
 
-            string tag = item.Tag?.ToString() ?? "Medium";
-            _difficulty = tag;
+            SelectDifficultyButton(tag);
+        }
+
+        private void SelectDifficultyButton(string difficulty)
+        {
+            // Default colours for each tier
+            static (string bg, string border, string fg) TierColors(string d) => d switch
+            {
+                "Easy"      => ("#1460C878", "#2260C878", "#60C878"),
+                "Medium"    => ("#2200D4FF", "#4400D4FF", "#00D4FF"),
+                "Hard"      => ("#22FFB347", "#44FFB347", "#FFB347"),
+                "Nightmare" => ("#22FF4545", "#44FF4545", "#FF4545"),
+                _           => ("#2200D4FF", "#4400D4FF", "#00D4FF"),
+            };
+
+            var buttons = new[]
+            {
+                (DiffBtn_Easy,      "Easy"),
+                (DiffBtn_Medium,    "Medium"),
+                (DiffBtn_Hard,      "Hard"),
+                (DiffBtn_Nightmare, "Nightmare"),
+            };
+
+            foreach (var (btn, tier) in buttons)
+            {
+                bool selected = tier == difficulty;
+                if (selected)
+                {
+                    var (bg, bd, _) = TierColors(tier);
+                    btn.Background   = (SolidColorBrush)new BrushConverter().ConvertFrom(bg)!;
+                    btn.BorderBrush  = (SolidColorBrush)new BrushConverter().ConvertFrom(bd)!;
+                }
+                else
+                {
+                    btn.Background  = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
+                    btn.BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF));
+                }
+            }
+
+            _difficulty = difficulty;
             _config = DiffConfigs.GetValueOrDefault(_difficulty, DiffConfigs["Medium"]);
             DifficultyLabel.Text = _difficulty;
         }
@@ -284,14 +371,25 @@ namespace CleanAimTracker.Windows
         {
             string[] variants = scenario switch
             {
-                "Tracking"  => new[] { "Smooth", "Evasive", "Two-Track" },
-                "Precision" => new[] { "Standard", "Micro", "Double" },
-                "Flicking"  => new[] { "Standard", "Peripheral", "Pairs" },
-                "Switching" => new[] { "4-Target", "6-Target", "Speed Rush" },
-                "Sniper"    => new[] { "Standard", "Moving", "Wind" },
-                "Shotgun"   => new[] { "Standard", "Duels", "Peek" },
-                "SmgAr"     => new[] { "Standard", "Spray", "Strafe" },
-                _           => new[] { "Standard" },
+                // ── Legacy / weapon scenarios ──────────────────────────────────
+                "Tracking"        => new[] { "Smooth", "Evasive", "Two-Track" },
+                "Precision"       => new[] { "Standard", "Micro", "Double" },
+                "Flicking"        => new[] { "Standard", "Peripheral", "Pairs" },
+                "Switching"       => new[] { "4-Target", "6-Target", "Speed Rush" },
+                "Sniper"          => new[] { "Standard", "Moving", "Wind" },
+                "Shotgun"         => new[] { "Standard", "Duels", "Peek" },
+                "SmgAr"           => new[] { "Standard", "Spray", "Strafe" },
+                // ── Clicking pillar ───────────────────────────────────────────
+                "StaticClicking"  => new[] { "Standard", "Micro", "Cluster", "Confirmation" },
+                "DynamicClicking" => new[] { "Standard", "Bounce", "Arc", "Accelerating" },
+                "Reactive"        => new[] { "Standard", "SpeedBurst", "Blink", "Chaotic" },
+                // ── Tracking pillar ───────────────────────────────────────────
+                "AirTracking"     => new[] { "Diagonal", "Parabolic", "Jetpack", "Falling" },
+                // ── Switching pillar ─────────────────────────────────────────
+                "SpeedSwitching"  => new[] { "Standard", "Burst", "TwoTarget", "Grid" },
+                "Evasive"         => new[] { "Standard", "Aggressive", "Predictive", "Teleport" },
+                "PeekTraining"    => new[] { "WideSwing", "Jiggle", "JumpPeek", "CounterStrafe" },
+                _                 => new[] { "Standard" },
             };
 
             VariantCombo.SelectionChanged -= VariantCombo_Changed;
@@ -385,6 +483,9 @@ namespace CleanAimTracker.Windows
                 _secondsLeft               = _durationSeconds;
                 WarmUpRoundText.Visibility = Visibility.Collapsed;
 
+                // Show coaching card for first 5 plays (TASK-22)
+                MaybeShowDrillInstruction();
+
                 if (_scenario == "Adaptive")
                 {
                     _scenarioInstance = new AdaptiveScenario(_adaptiveWeakSpot);
@@ -393,19 +494,34 @@ namespace CleanAimTracker.Windows
                 {
                     _scenarioInstance = _scenario switch
                     {
-                        "Tracking"  => new TrackingScenario(_variant),
-                        "Switching" => new SwitchingScenario(_variant),
-                        "Flicking"  => new StaticScenario("Flicking", _variant),
-                        "Sniper"    => new SniperScenario(_variant),
-                        "Shotgun"   => new ShotgunScenario(_variant),
-                        "SmgAr"     => new SmgArScenario(_variant),
-                        _           => new StaticScenario("Precision", _variant),
+                        // ── Legacy / weapon scenarios ──────────────────────────────
+                        "Tracking"        => new TrackingScenario(_variant),
+                        "Switching"       => new SwitchingScenario(_variant),
+                        "Flicking"        => new StaticScenario("Flicking", _variant),
+                        "Sniper"          => new SniperScenario(_variant),
+                        "Shotgun"         => new ShotgunScenario(_variant),
+                        "SmgAr"           => new SmgArScenario(_variant),
+                        // ── Clicking pillar ───────────────────────────────────────
+                        "StaticClicking"  => new StaticClickingScenario(_variant),
+                        "DynamicClicking" => new DynamicClickingScenario(_variant),
+                        "Reactive"        => new ReactiveScenario(_variant),
+                        // ── Tracking pillar ───────────────────────────────────────
+                        "AirTracking"     => new AirTrackingScenario(_variant),
+                        // ── Switching pillar ─────────────────────────────────────
+                        "SpeedSwitching"  => new SwitchingScenario(_variant),  // uses same class, different variants
+                        "Evasive"         => new EvasiveScenario(_variant),
+                        "PeekTraining"    => new PeekTrainingScenario(_variant),
+                        // ── Default (Precision + any unregistered) ────────────────
+                        _                 => new StaticScenario("Precision", _variant),
                     };
                 }
             }
 
             UpdateTimerDisplay();
             _scenarioInstance.Start(TargetCanvas, _config.TargetSize, _config.MoveSpeed, _rng);
+            _rawInputBuffer.Clear();
+            _isDrillActive = true;
+            _rawInput.Start();
             _gameTimer.Start();
             _updateTimer.Start();
         }
@@ -413,6 +529,10 @@ namespace CleanAimTracker.Windows
         private void StopDrill(bool showResults)
         {
             _isRunning = false;
+            _isDrillActive = false;
+            _rawInput.Stop();
+
+            DismissDrillInstruction();   // dismiss card if still showing (TASK-22)
 
             _gameTimer.Stop();
             _updateTimer.Stop();
@@ -482,6 +602,37 @@ namespace CleanAimTracker.Windows
                 if (showResults && statsSource != null && (statsSource.Hits + statsSource.Misses) > 0)
                 {
                     var result = BuildResult(statsSource);
+
+                    // ── TASK-28: Wire telemetry metrics ────────────────────────
+                    // PathEfficiency — uses raw delta buffer; startPos/endPos unused by impl
+                    if (_rawInputBuffer.Count >= 20)
+                    {
+                        result.PathEfficiency = TelemetryCalculator.CalculatePathEfficiency(
+                            _rawInputBuffer,
+                            new System.Windows.Point(0, 0),
+                            new System.Windows.Point(0, 0));
+                    }
+
+                    // PeekTiming — only available for PeekTraining scenario
+                    if (statsSource is PeekTrainingScenario peek && peek.PeekTimingOffsets.Count > 0)
+                    {
+                        var (earlyPct, latePct) = TelemetryCalculator.CalculatePeekTiming(peek.PeekTimingOffsets);
+                        result.PeekEarlyClickPct = earlyPct;
+                        result.PeekLateClickPct  = latePct;
+                    }
+
+                    // ── Difficulty unlock update ────────────────────────────────
+                    try
+                    {
+                        var settings = SettingsService.Load();
+                        ScenarioDifficultyService.UpdateAfterSession(result, settings);
+                        SensitivityTransitionService.UpdateProgress(settings);
+                    }
+                    catch (Exception ex) { LogService.Error("Telemetry post-session update failed", ex); }
+
+                    // ── Clear raw input buffer ─────────────────────────────────
+                    _rawInputBuffer.Clear();
+
                     SaveResult(result);
                     CheckNightmareUnlock(result);
                     RefreshNightmareLock();
@@ -653,14 +804,19 @@ namespace CleanAimTracker.Windows
         }
 
         // ─────────────────────────────────────────────────────────────
-        // NIGHTMARE LOCK
+        // NIGHTMARE LOCK  (TASK-23)
         // ─────────────────────────────────────────────────────────────
         private void RefreshNightmareLock()
         {
             bool unlocked = IsNightmareUnlocked();
-            NightmareItem.IsEnabled = unlocked;
-            NightmareItem.Content   = unlocked ? "Nightmare" : "🔒 Nightmare";
-            NightmareItem.ToolTip   = unlocked ? null : "Reach 80%+ accuracy on Hard to unlock";
+            NightmareBtnText.Text    = unlocked ? "NM"  : "🔒 NM";
+            DiffBtn_Nightmare.Cursor = unlocked ? System.Windows.Input.Cursors.Hand
+                                                : System.Windows.Input.Cursors.No;
+            DiffBtn_Nightmare.ToolTip = unlocked ? null
+                                                  : "Reach 80%+ accuracy on Hard to unlock";
+            // If currently on Nightmare but just became locked, fall back to Hard
+            if (!unlocked && _difficulty == "Nightmare")
+                SelectDifficultyButton("Hard");
         }
 
         private static bool IsNightmareUnlocked()
@@ -793,6 +949,18 @@ namespace CleanAimTracker.Windows
                 ? stats.BestReactionMs
                 : 0;
 
+            // Resolve pillar from scenario name
+            string pillar = _scenario switch
+            {
+                "StaticClicking" or "DynamicClicking" or "Reactive"
+                    or "Flicking" or "Precision" or "Sniper"
+                    or "Shotgun" or "SmgAr"               => "Clicking",
+                "Tracking" or "AirTracking"               => "Tracking",
+                "Switching" or "SpeedSwitching"
+                    or "Evasive" or "PeekTraining"        => "Switching",
+                _                                         => _scenario,  // Adaptive, WarmUp
+            };
+
             return new AimTrainerResult
             {
                 Timestamp       = DateTime.Now,
@@ -807,6 +975,7 @@ namespace CleanAimTracker.Windows
                 AvgReactionMs   = stats.AvgReactionMs,
                 BestReactionMs  = bestReaction,
                 MaxStreak       = stats.MaxStreak,
+                Pillar          = pillar,
             };
         }
 
@@ -932,6 +1101,65 @@ namespace CleanAimTracker.Windows
         }
 
         // ─────────────────────────────────────────────────────────────
+        // DRILL INSTRUCTION CARD  (TASK-22)
+        // ─────────────────────────────────────────────────────────────
+        private void MaybeShowDrillInstruction()
+        {
+            // Show card for the first 5 plays of each scenario+variant combo
+            string key = $"{_scenario}|{_variant}";
+            _drillPlayCounts.TryGetValue(key, out int plays);
+            if (plays >= 5) return;   // user has seen it enough times
+
+            // Increment play count
+            _drillPlayCounts[key] = plays + 1;
+
+            // Fetch coaching text
+            var info = ScenarioInfoRegistry.Get(_scenario, _variant);
+
+            DrillFocusText.Text = info.TrainingFocus;
+            DrillCueText.Text   = info.MentalCue;
+
+            // Measure bar max width from the card's current layout width (fallback 364)
+            DrillInstructionCard.UpdateLayout();
+            double barMax = DrillInstructionCard.ActualWidth - 56;   // 28px padding × 2
+            if (barMax < 100) barMax = 364;
+            _instructionBarMaxWidth = barMax;
+            DrillInstructionTimerBar.Width = _instructionBarMaxWidth;
+
+            _instructionTicksLeft = 40;   // 40 × 100ms = 4 s
+            DrillInstructionTimerText.Text = "Dismisses in 4s  ·  Click to dismiss";
+            DrillInstructionCard.Visibility = Visibility.Visible;
+            _instructionTimer.Start();
+        }
+
+        private void InstructionTimer_Tick(object? sender, EventArgs e)
+        {
+            _instructionTicksLeft--;
+
+            int secsLeft = (_instructionTicksLeft + 9) / 10;  // ceiling
+            DrillInstructionTimerText.Text =
+                $"Dismisses in {secsLeft}s  ·  Click to dismiss";
+
+            double frac = _instructionTicksLeft / 40.0;
+            DrillInstructionTimerBar.Width = _instructionBarMaxWidth * frac;
+
+            if (_instructionTicksLeft <= 0)
+                DismissDrillInstruction();
+        }
+
+        private void DismissDrillInstruction()
+        {
+            _instructionTimer.Stop();
+            DrillInstructionCard.Visibility = Visibility.Collapsed;
+        }
+
+        private void DrillInstructionCard_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            DismissDrillInstruction();
+            e.Handled = true;
+        }
+
+        // ─────────────────────────────────────────────────────────────
         // HELPERS
         // ─────────────────────────────────────────────────────────────
         private void ClearTargets()
@@ -994,10 +1222,56 @@ namespace CleanAimTracker.Windows
             win.ShowDialog();
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // RAW INPUT
+        // ─────────────────────────────────────────────────────────────
+        private void OnAimTrainerRawInput(int dx, int dy, long timestamp)
+        {
+            if (!_isDrillActive) return;
+            _rawInputBuffer.Add(new RawInputSample(dx, dy, timestamp));
+        }
+
+
+        // ─────────────────────────────────────────────────────────────
+        // PILLAR COLLAPSE / EXPAND  (TASK-21 will implement full logic)
+        // ─────────────────────────────────────────────────────────────
+        private void PillarHeader_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not Border header) return;
+
+            // Resolve the content panel and arrow for this pillar
+            StackPanel? content = null;
+            System.Windows.Controls.TextBlock? arrow = null;
+
+            if (header.Name == "PillarHeader_Clicking")
+            {
+                content = PillarContent_Clicking;
+                arrow   = PillarArrow_Clicking;
+            }
+            else if (header.Name == "PillarHeader_Tracking")
+            {
+                content = PillarContent_Tracking;
+                arrow   = PillarArrow_Tracking;
+            }
+            else if (header.Name == "PillarHeader_Switching")
+            {
+                content = PillarContent_Switching;
+                arrow   = PillarArrow_Switching;
+            }
+
+            if (content == null) return;
+
+            bool collapsed = content.Visibility == Visibility.Collapsed;
+            content.Visibility = collapsed ? Visibility.Visible : Visibility.Collapsed;
+            if (arrow != null)
+                arrow.Text = collapsed ? "▲" : "▼";
+        }
+
         protected override void OnClosed(EventArgs e)
         {
             _gameTimer.Stop();
             _updateTimer.Stop();
+            _rawInput.Stop();
             base.OnClosed(e);
         }
     }

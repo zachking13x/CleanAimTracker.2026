@@ -46,7 +46,16 @@ namespace CleanAimTracker.Services
                 _           => 1.00,
             };
 
-            return Math.Max(10, (int)(baseXP * accuracyMult * diffMult));
+            // TASK-32: per-scenario XP multipliers for harder/more-complex scenarios
+            double scenarioMult = result.Scenario switch
+            {
+                "AirTracking"  => 1.10,   // 3D movement complexity premium
+                "PeekTraining" => 1.05,   // timing precision premium
+                "Evasive"      => 1.05,   // target evasion difficulty premium
+                _              => 1.00,
+            };
+
+            return Math.Max(10, (int)(baseXP * accuracyMult * diffMult * scenarioMult));
         }
 
         /// <summary>

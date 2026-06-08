@@ -11,7 +11,18 @@ namespace CleanAimTracker.Services
     public static class DailyChallengeService
     {
         // ── Possible challenge templates ─────────────────────────────────────
-        private static readonly string[] Scenarios   = { "Tracking", "Flicking", "Precision", "Switching", "Sniper", "Shotgun", "SmgAr" };
+        // TASK-31: Extended pool with new pillar scenarios
+        private static readonly string[] Scenarios =
+        {
+            // Legacy / weapon
+            "Tracking", "Flicking", "Precision", "Switching", "Sniper", "Shotgun", "SmgAr",
+            // Clicking pillar
+            "StaticClicking", "DynamicClicking", "Reactive",
+            // Tracking pillar
+            "AirTracking",
+            // Switching pillar
+            "Evasive", "PeekTraining",
+        };
         private static readonly string[] Difficulties = { "Easy", "Medium", "Hard" };
 
         private record Template(string GoalType, string Label, double[] Values);

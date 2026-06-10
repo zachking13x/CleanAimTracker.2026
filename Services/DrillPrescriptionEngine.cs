@@ -207,24 +207,26 @@ namespace CleanAimTracker.Services
             }
 
             // ── Rule 2: Low smoothness in Tracking ────────────────────────────
-            if (context.WeakArea == "accuracy"
-                && result.Scenario == "Tracking"
-                && recentTracker != null
-                && recentTracker.SmoothnessScore < 60)
-            {
-                prescriptions.Add(new DrillPrescription
-                {
-                    Scenario    = "Tracking",
-                    Difficulty  = "Easy",
-                    SubVariant  = "Smooth Arc",
-                    DurationSec = 90,
-                    Reason      = $"Your smoothness score is {recentTracker.SmoothnessScore:F0}/100 — " +
-                                  "jitter is breaking your tracking. Easy Smooth Arc drills at lower speed " +
-                                  "build the fluid movement pattern your muscle memory needs before adding speed.",
-                    FocusCue    = "Keep your elbow on the desk. Move from the wrist only. Think fluid, not fast."
-                });
-                return FinalizeAndReturn(prescriptions, memory);
-            }
+            // DISABLED pending TASK-1.1 — do not re-enable without validity gate
+            // Smooth Arc prescription justified solely by the unvalidated smoothness metric.
+            // if (context.WeakArea == "accuracy"
+            //     && result.Scenario == "Tracking"
+            //     && recentTracker != null
+            //     && recentTracker.SmoothnessScore < 60)
+            // {
+            //     prescriptions.Add(new DrillPrescription
+            //     {
+            //         Scenario    = "Tracking",
+            //         Difficulty  = "Easy",
+            //         SubVariant  = "Smooth Arc",
+            //         DurationSec = 90,
+            //         Reason      = $"Your smoothness score is {recentTracker.SmoothnessScore:F0}/100 — " +
+            //                       "jitter is breaking your tracking. Easy Smooth Arc drills at lower speed " +
+            //                       "build the fluid movement pattern your muscle memory needs before adding speed.",
+            //         FocusCue    = "Keep your elbow on the desk. Move from the wrist only. Think fluid, not fast."
+            //     });
+            //     return FinalizeAndReturn(prescriptions, memory);
+            // }
 
             // ── Rule 3: Sensitivity too low for Precision ─────────────────────
             if (context.WeakArea == "accuracy"

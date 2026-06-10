@@ -229,24 +229,35 @@
 
                         <!-- Results-panel actions: free report + recommended drill -->
                         <StackPanel HorizontalAlignment="Right"
-                                    Orientation="Horizontal"
+                                    Orientation="Vertical"
                                     VerticalAlignment="Center">
-                            <!-- Free coaching report — one-time unlock after assessment -->
-                            <Button x:Name="ShowFreeReportBtn"
-                                    Content="📊  View Full Report"
-                                    Height="36"
-                                    Click="ShowFreeReportBtn_Click"
-                                    Visibility="Collapsed"
-                                    Style="{DynamicResource SecondaryButtonStyle}"
-                                    Margin="0 0 8 0"/>
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Free coaching report — one-time unlock after assessment -->
+                                <Button x:Name="ShowFreeReportBtn"
+                                        Content="📊  View Full Report"
+                                        Height="36"
+                                        Click="ShowFreeReportBtn_Click"
+                                        Visibility="Collapsed"
+                                        Style="{DynamicResource SecondaryButtonStyle}"
+                                        Margin="0 0 8 0"/>
 
-                            <!-- Start recommended drill (shown on results panel) -->
-                            <Button x:Name="StartRecommendedBtn"
-                                    Content="▶  Start Recommended Drill"
-                                    Height="36"
-                                    Click="StartRecommendedBtn_Click"
-                                    Visibility="Collapsed"
-                                    Style="{DynamicResource PrimaryButtonStyle}"/>
+                                <!-- Start recommended drill (shown on results panel) -->
+                                <Button x:Name="StartRecommendedBtn"
+                                        Content="▶  Start Recommended Drill"
+                                        Height="36"
+                                        Click="StartRecommendedBtn_Click"
+                                        Visibility="Collapsed"
+                                        Style="{DynamicResource PrimaryButtonStyle}"/>
+                            </StackPanel>
+
+                            <!-- Shown after the free report has been used -->
+                            <TextBlock x:Name="FreeReportUsedText"
+                                       Text="You've already used your free coaching report."
+                                       Foreground="#66A0B4C8"
+                                       FontSize="11"
+                                       HorizontalAlignment="Right"
+                                       Margin="0,6,0,0"
+                                       Visibility="Collapsed"/>
                         </StackPanel>
                     </Grid>
                 </Border>

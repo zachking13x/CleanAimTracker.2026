@@ -152,13 +152,16 @@ namespace CleanAimTracker.Windows
             var settings = SettingsService.Load();
             settings.HasUsedFreeAssessmentReport = true;
             SettingsService.Save(settings);
-            ShowFreeReportBtn.Visibility = Visibility.Collapsed;
+            ShowFreeReportBtn.Visibility  = Visibility.Collapsed;
+            FreeReportUsedText.Visibility = Visibility.Visible;
 
-            // Use the result with the highest Hits+Misses count as the representative session
-            var best = _results
-                .OrderByDescending(r => r.Hits + r.Misses)
-                .First();
+            // Use the result with the highest accuracy as the representative session
+            var best = _results.Where(r => r.Accuracy > 0)
+                               .OrderByDescending(r => r.Accuracy)
+                               .FirstOrDefault()
+                       ?? _results.FirstOrDefault();
 
+            if (best == null) return;
             new AimTrainerResultWindow(best, isFullSession: true)
             {
                 Owner = this
@@ -332,7 +335,9 @@ namespace CleanAimTracker.Windows
 
             // TASK-06: free coaching report — show once if the entitlement hasn't been used
             if (!settings.HasUsedFreeAssessmentReport)
-                ShowFreeReportBtn.Visibility = Visibility.Visible;
+                ShowFreeReportBtn.Visibility  = Visibility.Visible;
+            else
+                FreeReportUsedText.Visibility = Visibility.Visible;
 
             CurrentTestLabel.Text = "Assessment Complete!";
             CurrentTestDesc.Text  = $"Weakest: {DiagnosticAssessmentService.GetDimensionLabel(_profile.WeakestDimension)}  ·  Strongest: {DiagnosticAssessmentService.GetDimensionLabel(_profile.StrongestDimension)}";

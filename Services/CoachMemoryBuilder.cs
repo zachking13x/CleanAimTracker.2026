@@ -237,6 +237,9 @@ namespace CleanAimTracker.Services
                         .OrderByDescending(d => d.SessionNumber)
                         .FirstOrDefault();
 
+                // ── Tip rotation ──────────────────────────────────────────────
+                memory.RecentTipKeys = settings.RecentTipKeys ?? new();
+
                 // ── Tracker history ───────────────────────────────────────────
                 memory.RecentTrackerSessions = allTracker.Take(5).ToList();
 

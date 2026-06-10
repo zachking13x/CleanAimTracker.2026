@@ -58,6 +58,16 @@ namespace CleanAimTracker
 
             var settings = SettingsService.Load();
 
+            // TASK-13: New user detection — show onboarding calibration before anything else
+            bool isNewUser = !settings.CalibrationComplete
+                && !settings.OnboardingSkipped
+                && AimTrainerStorage.LoadAll().Count == 0;
+            if (isNewUser)
+            {
+                var onboarding = new OnboardingCalibrationWindow();
+                onboarding.ShowDialog();
+            }
+
             ThemeService.ApplyTheme(settings.ThemeMode ?? "Dark");
 
             if (!settings.FirstLaunchComplete)

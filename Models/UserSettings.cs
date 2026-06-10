@@ -85,6 +85,13 @@
         // Dismissed assessment prompt card
         public bool DismissedAssessmentPrompt { get; set; } = false;
 
+        // Onboarding calibration state — TASK-12
+        public bool CalibrationComplete { get; set; } = false;
+        public bool OnboardingSkipped   { get; set; } = false;
+
+        // Tip rotation — keys of recently shown tips (newest first, max 20 entries)
+        public List<string> RecentTipKeys { get; set; } = new();
+
         public ScenarioDifficultyState GetScenarioState(
             string scenario, string variant)
         {

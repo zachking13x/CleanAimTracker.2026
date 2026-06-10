@@ -879,7 +879,8 @@
                 <Border x:Name="DrillInstructionCard"
                         Panel.ZIndex="20"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
+                        VerticalAlignment="Bottom"
+                        Margin="0,0,0,20"
                         Visibility="Collapsed"
                         IsHitTestVisible="True"
                         CornerRadius="14"
@@ -888,8 +889,8 @@
                         MouseDown="DrillInstructionCard_MouseDown">
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#F0060912" Offset="0"/>
-                            <GradientStop Color="#F00A1020" Offset="1"/>
+                            <GradientStop Color="#CC060912" Offset="0"/>
+                            <GradientStop Color="#CC0A1020" Offset="1"/>
                         </LinearGradientBrush>
                     </Border.Background>
                     <Border.BorderBrush>

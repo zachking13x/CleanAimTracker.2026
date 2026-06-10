@@ -383,23 +383,7 @@
                                                VerticalAlignment="Center"/>
                                 </StackPanel>
 
-                                <!-- Strengths -->
-                                <TextBlock Text="✅  STRENGTHS"
-                                           Foreground="{DynamicResource AccentGreen}"
-                                           FontSize="11" FontWeight="Bold"
-                                           Margin="0 0 0 6"/>
-                                <ItemsControl x:Name="StrengthsList" Margin="0 0 0 14">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding}"
-                                                       Foreground="{DynamicResource PrimaryText}"
-                                                       FontSize="13" TextWrapping="Wrap"
-                                                       Margin="0 0 0 6"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Weaknesses -->
+                                <!-- Weaknesses — TASK-07: leads before Strengths -->
                                 <StackPanel x:Name="WeaknessesSection">
                                 <TextBlock Text="⚠️  AREAS TO IMPROVE"
                                            Foreground="#FFAA44"
@@ -416,6 +400,22 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                                 </StackPanel>
+
+                                <!-- Strengths -->
+                                <TextBlock Text="✅  STRENGTHS"
+                                           Foreground="{DynamicResource AccentGreen}"
+                                           FontSize="11" FontWeight="Bold"
+                                           Margin="0 0 0 6"/>
+                                <ItemsControl x:Name="StrengthsList" Margin="0 0 0 14">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}"
+                                                       Foreground="{DynamicResource PrimaryText}"
+                                                       FontSize="13" TextWrapping="Wrap"
+                                                       Margin="0 0 0 6"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
 
                                 <!-- Advice -->
                                 <StackPanel x:Name="AdviceSection">

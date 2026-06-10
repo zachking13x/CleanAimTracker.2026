@@ -373,12 +373,12 @@
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>
 
-                    <!-- Observations -->
-                    <TextBlock Text="WHAT I NOTICED"
+                    <!-- Suggestions — TASK-07: leads before Observations -->
+                    <TextBlock Text="WHAT TO WORK ON"
                                FontSize="10" FontWeight="Bold"
                                Foreground="{DynamicResource MutedText}"
                                Margin="0,0,0,6"/>
-                    <ItemsControl x:Name="CoachObservationsList" Margin="0,0,0,10">
+                    <ItemsControl x:Name="CoachSuggestionsList" Margin="0,0,0,10">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding}"
@@ -390,12 +390,12 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <!-- Suggestions -->
-                    <TextBlock Text="WHAT TO WORK ON"
+                    <!-- Observations -->
+                    <TextBlock Text="WHAT I NOTICED"
                                FontSize="10" FontWeight="Bold"
                                Foreground="{DynamicResource MutedText}"
                                Margin="0,0,0,6"/>
-                    <ItemsControl x:Name="CoachSuggestionsList" Margin="0,0,0,10">
+                    <ItemsControl x:Name="CoachObservationsList" Margin="0,0,0,10">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <TextBlock Text="{Binding}"

@@ -70,5 +70,10 @@ namespace CleanAimTracker.Models
         // ── TASK-29: Latest diagnostic profile ───────────────────────────────
         /// <summary>Most recent DiagnosticProfile, or null if no assessment has been run.</summary>
         public DiagnosticProfile? LatestDiagnostic  { get; set; } = null;
+
+        // ── Tip rotation ──────────────────────────────────────────────────────
+        /// <summary>Keys of recently shown tips (newest first, max 20 entries).
+        /// Loaded from UserSettings before each coaching call; updated after tips are selected.</summary>
+        public List<string> RecentTipKeys { get; set; } = new();
     }
 }

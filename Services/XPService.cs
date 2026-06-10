@@ -33,9 +33,11 @@ namespace CleanAimTracker.Services
         {
             int baseXP = Math.Max(50, result.DurationSeconds / 30 * 50);
 
+            // 50% maps to accMult = 1.0 — "average" accuracy for most scenarios is ~50-55%.
+            // Threshold aligned with Bench.AccuracyAvg so XP grades match coaching grades.
             double accuracyMult = result.Accuracy >= 90 ? 1.50
                                 : result.Accuracy >= 75 ? 1.25
-                                : result.Accuracy >= 60 ? 1.00
+                                : result.Accuracy >= 50 ? 1.00
                                 : 0.75;
 
             double diffMult = result.Difficulty switch

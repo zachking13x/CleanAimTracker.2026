@@ -39,6 +39,11 @@ namespace CleanAimTracker.Windows
         private double _angleChangeTotal = 0;
         private double _angleStability = 0;
         private double _smoothnessScore = 0;
+        // TASK-1.1: session-aggregate smoothness — running sum/count of per-event
+        // instantaneous smoothness, so the stored score is a session mean rather
+        // than whatever the final two mouse events happened to be.
+        private double _smoothnessSum = 0;
+        private int    _smoothnessSamples = 0;
         private double _correctionSharpness = 0;
         private double _movementConsistency = 0;
         private double _overallQualityScore = 0;
@@ -275,7 +280,26 @@ namespace CleanAimTracker.Windows
                 _lastAngle = Math.Atan2(dy, dx) * (180 / Math.PI);
                 double angleDiff = Math.Abs(_lastAngle - _previousAngle);
 
-                _smoothnessScore = Math.Clamp(100 - Math.Abs(angleDiff) * 2, 0, 100);
+                // TASK-1.1 FIX 1 — angular wrap-around normalization.
+                // Atan2 returns -180..+180. Without normalization, smooth LEFTWARD motion
+                // with ±1 count of y-noise alternates ~+179° / ~-179°:
+                //   raw diff = |174.29 - (-174.29)| = 348.57 → 100 - 697 → clamped to 0
+                // even though the true angular change is 360 - 348.57 = 11.43°.
+                // Worked example after fix: events (-10,+1) then (-10,-1):
+                //   angles 174.29°, -174.29° → raw 348.57 → normalized 11.43
+                //   instant = clamp(100 - 11.43*2) = 77.1  (was 0 before fix)
+                if (angleDiff > 180)
+                    angleDiff = 360 - angleDiff;
+
+                // TASK-1.1 FIX 2 — aggregate over the session instead of last-write-wins.
+                // Previously _smoothnessScore was overwritten per event, so the SAVED value
+                // was just the final two deltas of the session (≈ random, often exactly 0).
+                // Worked example: events (10,0),(10,1),(10,0) → angles 0°, 5.71°, 0°
+                //   diffs 5.71, 5.71 → instants 88.6, 88.6 → session mean 88.6
+                double instantSmoothness = Math.Clamp(100 - angleDiff * 2, 0, 100);
+                _smoothnessSum += instantSmoothness;
+                _smoothnessSamples++;
+                _smoothnessScore = _smoothnessSum / _smoothnessSamples; // _smoothnessSamples >= 1 here
                 if (_sessionSeconds >= 3)
                     SmoothnessText.Text = $"{_smoothnessScore:F0}";
 
@@ -557,18 +581,22 @@ namespace CleanAimTracker.Windows
                 : "Not enough movement data.";
 
             // Overall quality verdict
+            // TASK-0.1: "Check grip and surface" causal suffix removed pending smoothness validation.
             string qualityVerdict = s.OverallQualityScore >= 75
                 ? $"Strong session — quality {s.OverallQualityScore:F0}/100."
                 : s.OverallQualityScore >= 50
                 ? $"Average session — quality {s.OverallQualityScore:F0}/100. Room to improve."
-                : $"Tough session — quality {s.OverallQualityScore:F0}/100. Check grip and surface.";
+                : $"Tough session — quality {s.OverallQualityScore:F0}/100.";
 
             // Smoothness verdict
-            string smoothnessVerdict = s.SmoothnessScore >= 80
-                ? "Smooth movement — good mouse control."
-                : s.SmoothnessScore >= 60
-                ? "Some jitter detected — check sensitivity and grip pressure."
-                : "High jitter — sensitivity may be too high or grip too tense.";
+            // DISABLED pending TASK-1.1 — do not re-enable without validity gate
+            // Smoothness-derived narration with grip/sensitivity causal claims on an unvalidated metric.
+            // string smoothnessVerdict = s.SmoothnessScore >= 80
+            //     ? "Smooth movement — good mouse control."
+            //     : s.SmoothnessScore >= 60
+            //     ? "Some jitter detected — check sensitivity and grip pressure."
+            //     : "High jitter — sensitivity may be too high or grip too tense.";
+            string smoothnessVerdict = "—";
 
             MovementVerdictText.Text   = movementVerdict;
             VelocityVerdictText.Text   = velocityVerdict;
@@ -634,10 +662,13 @@ namespace CleanAimTracker.Windows
             _idleTime = 0;
             _idleBurstCount = 0;
             _lastAngle = 0;
+            _previousAngle = 0;       // TASK-1.1: was missing — first event of a new session compared against the previous session's last angle
             _angleStability = 0;
             _angleChangeTotal = 0;
             _movementConsistency = 0;
             _smoothnessScore = 0;
+            _smoothnessSum = 0;       // TASK-1.1
+            _smoothnessSamples = 0;   // TASK-1.1
             _correctionSharpness = 0;
             _overallQualityScore = 0;
 
@@ -1172,8 +1203,23 @@ namespace CleanAimTracker.Windows
             // (e.g. 11.1 for Fortnite) — store it directly, no conversion needed.
             double gameSens = _sensitivity;
 
+            // TASK-1.2: per-metric validity. Smoothness uses its own sample counter;
+            // consistency/correction are per-event statistics over the same raw stream.
+            var smoothValidity     = MetricValidation.ForSmoothness(_smoothnessSamples, _smoothnessSum);
+            var consistencyValidity = MetricValidation.ForMovementMetric(_movementEvents, _movementConsistency);
+            var correctionValidity  = MetricValidation.ForMovementMetric(_movementEvents, _correctionSharpness);
+            var qualityValidity     = MetricValidation.ForOverallQuality(
+                smoothValidity, consistencyValidity, correctionValidity);
+
             return new SessionSummary
             {
+                MetricValidities = new Dictionary<string, MetricValidity>
+                {
+                    ["SmoothnessScore"]     = smoothValidity,
+                    ["MovementConsistency"] = consistencyValidity,
+                    ["CorrectionSharpness"] = correctionValidity,
+                    ["OverallQualityScore"] = qualityValidity
+                },
                 DPI             = (int)Math.Round(_dpi),
                 Sensitivity     = _sensitivity,
                 GameSensitivity = gameSens,
@@ -1186,7 +1232,8 @@ namespace CleanAimTracker.Windows
                 LargeFlickCount = _largeFlicks,
                 JitterAmount    = _jitterAmount,
                 IdleBurstCount  = _idleBurstCount,
-                SmoothnessScore = _smoothnessScore,
+                // TASK-1.1: debug instrumentation — sample count, intermediate sum, pre-rounding result
+                SmoothnessScore = LogSmoothnessDiagnostics(),
                 CorrectionSharpness = _correctionSharpness,
                 MovementConsistency = _movementConsistency,
                 OverallQualityScore = _overallQualityScore,
@@ -1198,6 +1245,20 @@ namespace CleanAimTracker.Windows
                     : 0,
                 TotalSamples    = _movementEvents
             };
+        }
+
+        // TASK-1.1: logs smoothness internals per session and returns the final score.
+        // Logged: sample count entering smoothness, intermediate sum, pre-rounding mean.
+        private double LogSmoothnessDiagnostics()
+        {
+            double preRounding = _smoothnessSamples > 0
+                ? _smoothnessSum / _smoothnessSamples
+                : 0;
+            LogService.Info(
+                $"SMOOTHNESS-DIAG samples={_smoothnessSamples} " +
+                $"sum={_smoothnessSum:F2} preRounding={preRounding:F4} " +
+                $"movementEvents={_movementEvents} sessionSeconds={_sessionSeconds:F0}");
+            return preRounding;
         }
 
         // ── What's New banner ─────────────────────────────────────────────
@@ -1334,7 +1395,8 @@ namespace CleanAimTracker.Windows
                 bool showAssessmentPrompt =
                     drillCount < 5
                     && freeSettings.DiagnosticHistory.Count == 0
-                    && !freeSettings.DismissedAssessmentPrompt;
+                    && !freeSettings.DismissedAssessmentPrompt
+                    && (freeSettings.CalibrationComplete || freeSettings.OnboardingSkipped); // TASK-14: suppress during active onboarding
                 AssessmentPromptCard.Visibility = showAssessmentPrompt
                     ? Visibility.Visible
                     : Visibility.Collapsed;

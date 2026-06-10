@@ -42,6 +42,22 @@
         /// </summary>
         public double GameSensitivity { get; set; }
 
+        /// <summary>
+        /// TASK-1.2: per-metric validity, keyed by metric property name
+        /// ("SmoothnessScore", "MovementConsistency", "CorrectionSharpness",
+        /// "OverallQualityScore"). Sessions persisted before this field exists
+        /// deserialize to an empty dictionary — GetValidity treats missing
+        /// entries as NotComputed, so legacy values are never narrated as valid.
+        /// </summary>
+        public Dictionary<string, MetricValidity> MetricValidities { get; set; } = new();
+
+        public MetricValidity GetValidity(string metricName) =>
+            MetricValidities.TryGetValue(metricName, out var v)
+                ? v
+                : MetricValidity.Invalid(MetricInvalidReason.NotComputed, 0);
+
+        public bool IsMetricValid(string metricName) => GetValidity(metricName).IsValid;
+
 
 
 

@@ -303,8 +303,9 @@ namespace CleanAimTracker.Services
             // Fire before all generic rules so weapon-type context is always correct.
             if (r.Scenario == "Sniper")
             {
+                // TASK-0.2: "That's the top tier" population claim removed — no population data exists.
                 if (r.Accuracy >= 90)
-                    return $"Elite precision — {r.Accuracy:F0}% on small distant targets. That's the top tier.";
+                    return $"Elite precision — {r.Accuracy:F0}% on small distant targets.";
                 if (r.Accuracy >= 75)
                     return $"Solid sniper session at {r.Accuracy:F0}%. The technique is there.";
                 if (r.Accuracy < 55)
@@ -363,8 +364,11 @@ namespace CleanAimTracker.Services
             }
 
             // ── RULE 4: DECLINING TREND (TASK-05) ────────────────────────────
-            // Never say "you're getting worse" — frame as diagnostic
-            if (memory.AccuracyTrend < -5.0 && memory.TotalDrillCount >= 5)
+            // Never say "you're getting worse" — frame as diagnostic.
+            // Gate: skip when the current session is Excellent or Great — the
+            // player did well today and the headline must reflect that, not history.
+            if (memory.AccuracyTrend < -5.0 && memory.TotalDrillCount >= 5
+                && c.AccuracyGrade is not ("elite" or "good"))
             {
                 int v = memory.TotalDrillCount % 3;
                 return v switch
@@ -393,8 +397,10 @@ namespace CleanAimTracker.Services
                 return $"New personal best accuracy — {r.Accuracy:F0}% in {r.Scenario}. That's a record for you.";
             if (c.NewReactionRecord)
                 return $"New personal best reaction time — {r.AvgReactionMs:F0}ms average. Fastest you've been in {r.Scenario}.";
+            // TASK-0.2: percentile suffix and "top tier" population claim disabled —
+            // no population data exists. Voltaic-relative wording returns in TASK-3.3.
             if (c.AccuracyGrade == "elite")
-                return $"{r.Accuracy:F0}% accuracy in {r.Scenario} — that's elite level. You're consistently in the top tier.";
+                return $"{r.Accuracy:F0}% accuracy in {r.Scenario} — elite-grade session.";
             if (c.IsImproving && c.AccuracyDelta > 0)
                 return $"Up {c.AccuracyDelta:+0.0;+0.0}% accuracy vs your last session — clear improvement.";
             if (c.AccuracyDelta < -5 && !c.IsFirstSession)
@@ -446,127 +452,115 @@ namespace CleanAimTracker.Services
                 }
             }
 
-            // ── TASK-06: history-aware strength language ──────────────────────
+            // ── TASK-02: key-based rotation for general strengths ─────────────
+            var strengthCandidates = new List<(string key, string text)>();
+            var strengthRecentKeys = memory.RecentTipKeys.Take(12).ToList();
 
-            // Accuracy strength — reference trend/consistency when history exists
+            // Accuracy strength
             if (c.AccuracyGrade == "elite")
             {
                 if (hasHistory && memory.AccuracyTrend > 0 && r.Accuracy >= 40.0)
                 {
-                    // Improving trend at elite level
-                    list.Add(PickGlobal(memory, 0,
+                    strengthCandidates.Add(("strength_accuracy_trend", PickGlobal(memory, 0,
                         $"Your accuracy has been consistently above {Bench.AccuracyGood(r.Scenario):F0}% for your last several sessions. That's becoming a reliable strength.",
                         $"Elite accuracy at {r.Accuracy:F0}% — and the trend is pointing up. That's not luck, that's the work compounding.",
                         $"{r.Accuracy:F0}% accuracy and still improving. You're in rare territory."
-                    ));
+                    )));
                 }
                 else
                 {
-                    list.Add(Pick(c.SessionCount,
-                        $"Your {r.Accuracy:F0}% accuracy is elite level — most competitive players hover around {Bench.AccuracyGood(r.Scenario):F0}%. You're well above that.",
-                        $"{r.Accuracy:F0}% accuracy puts you in the top tier. That's not luck — that's reps paying off.",
+                    // TASK-0.2: "most competitive players" / "top tier" population-claim variants removed.
+                    strengthCandidates.Add(("strength_accuracy_consistent", Pick(c.SessionCount,
                         $"Elite accuracy at {r.Accuracy:F0}%. The consistency is the impressive part — anyone can have a good session, fewer can repeat it.",
                         $"Your {r.Accuracy:F0}% accuracy is the kind of number that shows up in ranked lobbies. Keep building on it."
-                    ));
+                    )));
                 }
             }
             else if (c.AccuracyGrade == "good")
             {
                 if (hasHistory && memory.BaselineAccuracy.TryGetValue(r.Scenario, out double baseline) && r.Accuracy >= baseline && r.Accuracy >= 40.0)
                 {
-                    list.Add(PickGlobal(memory, 0,
+                    strengthCandidates.Add(("strength_accuracy_consistent", PickGlobal(memory, 0,
                         $"Your {r.Scenario} accuracy has been consistently around {baseline:F0}% or better. That floor is real — build on it.",
                         $"{r.Accuracy:F0}% accuracy in {r.Scenario}, and your baseline is holding steady. Fundamentals are solid.",
                         $"Solid accuracy at {r.Accuracy:F0}% — above your recent average of {baseline:F0}%. You're clicking with intent."
-                    ));
+                    )));
                 }
                 else
                 {
-                    list.Add(Pick(c.SessionCount,
+                    strengthCandidates.Add(("strength_accuracy_consistent", Pick(c.SessionCount,
                         $"{r.Accuracy:F0}% accuracy puts you in the good range for {r.Scenario}. You're making more right decisions than wrong ones.",
                         $"Solid {r.Accuracy:F0}% accuracy in {r.Scenario}. The fundamentals are there — now build consistency.",
                         $"{r.Accuracy:F0}% is a good number for {r.Scenario}. You're above average and trending in the right direction.",
                         $"Good accuracy at {r.Accuracy:F0}%. You're clicking with intent — that's the foundation everything else builds on."
-                    ));
+                    )));
                 }
             }
             else if (c.IsImproving && c.AccuracyDelta > 3 && r.Accuracy >= 40.0)
             {
-                list.Add(Pick(c.SessionCount,
+                strengthCandidates.Add(("strength_accuracy_trend", Pick(c.SessionCount,
                     $"Accuracy improved {c.AccuracyDelta:+0.0}% from your last session — that's real, measurable progress.",
                     $"Up {c.AccuracyDelta:F0}% accuracy since last session. The trajectory is pointing up.",
                     $"Accuracy trend: +{c.AccuracyDelta:F0}% from last time. Every improvement stacks.",
                     $"Your accuracy is climbing — {c.AccuracyDelta:F0}% better than last session. That's the definition of improving."
-                ));
+                )));
             }
 
-            // ── Reaction trend strength (TASK-01) — fires independently ─────
-            // Fires when reaction is genuinely improving across sessions, regardless
-            // of accuracy strength. Both can appear. Max-2 cap applied at the end.
-            // TASK-02: suppressed when accuracy < 50 — trend data from history must not
-            // appear as a strength when the current session itself was poor.
+            // Reaction trend — fires independently
             if (memory.TotalDrillCount >= 3
                 && memory.ReactionTrend < -10
                 && r.AvgReactionMs > 0
                 && r.Accuracy >= 40.0)
             {
-                if (memory.ReactionTrend < -20)
-                {
-                    list.Add($"Your reaction time has dropped {Math.Abs(memory.ReactionTrend):F0}ms over your recent sessions. " +
-                             "That kind of improvement at this accuracy level almost never happens — it means your technique " +
-                             "is genuinely getting better, not just your familiarity.");
-                }
-                else
-                {
-                    list.Add($"{r.AvgReactionMs:F0}ms average, and trending lower. Speed and control improving together is rare.");
-                }
+                strengthCandidates.Add(("strength_reaction_trend",
+                    memory.ReactionTrend < -20
+                        ? $"Your reaction time has dropped {Math.Abs(memory.ReactionTrend):F0}ms over your recent sessions. " +
+                          "That kind of improvement at this accuracy level almost never happens — it means your technique " +
+                          "is genuinely getting better, not just your familiarity."
+                        : $"{r.AvgReactionMs:F0}ms average, and trending lower. Speed and control improving together is rare."
+                ));
             }
 
-            // ── Reaction grade strength — fills remaining slot if trend didn't fire ──
-            if (list.Count < 2)
+            // Reaction grade
+            // TASK-0.2: percentile suffixes disabled — no population data exists.
+            // Voltaic-relative wording returns through the composer in TASK-3.3.
+            if (c.ReactionGrade == "elite")
             {
-                if (c.ReactionGrade == "elite")
-                {
-                    list.Add(Pick(c.SessionCount,
-                        $"Your {r.AvgReactionMs:F0}ms average reaction is elite level — most players are 150-200ms slower than this.",
-                        $"{r.AvgReactionMs:F0}ms reaction time is genuinely fast. You're in the range where raw speed becomes an advantage.",
-                        $"Elite reaction at {r.AvgReactionMs:F0}ms average. Your reads are translating to clicks — that's the hard part.",
-                        $"{r.AvgReactionMs:F0}ms average. At this speed, target acquisition is a real strength, not just a stat."
-                    ));
-                }
-                else if (c.ReactionGrade == "good")
-                {
-                    list.Add(Pick(c.SessionCount,
-                        $"{r.AvgReactionMs:F0}ms average reaction is competitive. You're in the range where pros operate.",
-                        $"Good reaction time at {r.AvgReactionMs:F0}ms average. Speed isn't the bottleneck — build on this.",
-                        $"{r.AvgReactionMs:F0}ms puts your reactions in a solid range. Consistent performance at this speed is what separates good from great.",
-                        $"Reaction time: {r.AvgReactionMs:F0}ms average — that's genuinely competitive. Use it."
-                    ));
-                }
-                else if (!c.IsFirstSession && c.ReactionDelta < -20)
-                {
-                    if (c.ReactionGrade == "slow")
-                        list.Add($"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms from last session — real progress. Your average is still {r.AvgReactionMs:F0}ms, so there's more room to go, but the direction is right.");
-                    else
-                        list.Add($"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms faster than last session — your reads are getting sharper.");
-                }
+                strengthCandidates.Add(("strength_reaction_trend", Pick(c.SessionCount,
+                    $"Your {r.AvgReactionMs:F0}ms average reaction is elite level.",
+                    $"{r.AvgReactionMs:F0}ms reaction time is genuinely fast. You're in the range where raw speed becomes an advantage.",
+                    $"Elite reaction at {r.AvgReactionMs:F0}ms average. Your reads are translating to clicks — that's the hard part.",
+                    $"{r.AvgReactionMs:F0}ms average. At this speed, target acquisition is a real strength, not just a stat."
+                )));
+            }
+            else if (c.ReactionGrade == "good")
+            {
+                strengthCandidates.Add(("strength_reaction_trend", Pick(c.SessionCount,
+                    $"{r.AvgReactionMs:F0}ms average reaction is competitive.",
+                    $"Good reaction time at {r.AvgReactionMs:F0}ms average. Speed isn't the bottleneck — build on this.",
+                    $"{r.AvgReactionMs:F0}ms puts your reactions in a solid range. Consistent performance at this speed is what separates good from great.",
+                    $"Reaction time: {r.AvgReactionMs:F0}ms average — that's genuinely competitive. Use it."
+                )));
+            }
+            else if (!c.IsFirstSession && c.ReactionDelta < -20)
+            {
+                strengthCandidates.Add(("strength_reaction_trend",
+                    c.ReactionGrade == "slow"
+                        ? $"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms from last session — real progress. Your average is still {r.AvgReactionMs:F0}ms, so there's more room to go, but the direction is right."
+                        : $"Reaction time improved {Math.Abs(c.ReactionDelta):F0}ms faster than last session — your reads are getting sharper."
+                ));
             }
 
             // Streak and consistency
-            if (list.Count < 2)
-            {
-                if (c.StreakGrade == "elite")
-                    list.Add($"A streak of {r.MaxStreak} is exceptional — it shows you can maintain focus and rhythm under pressure.");
-                else if (c.StreakGrade == "good")
-                    list.Add($"Your {r.MaxStreak}-hit streak shows you have the ability to lock in when it counts.");
-                else if (c.IsConsistent && r.Accuracy >= 40.0)
-                    list.Add("Your accuracy has been consistent across your last few sessions — that reliability is harder to build than people think.");
-            }
+            if (c.StreakGrade == "elite")
+                strengthCandidates.Add(("strength_streak", $"A streak of {r.MaxStreak} is exceptional — it shows you can maintain focus and rhythm under pressure."));
+            else if (c.StreakGrade == "good")
+                strengthCandidates.Add(("strength_streak", $"Your {r.MaxStreak}-hit streak shows you have the ability to lock in when it counts."));
+            else if (c.IsConsistent && r.Accuracy >= 40.0)
+                strengthCandidates.Add(("strength_streak", "Your accuracy has been consistent across your last few sessions — that reliability is harder to build than people think."));
 
-            // ── TASK-05 Fix 6: telemetry improvement acknowledgement ──────────
-            // Moved here from GetTelemetryObservations — positive progress belongs in Strengths.
-            // Only fires when there is a free slot and session quality is sufficient.
-            if (list.Count < 2 && r.Accuracy >= 40.0)
+            // Telemetry improvement acknowledgement
+            if (r.Accuracy >= 40.0)
             {
                 var prevSameScenario = memory.AllDrills
                     .Where(h => h.Scenario == r.Scenario && h.Timestamp != r.Timestamp)
@@ -579,33 +573,81 @@ namespace CleanAimTracker.Services
                     double ovDelta  = prevSameScenario.OvershootPct - r.OvershootPct;
                     double lagDelta = prevSameScenario.AvgDirectionChangeLagMs - r.AvgDirectionChangeLagMs;
 
-                    if (r.PathEfficiency > 0 && effDelta > 0.05)
-                        list.Add(Pick(c.SessionCount,
+                    if (r.PathEfficiency > 0 && effDelta > 0.05
+                        && r.Scenario is "StaticClicking" or "DynamicClicking" or "Precision" or "Sniper")
+                        strengthCandidates.Add(("improvement_ack", Pick(c.SessionCount,
                             $"Path efficiency improved {effDelta * 100:F0} points this session — your routes to targets are getting cleaner. That's the movement mechanics improving.",
                             $"Your movement is getting more direct — {effDelta * 100:F0}% better path efficiency vs last {r.Scenario} session. The technique is solidifying.",
                             $"Path efficiency up {effDelta * 100:F0} points. That kind of improvement doesn't happen by accident — your mouse movement is becoming more intentional.",
                             $"Movement quality trending up: {effDelta * 100:F0}% better path efficiency. What you're doing is working."
-                        ));
+                        )));
                     else if (r.OvershootPct > 0 && ovDelta > 8)
-                        list.Add(Pick(c.SessionCount,
+                        strengthCandidates.Add(("improvement_ack", Pick(c.SessionCount,
                             $"Overshoot rate dropped {ovDelta:F0}% since your last {r.Scenario} session — your stopping mechanics are improving.",
                             $"{ovDelta:F0}% fewer overshoots than last time. The deceleration work is paying off.",
                             $"Overshoot is down {ovDelta:F0}% — your commits are getting more accurate. Keep the same approach.",
                             $"Less overshoot this session — {ovDelta:F0}% improvement. That tells me your first movement is getting more precise."
-                        ));
+                        )));
                     else if (r.AvgDirectionChangeLagMs > 0 && lagDelta > 15)
-                        list.Add(Pick(c.SessionCount,
+                        strengthCandidates.Add(("improvement_ack", Pick(c.SessionCount,
                             $"Direction change response improved {lagDelta:F0}ms since last session — you're reading the patterns better.",
                             $"{lagDelta:F0}ms faster on direction changes. Your anticipation is kicking in.",
                             $"Direction lag dropped {lagDelta:F0}ms. You're starting to lead the movement instead of chasing it.",
                             $"{lagDelta:F0}ms improvement on direction changes. That's anticipation developing — keep it going."
-                        ));
+                        )));
                 }
             }
 
+            // Cross-coach tracker positive
+            if (memory.RecentTrackerSessions.Count >= 2 && memory.ConsistencyTrend > 2)
+            {
+                strengthCandidates.Add(("strength_cross_coach", PickGlobal(memory, 5,
+                    "Your in-game smoothness is trending up. The drilling is transferring.",
+                    "In-game movement is improving alongside your drill accuracy. That's the outcome you're training for — keep the same routine.",
+                    "In-game quality is climbing. The habits you're building in drills are showing up where it counts."
+                )));
+            }
+
+            // ── TASK-01: priority sort, cap at 1 ─────────────────────────────
+            static int StrengthPriority(string key) => key switch
+            {
+                "improvement_ack"              => 1,  // improvement delta — most valuable signal
+                "strength_reaction_trend"      => 2,  // reaction trend with specific ms
+                "strength_accuracy_trend"      => 3,  // accuracy trending up
+                "strength_accuracy_consistent" => 3,  // consistent accuracy above baseline
+                "strength_streak"              => 4,  // streak / consistency pattern
+                "strength_cross_coach"         => 5,  // cross-coach positive transfer
+                _                              => 6
+            };
+
+            // Filter by last 3 sessions' keys (~12 entries), sort by priority, take 1
+            var filteredStrengths = strengthCandidates
+                .Where(t => !strengthRecentKeys.Contains(t.key))
+                .OrderBy(t => StrengthPriority(t.key))
+                .Take(1)
+                .ToList();
+
+            // If filtering removed everything, fall back to highest-priority unfiltered candidate
+            if (filteredStrengths.Count < 1)
+            {
+                var fallback = strengthCandidates
+                    .OrderBy(t => StrengthPriority(t.key))
+                    .FirstOrDefault();
+                if (fallback != default)
+                    filteredStrengths.Add(fallback);
+            }
+
+            list.AddRange(filteredStrengths.Select(t => t.text));
+
+            // Update memory.RecentTipKeys with the selected strength keys
+            var strengthNewKeys = filteredStrengths.Select(t => t.key).ToList();
+            memory.RecentTipKeys.InsertRange(0, strengthNewKeys);
+            while (memory.RecentTipKeys.Count > 20)
+                memory.RecentTipKeys.RemoveAt(memory.RecentTipKeys.Count - 1);
+
             if (list.Count == 0)
             {
-                // TASK-02: below 50% accuracy with no session-specific strengths gets a
+                // Below 50% accuracy with no session-specific strengths gets a
                 // neutral honest observation rather than a hollow positivity fallback.
                 list.Add(r.Accuracy < 40.0
                     ? "This session was below your usual level. The data below shows where to focus next."
@@ -614,8 +656,7 @@ namespace CleanAimTracker.Services
                         : $"You completed a full {r.DurationSeconds}-second drill. Every session builds muscle memory, even the tough ones.");
             }
 
-            // TASK-06: maximum 2 strengths
-            return list.Take(2).ToList();
+            return list.Take(1).ToList();
         }
 
         private static List<string> GetWeaknesses(AimTrainerResult r, CoachContext c, CoachMemory memory)
@@ -735,13 +776,23 @@ namespace CleanAimTracker.Services
             if ((r.Scenario is "Sniper" or "Shotgun" or "SmgAr") && list.Count > 0)
                 return list.Take(2).ToList();
 
-            // ── TASK-07 RULE 1: PRESCRIPTION FOLLOW-UP (highest priority) ────
+            // ── TASK-02: key-based rotation setup ────────────────────────────
+            var weaknessRecentKeys = memory.RecentTipKeys.Take(12).ToList();
+            var usedWeaknessKeys   = new List<string>();
+
+            void FinalizeWeaknessKeys()
+            {
+                memory.RecentTipKeys.InsertRange(0, usedWeaknessKeys);
+                while (memory.RecentTipKeys.Count > 20)
+                    memory.RecentTipKeys.RemoveAt(memory.RecentTipKeys.Count - 1);
+            }
+
+            // ── RULE 1: PRESCRIPTION FOLLOW-UP (always shows, never suppressed) ──
             if (memory.LastPrescriptionFollowed
                 && !string.IsNullOrEmpty(memory.LastPrescribedScenario)
                 && r.Scenario == memory.LastPrescribedScenario
                 && memory.TotalDrillCount >= 3)
             {
-                // Check if target metric improved vs prior average for this scenario
                 bool improved = false;
                 string metricNote = "";
                 if (memory.BaselineAccuracy.TryGetValue(r.Scenario, out double baseAcc))
@@ -767,7 +818,12 @@ namespace CleanAimTracker.Services
                         1 => $"You followed the {memory.LastPrescribedScenario} prescription and your {metricNote}. That improvement is yours to keep. Now: consolidate it at the same difficulty before moving up.",
                         _ => $"The {memory.LastPrescribedScenario} work paid off — {metricNote}. The habit is forming. Keep that scenario in your rotation."
                     });
-                    if (list.Count > 0) return list;
+                    if (list.Count > 0)
+                    {
+                        usedWeaknessKeys.Add("area_prescription_followup");
+                        FinalizeWeaknessKeys();
+                        return list;
+                    }
                 }
                 else if (!string.IsNullOrEmpty(metricNote))
                 {
@@ -777,14 +833,17 @@ namespace CleanAimTracker.Services
                         1 => $"You followed the {memory.LastPrescribedScenario} prescription and {metricNote}. One session isn't enough for this to show up — keep going. The mechanics take 5-8 reps to settle.",
                         _ => $"Good that you ran {memory.LastPrescribedScenario}. The {metricNote} yet. Stick with it — this kind of improvement shows up on session 4-6, not session 2."
                     });
+                    usedWeaknessKeys.Add("area_prescription_followup");
                 }
             }
 
-            // ── TASK-07 RULE 2: PLATEAU INTERVENTION ─────────────────────────
-            if (list.Count == 0 && memory.IsAccuracyPlateaued && memory.PlateauLength >= 3)
+            // ── RULE 2: PLATEAU INTERVENTION (suppressed if recently shown) ──
+            if (list.Count == 0
+                && memory.IsAccuracyPlateaued
+                && memory.PlateauLength >= 3
+                && !weaknessRecentKeys.Contains("area_plateau"))
             {
                 int v = memory.TotalDrillCount % 3;
-                // Diagnose which metric has most room to improve
                 bool reactionIsWeaker = c.ReactionGrade is "slow" or "average";
                 string diagnosis = reactionIsWeaker
                     ? $"reaction time is at {r.AvgReactionMs:F0}ms — that's the next lever to pull"
@@ -800,21 +859,18 @@ namespace CleanAimTracker.Services
                     _ => $"Stuck around {memory.PlateauAvgAccuracy:F0}% in {r.Scenario}. The plateau is real — your {diagnosis}. " +
                          $"Change one variable: difficulty, duration, or sensitivity. See which one moves the needle."
                 });
+                usedWeaknessKeys.Add("area_plateau");
             }
 
-            // ── TASK-07 RULE 3: CROSS-COACH INSIGHT ──────────────────────────
-            if (list.Count < 2 && memory.RecentTrackerSessions.Count >= 2)
+            // ── RULE 3: CROSS-COACH INSIGHT (suppressed if recently shown) ───
+            if (list.Count < 2
+                && memory.RecentTrackerSessions.Count >= 2
+                && !weaknessRecentKeys.Contains("area_cross_coach_gap"))
             {
                 int v = memory.TotalDrillCount % 3;
-                double trackerAvgQuality = memory.RecentTrackerSessions.Average(s => s.OverallQualityScore);
-                double drillsConsistency = memory.TotalDrillCount >= 3
-                    ? memory.AllDrills.Take(5).Average(d => d.Accuracy)
-                    : 0;
-
-                bool drillsImproving  = memory.AccuracyTrend > 2;
-                bool ingameImproving  = memory.ConsistencyTrend > 2;
-                bool ingameDeclining  = memory.ConsistencyTrend < -5;
-                bool bothDeclining    = memory.AccuracyTrend < -3 && ingameDeclining;
+                bool drillsImproving = memory.AccuracyTrend > 2;
+                bool ingameDeclining = memory.ConsistencyTrend < -5;
+                bool bothDeclining   = memory.AccuracyTrend < -3 && ingameDeclining;
 
                 if (bothDeclining)
                 {
@@ -824,6 +880,7 @@ namespace CleanAimTracker.Services
                         1 => "Both your drill performance and in-game movement are trending down. That pattern points to overtraining or general fatigue. One rest day makes a bigger difference than one extra session.",
                         _ => "Drills and in-game quality both dipping. Before diagnosing mechanics, check the basics: sleep, session length, warmup. Fix those first."
                     });
+                    usedWeaknessKeys.Add("area_cross_coach_gap");
                 }
                 else if (drillsImproving && ingameDeclining)
                 {
@@ -833,22 +890,13 @@ namespace CleanAimTracker.Services
                         1 => "Drill improvement isn't showing up in-game yet. That's normal — muscle memory transfers after 15-20 sessions of the same pattern, not after 5. Stay patient.",
                         _ => "Strong drill numbers but in-game is lagging. The translation takes time. Make sure you're drilling immediately before you play — the transfer is strongest when they're close together."
                     });
-                }
-                else if (ingameImproving && list.Count < 2)
-                {
-                    list.Add(v switch
-                    {
-                        0 => "Your in-game smoothness is trending up. The drilling is transferring.",
-                        1 => "In-game movement is improving alongside your drill accuracy. That's the outcome you're training for — keep the same routine.",
-                        _ => "In-game quality is climbing. The habits you're building in drills are showing up where it counts."
-                    });
+                    usedWeaknessKeys.Add("area_cross_coach_gap");
                 }
             }
 
-            // ── Multi-signal combinations — checked first, return early if matched ──
+            // ── Multi-signal combinations — data-specific, return early if matched ──
 
             // Combination A: High correction sharpness + slow reaction
-            // Diagnosis: overshoot-correct cycle artificially inflating reaction time
             if (c.TrackerCorrectionSharpness.HasValue
                 && c.TrackerCorrectionSharpness.Value > 60
                 && c.ReactionGrade == "slow"
@@ -867,11 +915,12 @@ namespace CleanAimTracker.Services
                     "your instinct is right but your follow-through overshoots. " +
                     $"Your best reaction of {r.BestReactionMs:F0}ms proves the speed is there. Train the first motion, not the reaction."
                 ));
+                usedWeaknessKeys.Add("area_reaction_slow");
+                FinalizeWeaknessKeys();
                 return list;
             }
 
             // Combination B: Low smoothness + low cm/360 in Tracking
-            // Diagnosis: sensitivity fighting the movement — not a mechanics issue
             if (c.TrackerSmoothness.HasValue
                 && c.TrackerSmoothness.Value < 55
                 && c.TrackerCmPer360.HasValue
@@ -891,11 +940,12 @@ namespace CleanAimTracker.Services
                     "When sensitivity is on the higher end, your hand has less room to work with and small tremors get magnified into large cursor swings. " +
                     "Lower your in-game sensitivity slightly and retest — the difference is usually noticeable immediately."
                 ));
+                usedWeaknessKeys.Add("area_consistency_decline");
+                FinalizeWeaknessKeys();
                 return list;
             }
 
             // Combination C: Consistent but low accuracy in Precision
-            // Diagnosis: mechanically consistent but crosshair placement is off
             if (c.IsConsistent
                 && (c.AccuracyGrade == "average" || c.AccuracyGrade == "developing")
                 && r.Scenario == "Precision")
@@ -914,13 +964,13 @@ namespace CleanAimTracker.Services
                     "In Precision that combination usually means your stopping point is slightly off, not your speed. " +
                     "Focus on committing to center — overshoot slightly until the centering becomes natural."
                 ));
+                FinalizeWeaknessKeys();
                 return list;
             }
 
             switch (c.WeakArea)
             {
                 case "accuracy":
-                    // Check for sensitivity root cause first — most valuable diagnosis
                     if (c.TrackerCmPer360.HasValue && r.Scenario == "Precision")
                     {
                         if (c.TrackerCmPer360.Value < 20)
@@ -955,17 +1005,15 @@ namespace CleanAimTracker.Services
                             break;
                         }
                     }
-                    // Default accuracy coaching when no sensitivity diagnosis applies
                     list.Add(r.Accuracy < 50
                         ? $"At {r.Accuracy:F0}% accuracy you are missing more than half your shots — slow down and prioritize clicking when your cursor is actually on the target."
                         : $"{r.Accuracy:F0}% accuracy has room to grow. You are rushing some clicks — wait for the moment of confidence before clicking.");
                     break;
+
                 case "reaction":
-                    // Rule S-3: suppress ALL reaction coaching for Sniper —
-                    // patience wins sniper fights; slow reaction here is correct behavior.
+                    // Rule S-3: suppress ALL reaction coaching for Sniper
                     if (r.Scenario == "Sniper") break;
 
-                    // Check if slow reaction is actually a movement problem, not a cognitive one
                     if (c.TrackerCorrectionSharpness.HasValue
                         && c.TrackerCorrectionSharpness.Value > 60
                         && c.ReactionGrade == "slow")
@@ -978,50 +1026,39 @@ namespace CleanAimTracker.Services
                     else
                     {
                         string reactionMsg;
-                        if (c.ReactionGrade == "slow")
+                        bool hasGapData = r.BestReactionMs > 0 && r.AvgReactionMs > 0 && r.Hits >= 5;
+                        double reactionGap = hasGapData ? r.AvgReactionMs - r.BestReactionMs : -1;
+
+                        if (hasGapData && reactionGap > 150)
                         {
-                            if (!c.IsFirstSession && c.ReactionDelta < -20)
-                                reactionMsg = $"Your {r.AvgReactionMs:F0}ms reaction is still on the slower side, but you're heading in the right direction. Keep focusing on anticipation over raw speed.";
-                            else
-                                reactionMsg = $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction.";
+                            reactionMsg = Pick(c.SessionCount,
+                                $"Your best reaction was {r.BestReactionMs:F0}ms but your average was {r.AvgReactionMs:F0}ms — a {reactionGap:F0}ms gap. That gap is the real problem, not your ceiling. Your best shots happen when you pre-aim the spawn zone before the target appears. Your slow shots happen when you react after. Spend the first few seconds of each session mapping where targets spawn and park your crosshair there.",
+                                $"{reactionGap:F0}ms between your best ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) reaction. You have the speed — you're just not using it on every click. The fix is crosshair placement before the target appears, not faster reactions after.",
+                                $"Your reaction ceiling is {r.BestReactionMs:F0}ms. Your average is {r.AvgReactionMs:F0}ms. That {reactionGap:F0}ms gap means you're pre-aiming correctly on some clicks and reacting from scratch on others. Make pre-aiming the default, not the exception.",
+                                $"Best reaction {r.BestReactionMs:F0}ms, average {r.AvgReactionMs:F0}ms. The {reactionGap:F0}ms difference is your consistency gap. Close it by defaulting to anticipation — position your crosshair before the target spawns rather than after you see it."
+                            );
+                        }
+                        else if (hasGapData && reactionGap <= 150 && r.AvgReactionMs > Bench.ReactionGood(r.Scenario))
+                        {
+                            reactionMsg = Pick(c.SessionCount,
+                                $"Your reaction is consistently around {r.AvgReactionMs:F0}ms — your best and average are only {reactionGap:F0}ms apart. This is a true ceiling, not inconsistency. Reactive Blink sessions specifically target this — the teleporting target removes tracking and isolates pure reaction speed.",
+                                $"Consistent {r.AvgReactionMs:F0}ms reaction with only {reactionGap:F0}ms variance. You're not inconsistent — you're at your current ceiling. Short dedicated Reactive Blink sessions (15 seconds, full focus) compress this number faster than longer sessions."
+                            );
                         }
                         else
                         {
-                            double gap = r.AvgReactionMs - r.BestReactionMs;
-                            // Only surface the gap observation when it's meaningful and we have real data
-                            if (gap > 15 && r.Hits >= 5 && r.BestReactionMs > 0 && r.AvgReactionMs > 0)
-                            {
-                                string gapAction;
-                                if (gap > 50)
-                                    gapAction = " To close that gap, try this: at the start of your next session, " +
-                                                "take 10 seconds before each target instead of reacting immediately. " +
-                                                "Force yourself to wait, then commit fast. " +
-                                                "That trains the deliberate trigger pull that turns your best reactions into your average ones.";
-                                else if (gap > 20)
-                                    gapAction = " To close it, focus on the first 10 seconds of each drill — " +
-                                                "that's usually where your best reactions happen before fatigue sets in. " +
-                                                "Shorter sessions with full focus beat longer sessions where you drift.";
-                                else
-                                    gapAction = " That gap is small — you're already close to your ceiling. " +
-                                                "One more difficulty step will test whether that holds under pressure.";
-
-                                reactionMsg = $"The gap between your best reaction ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) is {gap:F0}ms — your ceiling is higher than your average suggests.{gapAction}";
-                            }
-                            else
-                            {
-                                reactionMsg = $"Reaction time: {r.AvgReactionMs:F0}ms average, {r.BestReactionMs:F0}ms best. Keep building consistency.";
-                            }
+                            // TASK-0.2: "(bottom X%)" percentile suffix disabled — no population data exists.
+                            reactionMsg = $"Your {r.AvgReactionMs:F0}ms average reaction is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction.";
                         }
 
-                        // Scenario context — slow reaction means different things in different modes
-                        if (r.Scenario == "Adaptive" && c.ReactionGrade == "slow")
-                            reactionMsg += " Note: Adaptive targets your weakest areas specifically — slower reactions here are expected until your overall mechanics improve.";
-                        else if (r.Scenario == "Precision" && c.ReactionGrade == "slow")
-                            reactionMsg += " In Precision, patience matters more than speed — a measured click on a small target beats a fast miss every time.";
+                        if ((r.Scenario == "Flicking" || r.Scenario == "DynamicClicking") && r.AvgReactionMs > 500)
+                            reactionMsg += " For Flicking specifically: slow reaction usually means waiting for the target to fully appear before starting to move. Start your mouse movement the instant you perceive the target — don't wait for it to register consciously.";
 
                         list.Add(reactionMsg);
                     }
+                    usedWeaknessKeys.Add("area_reaction_slow");
                     break;
+
                 case "streak":
                     list.Add($"Your best streak was {r.MaxStreak} — breaking streaks early usually means rushing after a miss or losing focus mid-drill. Take a breath after each miss and reset.");
                     break;
@@ -1033,17 +1070,18 @@ namespace CleanAimTracker.Services
             }
 
             // Smoothness diagnosis — hardware root-cause, higher priority than generic scenario tips.
-            // Runs before scenario tips so it claims a slot first when both conditions fire.
-            if (c.TrackerSmoothness.HasValue
-                && c.TrackerSmoothness.Value < 60
-                && r.Scenario == "Tracking"
-                && r.Accuracy < 65)
-            {
-                list.Add("Your movement was noticeably choppy this session — that level of jitter makes consistent tracking physically harder. " +
-                         "Check your grip, surface friction, and make sure your mousepad is clean and flat.");
-            }
+            // DISABLED pending TASK-1.1 — do not re-enable without validity gate
+            // Built on TrackerSmoothness (unvalidated metric) with grip/surface causal claims.
+            // if (c.TrackerSmoothness.HasValue
+            //     && c.TrackerSmoothness.Value < 60
+            //     && r.Scenario == "Tracking"
+            //     && r.Accuracy < 65)
+            // {
+            //     list.Add("Your movement was noticeably choppy this session — that level of jitter makes consistent tracking physically harder. " +
+            //              "Check your grip, surface friction, and make sure your mousepad is clean and flat.");
+            // }
 
-            // Scenario-specific tips — only add if there is still room; smoothness diagnosis above takes priority.
+            // Scenario-specific tips
             if (list.Count < 2)
             {
                 if (r.Scenario == "Tracking" && r.Accuracy < 65)
@@ -1059,187 +1097,319 @@ namespace CleanAimTracker.Services
             if (list.Count == 0)
                 list.Add($"Your {c.WeakArea} is the area with the most room to grow — even small improvements there will lift your overall score significantly.");
 
-            return list.Take(2).ToList();
+            // Routing guard: positive-indicator phrases belong in Strengths.
+            list.RemoveAll(o => o.Contains("climbing") || o.Contains("transferring") ||
+                                o.Contains("showing up where it counts") || o.Contains("building in drills"));
+
+            FinalizeWeaknessKeys();
+            return list.Take(1).ToList();   // TASK-02: max 1 area to improve
         }
 
         private static List<string> GetAdvice(AimTrainerResult r, CoachContext c, CoachMemory memory)
         {
-            var tips = new List<string>();
+            var candidates = new List<(string key, string text)>();
             bool hasHistory = memory.TotalDrillCount >= 3;
 
+            // ── Prev-session values for IsSignificantlyChanged ────────────────
+            var prevSame = memory.AllDrills
+                .Where(d => d.Scenario == r.Scenario && d.Timestamp != r.Timestamp)
+                .OrderByDescending(d => d.Timestamp)
+                .FirstOrDefault();
+            double prevAccuracy      = prevSame?.Accuracy      ?? r.Accuracy;
+            double prevAvgReactionMs = prevSame?.AvgReactionMs ?? r.AvgReactionMs;
+            bool   hasGapData   = r.BestReactionMs > 0 && r.AvgReactionMs > 0 && r.Hits >= 5;
+            double reactionGap  = hasGapData ? r.AvgReactionMs - r.BestReactionMs : -1;
+            double streakRatio  = r.Hits > 0 ? (double)r.MaxStreak / r.Hits : 0;
+            double prevStreakRatio = prevSame != null && prevSame.Hits > 0
+                ? (double)prevSame.MaxStreak / prevSame.Hits : streakRatio;
+
+            bool IsSignificantlyChanged(string key) => key switch
+            {
+                "high_acc_slow_react"                    => Math.Abs(r.Accuracy - prevAccuracy) > 5,
+                "difficulty_ceiling"                     => false,
+                "streak_dominant" or "streak_consistent" => Math.Abs(streakRatio - prevStreakRatio) > 0.15,
+                _                                        => false
+            };
+
+            // ── Scenario-specific tips ────────────────────────────────────────
             switch (r.Scenario)
             {
-                // ── WEAPON SCENARIO TIPS ──────────────────────────────────────
                 case "Sniper":
-                    if (r.Accuracy < 75)
-                        tips.Add("Sniper accuracy is about removing movement before you click, not clicking faster. " +
-                                 "Slow your mouse to about 30% of your normal speed as you approach the target, let it settle " +
-                                 "completely, then fire. Speed comes from clean technique, not rushing.");
-                    else
-                        tips.Add(Pick(c.SessionCount,
-                            "Sniper fights are won in the pause before the shot. Pre-aim likely positions, slow your approach, then fire.",
-                            "Clean sniper technique: track → slow → stop → shoot. Any motion still in your hand when you click shows up as a miss.",
-                            "You've earned the next difficulty step for Sniper. The targets are the same — the margin for sloppiness is just smaller."
-                        ));
+                    candidates.Add(("scenario_sniper", Pick(c.SessionCount,
+                        "Sniper accuracy is built in the last 20% of mouse movement, not the first 80%. The approach can be fast — the settle must be complete. Two distinct phases: move fast, stop completely, then click.",
+                        "Your best sniper shots will feel like you waited too long. That discomfort of waiting is correct technique. If a click feels rushed it was.",
+                        "On moving Sniper targets: match the speed first, then slow to zero relative motion, then click. You're not clicking the target — you're clicking the moment of stillness."
+                    )));
                     break;
 
                 case "Shotgun":
-                    tips.Add(Pick(c.SessionCount,
+                    candidates.Add(("scenario_shotgun", Pick(c.SessionCount,
                         "Shotgun fights are won before the fight starts — pre-aim where opponents appear, not where they are when you see them.",
-                        "Your crosshair placement before the fight matters more than your reaction during it. Practice pre-positioning at head height.",
+                        $"In Shotgun, crosshair placement before the engagement matters more than your reaction during it. At {r.AvgReactionMs:F0}ms you have the speed — pre-positioning at head height is what converts it.",
                         "One clean shot beats two sloppy ones in shotgun scenarios. Slow down slightly and watch your accuracy improve more than your reaction speed."
-                    ));
+                    )));
                     break;
 
                 case "SmgAr":
-                    tips.Add(Pick(c.SessionCount,
-                        "SMG/AR accuracy is about smooth mouse movement, not clicking speed. If your arm tenses up during the session " +
-                        "you'll lose consistency. Relax your grip and let the mouse float.",
+                    // TASK-0.1: grip/tension variants removed pending smoothness validation.
+                    candidates.Add(("scenario_smgar",
                         "Two targets means you have to prioritize constantly. Train yourself to always be moving toward the next target " +
-                        "before you've finished clicking the current one.",
-                        "Spray control in a real game comes from the same muscle memory you're building here — smooth tracking through movement, not chasing the target after it moves."
+                        "before you've finished clicking the current one."
                     ));
                     break;
 
                 case "Tracking":
-                    tips.Add(r.Accuracy < 65
-                        ? "Lower your sensitivity slightly and focus on smooth movement — Tracking rewards control more than speed."
-                        : "Try increasing the difficulty one level. Tracking at higher speeds builds the smoothest aim muscle memory.");
+                    // TASK-0.1/0.3: grip-tension causal variant and "lower your sensitivity" opinion removed
+                    // (sensitivity is RecommendationEngine's authority per TASK-3.1).
+                    if (r.Accuracy < 65)
+                        candidates.Add(("scenario_tracking",
+                            "Focus on smooth movement — Tracking rewards control more than speed."));
                     break;
+
                 case "Flicking":
-                    tips.Add(r.AvgReactionMs > 400
-                        ? "Don't click as soon as you start moving — wait for your cursor to settle on the target. One confident click beats two rushed misses."
-                        : $"Your reaction is already strong at {r.AvgReactionMs:F0}ms. Focus on reducing your miss rate to convert that speed into real accuracy.");
+                {
+                    string flicTip;
+                    if (r.AvgReactionMs > 500)
+                        flicTip = "For Flicking, reaction time is mostly about where your crosshair starts. From the moment a target spawns you have two choices: move from where you are, or be close already. Being close already wins every time. After each click, don't rest your crosshair — move it toward where the next target is likely to spawn.";
+                    else if (r.Accuracy >= 88)
+                        flicTip = $"At {r.Accuracy:F0}% Flicking accuracy your next limiter is target transition speed — how fast you move between targets not just how accurately you hit them. The gap between your clicks is where time is being lost now, not the clicks themselves.";
+                    else
+                        flicTip = r.AvgReactionMs > 400
+                            ? "In Flicking, don't click as soon as you start moving — wait for your cursor to settle on the target. One confident click beats two rushed misses."
+                            : $"Your reaction is already strong at {r.AvgReactionMs:F0}ms. Focus on reducing your miss rate to convert that speed into real accuracy.";
+                    candidates.Add(("scenario_flicking", flicTip));
                     break;
+                }
+
                 case "Precision":
-                    // TASK-01: sensitivity tip only fires when ALL three conditions are verified:
+                    // Sensitivity tip fires when ALL three conditions are verified:
                     // 1. cm/360 is a real reading (> 0 and not above 200 — guards uninitialized/corrupted values)
                     // 2. cm/360 < 25 — genuinely high sensitivity territory
                     // 3. accuracy is actually being affected (< 75%)
-                    // When conditions are NOT met: contribute nothing here; the variance tip below covers it.
                     if (c.TrackerCmPer360.HasValue
                         && c.TrackerCmPer360.Value > 0
                         && c.TrackerCmPer360.Value < 25
                         && c.TrackerCmPer360.Value <= 200
                         && r.Accuracy < 75)
                     {
-                        tips.Add($"Your sensitivity is on the higher end at {c.TrackerCmPer360.Value:F1} cm/360. " +
-                                 "On small Precision targets that can work against you — micro-corrections get amplified. " +
-                                 "The Recommend screen can show you a target range based on your movement patterns.");
+                        candidates.Add(("scenario_precision",
+                            $"Your sensitivity is on the higher end at {c.TrackerCmPer360.Value:F1} cm/360. " +
+                            "On small Precision targets that can work against you — micro-corrections get amplified. " +
+                            "The Recommend screen can show you a target range based on your movement patterns."));
+                    }
+                    else if (c.TrackerCorrectionSharpness.HasValue && c.TrackerCorrectionSharpness.Value > 25)
+                    {
+                        candidates.Add(("scenario_precision",
+                            "Precision misses on small targets almost always come from micro-corrections after the initial movement. Your crosshair arrives close then drifts. The fix: stop your mouse completely before clicking. Dead stop, then fire. Any movement at the moment of click on a small target is a miss."));
                     }
                     break;
+
                 case "Switching":
-                    tips.Add(r.MaxStreak < 5
-                        ? "Pre-aim the location where the next target will likely appear. In Switching, positioning your mouse early is faster than reacting late."
-                        : "Add the Tracking scenario to your warmup — smooth movement between targets is what separates good Switching players from great ones.");
+                    candidates.Add(("scenario_switching",
+                        r.MaxStreak < 5
+                            ? "Pre-aim the location where the next target will likely appear. In Switching, positioning your mouse early is faster than reacting late."
+                            : "Add the Tracking scenario to your warmup — smooth movement between targets is what separates good Switching players from great ones."
+                    ));
                     break;
+
+                case "Reactive":
+                    if (r.AvgDirectionChangeLagMs > 120)
+                        candidates.Add(("scenario_reactive",
+                            $"Your {r.AvgDirectionChangeLagMs:F0}ms direction change lag means you're watching the target switch directions and then starting to follow. The drill that compresses this fastest: watch the target's deceleration not its position. The moment it slows down it's about to change direction — start moving before it does."));
+                    break;
+
                 default:
                 {
-                    // TASK-26: try telemetry-based observation first (data-specific > generic)
+                    // Try telemetry-based observation first (data-specific > generic)
                     var telemetry = GetTelemetryObservations(r, c, memory);
                     if (telemetry.Count > 0)
                     {
-                        tips.AddRange(telemetry.Take(1));
+                        candidates.AddRange(telemetry.Take(1));
                     }
                     else if (c.AccuracyGrade is "developing" or "average")
                     {
-                        // No telemetry data yet — use scenario-specific grounding instead of pure generic
-                        tips.Add(Pick(c.SessionCount,
+                        candidates.Add(("crosshair_placement", Pick(c.SessionCount,
                             $"At {r.Accuracy:F0}% in {r.Scenario}, prioritise placement over speed. A slow hit scores more than a fast miss.",
                             $"{r.Scenario} accuracy builds fastest when you commit fully to each click — hesitation between decision and execution is what costs you.",
                             $"Your {r.Accuracy:F0}% accuracy in {r.Scenario} has room to grow. Start with slowing the motion to target, then speed it up once the placement is consistent.",
                             $"In {r.Scenario}, the common miss pattern is moving to the target edge rather than center. Focus on committing to center pixel."
-                        ));
+                        )));
                     }
                     else
                     {
-                        // TASK-02: data-driven variance tip using actual scenario history
-                        var scenarioSessions = memory.RecentDrills
+                        var scenarioSessionsD = memory.RecentDrills
                             .Where(d => d.Scenario == r.Scenario)
                             .Take(5)
                             .ToList();
 
-                        if (scenarioSessions.Count >= 3)
+                        if (scenarioSessionsD.Count >= 3)
                         {
-                            double minAcc = scenarioSessions.Min(d => d.Accuracy);
-                            double maxAcc = scenarioSessions.Max(d => d.Accuracy);
-                            double range  = maxAcc - minAcc;
+                            double minAccD = scenarioSessionsD.Min(d => d.Accuracy);
+                            double maxAccD = scenarioSessionsD.Max(d => d.Accuracy);
+                            double rangeD  = maxAccD - minAccD;
 
-                            if (range > 8)
-                                tips.Add($"Your {r.Scenario} scores have ranged from {minAcc:F0}% to {maxAcc:F0}% recently — " +
-                                         $"a {range:F0}-point spread. Closing that gap is the next challenge. " +
-                                         "Consistency at this level is harder than getting here.");
+                            if (rangeD > 8)
+                                candidates.Add(("variance_spread",
+                                    $"Your {r.Scenario} scores have ranged from {minAccD:F0}% to {maxAccD:F0}% recently — " +
+                                    $"a {rangeD:F0}-point spread. Closing that gap is the next challenge. " +
+                                    "Consistency at this level is harder than getting here."));
                             else
-                                tips.Add($"Your {r.Scenario} scores are tightly grouped around {scenarioSessions.Average(d => d.Accuracy):F0}%. " +
-                                         "That consistency is the foundation — now push the ceiling by moving up a difficulty.");
+                                candidates.Add(("variance_spread",
+                                    $"Your {r.Scenario} scores are tightly grouped around {scenarioSessionsD.Average(d => d.Accuracy):F0}%. " +
+                                    "That consistency is the foundation — now push the ceiling by moving up a difficulty."));
                         }
-                        else
+                        else if (r.Scenario != "Adaptive" || memory.SessionsPerScenario.GetValueOrDefault("Adaptive", 0) < 5)
                         {
-                            tips.Add($"Run a few more {r.Scenario} sessions and the coach can give you a specific breakdown of your score range.");
+                            candidates.Add(("variance_spread",
+                                $"Run a few more {r.Scenario} sessions and the coach can give you a specific breakdown of your score range."));
                         }
                     }
                     break;
                 }
             }
 
-            if (c.AccuracyGrade == "elite")
+            // ── Combined accuracy + reaction diagnosis ────────────────────────
+            // High accuracy + slow reaction → over-confirming before clicking
+            if (r.Scenario != "Sniper"
+                && r.Accuracy >= 85
+                && r.AvgReactionMs > Bench.ReactionGood(r.Scenario))
             {
-                // TASK-08: reference actual session count and accuracy from memory
-                if (hasHistory && memory.BaselineAccuracy.TryGetValue(r.Scenario, out double scBase))
+                candidates.Add(("high_acc_slow_react", PickGlobal(memory, 6,
+                    $"At {r.Accuracy:F0}% accuracy your aim is good enough to click earlier than you are. Your {r.AvgReactionMs:F0}ms average suggests you're waiting for full confidence before clicking. At this accuracy level you can trust your first instinct — clicking 0.1 seconds earlier won't drop your accuracy but will close your reaction gap significantly.",
+                    $"{r.Accuracy:F0}% accuracy with {r.AvgReactionMs:F0}ms reaction. You're trading speed for certainty. The trade is worth it while you're building accuracy — but at {r.Accuracy:F0}% you've built it. Start committing earlier. Your aim will hold.",
+                    $"High accuracy and slow reaction together mean you're confirming too long before clicking. {r.Accuracy:F0}% proves your aim is ready. Your reaction will improve when you start trusting it."
+                )));
+            }
+            // Low accuracy + fast reaction → clicking before cursor has settled
+            else if (r.Accuracy < 60
+                     && r.AvgReactionMs <= Bench.ReactionGood(r.Scenario)
+                     && r.Hits >= 5)
+            {
+                candidates.Add(("low_acc_fast_react", PickGlobal(memory, 6,
+                    $"Fast reaction at {r.AvgReactionMs:F0}ms but {r.Accuracy:F0}% accuracy — you're clicking before your crosshair arrives. Speed is there. Aim isn't catching up. Slow your click by one deliberate beat and watch accuracy jump without losing much reaction time.",
+                    $"Your {r.AvgReactionMs:F0}ms reaction is competitive but {r.Accuracy:F0}% accuracy means the clicks are early. You're winning the race to the trigger but losing the shot. One conscious pause before each click will fix this."
+                )));
+            }
+
+            // ── Streak ratio diagnosis ────────────────────────────────────────
+            if (r.Hits >= 10 && r.MaxStreak >= 5)
+            {
+                if (streakRatio > 0.50)
+                {
+                    candidates.Add(("streak_dominant", PickGlobal(memory, 7,
+                        $"Your {r.MaxStreak}-hit streak was {streakRatio * 100:F0}% of your total hits. That means one great period and scattered performance outside it. Zone sessions feel good but don't build the skill as fast as consistent sessions. Next session aim for a lower max streak with fewer cold periods.",
+                        $"{r.MaxStreak} hits in a row out of {r.Hits} total — you peaked early and faded. One dominant streak with inconsistency elsewhere is a focus pattern, not an aim pattern. The mental reset between misses is what to work on."
+                    )));
+                }
+                else if (streakRatio <= 0.35)
+                {
+                    candidates.Add(("streak_consistent", PickGlobal(memory, 7,
+                        $"Your {r.MaxStreak}-hit streak against {r.Hits} total hits shows consistent performance rather than one hot period. That consistency is harder to build than peak accuracy and more valuable in a real game.",
+                        $"Distributed hits with a {r.MaxStreak}-streak max — you stayed consistent throughout rather than peaking and fading. That's the pattern that transfers to ranked play."
+                    )));
+                }
+            }
+
+            // ── Miss pattern observation ──────────────────────────────────────
+            if (r.Accuracy < 75 && r.MaxStreak >= 8)
+            {
+                candidates.Add(("miss_clustered", PickGlobal(memory, 8,
+                    $"You hit {r.MaxStreak} in a row but only landed {r.Accuracy:F0}% overall. Your misses aren't random — they're clustered. When you miss once, you're likely missing the next 2-3 as well. The recovery after a miss is the specific thing to work on. After each miss, pause one beat before the next click.",
+                    $"{r.MaxStreak}-hit streak but {r.Accuracy:F0}% overall means grouped misses not scattered ones. Something breaks your rhythm when you miss — rushing to recover, tensing up, or losing focus. Treat each click as independent of the last one."
+                )));
+            }
+            else if (r.Accuracy < 60 && r.MaxStreak < 5 && r.Hits >= 8)
+            {
+                candidates.Add(("miss_scattered", PickGlobal(memory, 8,
+                    $"At {r.Accuracy:F0}% with a {r.MaxStreak}-hit max streak, misses are scattered throughout rather than clustered. That pattern means the aim mechanics themselves need work rather than mental focus. Drop to Easy and run 3 sessions focusing exclusively on one motion per target — no corrections.",
+                    $"Scattered misses and a low max streak ({r.MaxStreak}) at {r.Accuracy:F0}% accuracy. This is a mechanics problem not a focus problem. Slow everything down — Easy difficulty, deliberate single motion per target until the hit rate stabilizes above 75%."
+                )));
+            }
+
+            // ── Difficulty ceiling / reaction / improving / off-session / else ─
+            if (c.AccuracyGrade == "elite"
+                && r.Difficulty != "Hard" && r.Difficulty != "Nightmare")
+            {
+                double scenarioAvg = memory.BaselineAccuracy.GetValueOrDefault(r.Scenario, 0);
+                string nextDiff = r.Difficulty == "Easy" ? "Medium" : r.Difficulty == "Medium" ? "Hard" : "Nightmare";
+                string ceilingTip;
+
+                if (r.Accuracy >= 88 && scenarioAvg >= 85)
+                {
+                    ceilingTip = Pick(c.SessionCount,
+                        $"Your {r.Scenario} average is {scenarioAvg:F0}% and you just hit {r.Accuracy:F0}%. {r.Difficulty} is no longer exposing your weaknesses. {nextDiff} introduces smaller faster targets — every miss will show you a specific habit {r.Difficulty} is hiding. The accuracy drop will feel bad but each miss is diagnostic in a way {r.Difficulty} hits aren't.",
+                        $"{r.Accuracy:F0}% on {r.Difficulty} with a {scenarioAvg:F0}% average means you've optimized for this difficulty. Moving up won't just challenge you — it will show you micro-correction habits and timing patterns your current accuracy is masking.",
+                        $"At {r.Accuracy:F0}% you're near the {r.Difficulty} ceiling for {r.Scenario}. The next difficulty doesn't just make it harder — it makes your specific weaknesses visible. Targets you currently hit by correcting mid-motion will become misses. That's useful information."
+                    );
+                }
+                else if (hasHistory && memory.BaselineAccuracy.TryGetValue(r.Scenario, out double scBase))
                 {
                     int aboveBaseCount = memory.AllDrills
                         .Where(d => d.Scenario == r.Scenario && d.Accuracy >= Bench.AccuracyElite(r.Scenario))
                         .Count();
-                    tips.Add(PickGlobal(memory, 2,
+                    ceilingTip = PickGlobal(memory, 2,
                         $"You've hit above {Bench.AccuracyElite(r.Scenario):F0}% in {aboveBaseCount} of your {r.Scenario} sessions. {r.Difficulty} is no longer challenging enough — move up.",
-                        $"Your {r.Scenario} average is {scBase:F0}% and you just hit {r.Accuracy:F0}%. {r.Difficulty} difficulty is hiding your ceiling. The next level up will expose the gaps.",
-                        $"{r.Accuracy:F0}% on {r.Difficulty} with a {scBase:F0}% average — {(r.Difficulty == "Easy" ? "Medium" : r.Difficulty == "Medium" ? "Hard" : "Nightmare")} is the next step.",
+                        $"Your {r.Scenario} average is {scBase:F0}% and you just hit {r.Accuracy:F0}%. {nextDiff} difficulty will expose the gaps {r.Difficulty} is hiding.",
+                        $"{r.Accuracy:F0}% on {r.Difficulty} with a {scBase:F0}% average — {nextDiff} is the next step.",
                         $"You've earned the next difficulty. {r.Accuracy:F0}% accuracy on {r.Difficulty} across multiple sessions is a clear signal."
-                    ));
+                    );
                 }
                 else
                 {
-                    tips.Add(Pick(c.SessionCount,
-                        $"Try Hard or Nightmare difficulty — challenging yourself at {r.Accuracy:F0}% accuracy on {r.Difficulty} means you're ready for the next level.",
-                        $"{r.Accuracy:F0}% accuracy on {r.Difficulty} is a strong signal — step up the difficulty and find your real ceiling.",
-                        $"You've outgrown {r.Difficulty} for now. Harder targets will expose gaps that {r.Difficulty} hides.",
-                        $"At {r.Accuracy:F0}% you're coasting on {r.Difficulty}. The growth is in the next difficulty tier — go find it."
-                    ));
+                    ceilingTip = Pick(c.SessionCount,
+                        $"{r.Accuracy:F0}% on {r.Difficulty} — you're ready for {nextDiff}. Harder targets expose the gaps that {r.Difficulty} can't.",
+                        $"You've outgrown {r.Difficulty} at {r.Accuracy:F0}%. Moving to {nextDiff} will tell you exactly what to work on next."
+                    );
                 }
+                candidates.Add(("difficulty_ceiling", ceilingTip));
             }
             else if (c.ReactionGrade == "slow")
-                tips.Add(PickGlobal(memory, 3,
+            {
+                candidates.Add(("reaction_slow", PickGlobal(memory, 3,
                     $"Your reaction time is {r.AvgReactionMs:F0}ms average. Instead of trying to react faster, work on predicting — move your cursor to where the target will be, not where it is.",
                     $"Anticipation beats reaction. At {r.AvgReactionMs:F0}ms you're reacting after the fact. Watch the pattern and pre-aim instead.",
                     $"Your best reaction of {r.BestReactionMs:F0}ms proves the speed is there. The gap to your average ({r.AvgReactionMs:F0}ms) is a focus and anticipation problem, not a physical limit.",
                     $"{r.AvgReactionMs:F0}ms average. Reaction time training works best when you stop trying to be fast. Focus on the target's movement, not on clicking."
-                ));
+                )));
+            }
             else if (c.IsImproving)
-                tips.Add(PickGlobal(memory, 3,
+            {
+                candidates.Add(("improvement_ack", PickGlobal(memory, 3,
                     $"You've improved {Math.Abs(c.AccuracyDelta):F0}% in accuracy this session — keep the same routine. When something is working, don't change it.",
-                    "Improvement is happening — that means the current routine is working. Protect it from disruption.",
-                    "The trend is up. The best thing you can do right now is show up consistently and let the progression continue.",
-                    "Don't overthink it when you're improving. Same routine, same schedule, let the gains compound."
-                ));
-            else if (!c.IsFirstSession && c.AccuracyDelta < -5)
-                tips.Add(PickGlobal(memory, 3,
+                    $"{Math.Abs(c.AccuracyDelta):F0}% improvement this session in {r.Scenario}. The current routine is producing results — protect it from disruption.",
+                    $"Up {Math.Abs(c.AccuracyDelta):F0}% in {r.Scenario} this session. Stay on the same schedule and let the trend continue."
+                )));
+            }
+            else if (!c.IsFirstSession && c.AccuracyDelta < -5
+                     && (memory.AccuracyTrend < -3.0
+                         || r.Accuracy < memory.BaselineAccuracy.GetValueOrDefault(r.Scenario, r.Accuracy + 1) * 0.85))
+            {
+                // Gate: off-session tips only when trend is also negative OR accuracy is
+                // genuinely below baseline. Prevents them firing during an improving trend
+                // where a single dip below last session doesn't indicate a real off session.
+                candidates.Add(("off_session", PickGlobal(memory, 3,
                     "A dip in performance is normal. Check if your sensitivity feels right today — sometimes a slight DPI or sens change explains a sudden dip.",
-                    "Off sessions happen. Before your next session, check: same surface, same grip, same warmup? Small changes compound into big variance.",
+                    $"Off sessions happen. Before your next {r.Scenario} session, check: same mouse surface, same sensitivity, same warmup duration? Even a 5% sensitivity change explains a sudden dip.",
                     "Performance variance is data. If this keeps happening, look at the conditions — time of day, warmup, sleep. Aim reacts to everything.",
                     "One bad session does not define the trend. Come back tomorrow with fresh hands and compare."
-                ));
+                )));
+            }
             else
-                tips.Add("The first drill of a session is always your worst. Accept it, use it as warmup, and save your real performance for the second and third sessions.");
+            {
+                candidates.Add(("session_reset",
+                    $"The first {r.Scenario} session of a day is always your worst. Use it as warmup data, not a performance benchmark — session 2 and 3 are where your real numbers live."));
+            }
 
+            // ── Session count / variance ──────────────────────────────────────
             if (c.SessionCount < 5)
-                tips.Add(Pick(c.SessionCount,
+            {
+                candidates.Add(("progress_early", Pick(c.SessionCount,
                     "Track 3 sessions per week consistently. At 10 sessions in the same scenario you'll start seeing clear trend lines in your history.",
-                    "The first 10 sessions in a scenario are baseline building. Don't judge the trend until you have 10 data points.",
-                    "You need about 10 sessions before the trend line becomes meaningful. Keep logging."
-                ));
+                    $"Log 10 {r.Scenario} sessions and the coach can show you your real accuracy range — until then, single-session results are just noise."
+                )));
+            }
             else if (c.IsConsistent)
             {
-                // TASK-02: variance tip — shows min/max spread across recent scenario sessions
                 var scenarioSessions = memory.RecentDrills
                     .Where(d => d.Scenario == r.Scenario)
                     .Take(5)
@@ -1253,31 +1423,69 @@ namespace CleanAimTracker.Services
                     double avg    = scenarioSessions.Average(d => d.Accuracy);
 
                     if (range > 8)
-                    {
-                        tips.Add($"Your {r.Scenario} scores have ranged from {minAcc:F0}% to {maxAcc:F0}% recently — " +
-                                 $"a {range:F0}-point spread. Closing that gap is the next challenge. " +
-                                 "Consistency at this level is harder than getting here.");
-                    }
+                        candidates.Add(("variance_spread",
+                            $"Your {r.Scenario} scores have ranged from {minAcc:F0}% to {maxAcc:F0}% recently — " +
+                            $"a {range:F0}-point spread. Closing that gap is the next challenge. " +
+                            "Consistency at this level is harder than getting here."));
                     else
-                    {
-                        tips.Add($"Your {r.Scenario} scores are tightly grouped around {avg:F0}%. " +
-                                 "That consistency is the foundation — now push the ceiling by moving up a difficulty.");
-                    }
+                        candidates.Add(("variance_spread",
+                            $"Your {r.Scenario} scores are tightly grouped around {avg:F0}%. " +
+                            "That consistency is the foundation — now push the ceiling by moving up a difficulty."));
                 }
-                else
+                else if (r.Scenario != "Adaptive" || memory.SessionsPerScenario.GetValueOrDefault("Adaptive", 0) < 5)
                 {
-                    tips.Add($"Run a few more {r.Scenario} sessions and the coach can give you a specific variance breakdown.");
+                    candidates.Add(("variance_spread",
+                        $"Run a few more {r.Scenario} sessions and the coach can give you a specific variance breakdown."));
                 }
             }
-            else
-                tips.Add(Pick(c.SessionCount,
-                    "Aim training works best alongside your actual game time, not instead of it. 10 minutes of drills before a game session produces better results than long standalone sessions.",
-                    "Short sessions immediately before you play are more effective than long standalone sessions. Keep it tight and purposeful.",
-                    "The transfer from training to game is strongest when drilling and playing happen close together. Train, then play.",
-                    "10 focused minutes beats 30 distracted minutes. Keep sessions short enough to maintain full attention."
-                ));
+            // TASK-03: removed generic "3 focused sessions per week" tip
 
-            return tips;
+            // ── Priority function ─────────────────────────────────────────────
+            static int TipPriority(string key) => key switch
+            {
+                "high_acc_slow_react" or "low_acc_fast_react"                                 => 1,
+                "streak_dominant" or "streak_consistent"                                     => 2,
+                "difficulty_ceiling"                                                          => 3,
+                "path_efficiency" or "overshoot" or "undershoot" or "direction_lag" or
+                "axis_split" or "peek_early" or "peek_late"                                  => 4,
+                "scenario_flicking" or "scenario_tracking" or "scenario_reactive" or
+                "scenario_precision" or "scenario_sniper" or "scenario_shotgun" or
+                "scenario_smgar" or "scenario_switching"                                     => 5,
+                "improvement_ack"                                                             => 6,
+                _                                                                             => 7
+            };
+
+            // ── TASK-03: Filter, sort, take top 2 (Tip 2 only if forward-looking) ──
+            var recentKeys = memory.RecentTipKeys;
+            var sortedCandidates = candidates
+                .Where(t => !recentKeys.Contains(t.key) || IsSignificantlyChanged(t.key))
+                .OrderBy(t => TipPriority(t.key))
+                .ToList();
+
+            var selected = new List<(string key, string text)>();
+            if (sortedCandidates.Count > 0)
+                selected.Add(sortedCandidates[0]);
+
+            // Tip 2: only forward-looking keys — difficulty ceiling or streak pattern.
+            // Generic fallbacks (reaction_slow, off_session, variance_spread, etc.) are omitted.
+            if (sortedCandidates.Count > 1)
+            {
+                var tip2 = sortedCandidates.Skip(1).FirstOrDefault(t =>
+                    t.key is "difficulty_ceiling" or "streak_dominant" or "streak_consistent"
+                          or "high_acc_slow_react" or "low_acc_fast_react"
+                          or "path_efficiency" or "overshoot" or "undershoot"
+                          or "direction_lag" or "axis_split");
+                if (tip2 != default)
+                    selected.Add(tip2);
+            }
+
+            // ── Update memory ─────────────────────────────────────────────────
+            var newKeys = selected.Select(t => t.key).ToList();
+            memory.RecentTipKeys.InsertRange(0, newKeys);
+            while (memory.RecentTipKeys.Count > 20)
+                memory.RecentTipKeys.RemoveAt(memory.RecentTipKeys.Count - 1);
+
+            return selected.Select(t => t.text).ToList();
         }
 
         private static string GetNextDrill(AimTrainerResult r, CoachContext c)
@@ -1308,20 +1516,25 @@ namespace CleanAimTracker.Services
         // All guards use a 0-check because these fields are 0 when TASK-28 hasn't fired yet.
         // The ordering of checks is priority order: Path → Overshoot → Undershoot →
         //   DirectionLag → AxisSplit → PeekTiming → ImprovementAck.
-        private static List<string> GetTelemetryObservations(
+        private static List<(string key, string text)> GetTelemetryObservations(
             AimTrainerResult r, CoachContext c, CoachMemory memory)
         {
-            var obs = new List<string>();
+            var obs = new List<(string key, string text)>();
             int idx  = c.SessionCount;   // rotation index per scenario session count
 
             // ── 1. PATH EFFICIENCY ────────────────────────────────────
             // Clicking pillar only (>= 5 hits) — low path efficiency (< 0.80) means
             // wobbly/indirect routes; tracking/peek scenarios have different movement intent.
+            // Path efficiency coaching only applies to pure clicking scenarios where
+            // route-to-target is the primary mechanic. Excluded: Reactive (reaction speed
+            // is the metric there, not routing), tracking, peek, and weapon scenarios.
+            // Falls back to scenario-name check for old sessions where Pillar is empty.
             if (r.PathEfficiency > 0 && r.PathEfficiency < 0.80
-                && r.Pillar == "Clicking" && r.Hits >= 5)
+                && r.Scenario is "StaticClicking" or "DynamicClicking" or "Precision" or "Sniper"
+                && r.Hits >= 5)
             {
                 double pct = r.PathEfficiency * 100;
-                obs.Add(Pick(idx,
+                obs.Add(("path_efficiency", Pick(idx,
                     $"Path efficiency is {pct:F0}% — your mouse is travelling further than the straight-line distance to each target. " +
                     "That extra distance is dead movement that costs time. Focus on driving directly to the center rather than approaching from the side.",
                     $"Your routing efficiency is {pct:F0}%. Every wasted curve adds 30–80ms to your effective reaction time. " +
@@ -1330,7 +1543,7 @@ namespace CleanAimTracker.Services
                     "Practice 5-second explosive move-and-click drills: move once, click, stop. No corrections.",
                     $"{pct:F0}% path efficiency means roughly {(100 - pct):F0}% of your mouse movement is wasted. " +
                     "Straighter paths start with a slower, deliberate first movement that goes exactly where you intend — then speed that up."
-                ));
+                )));
                 return obs;
             }
 
@@ -1338,7 +1551,7 @@ namespace CleanAimTracker.Services
             // High overshoot = consistent overreaching (> 35%)
             if (r.OvershootPct > 35)
             {
-                obs.Add(Pick(idx,
+                obs.Add(("overshoot", Pick(idx,
                     $"You're overshooting {r.OvershootPct:F0}% of clicks — your hand is committing more force than the target requires. " +
                     "Reduce your swing amplitude slightly and let the cursor settle rather than correcting after overshoot.",
                     $"Overshoot rate: {r.OvershootPct:F0}%. That's the most common sign that sensitivity is slightly too high for this scenario. " +
@@ -1347,7 +1560,7 @@ namespace CleanAimTracker.Services
                     "Mentally aim for a point 20% before the target center — your natural momentum will carry you to center.",
                     $"High overshoot at {r.OvershootPct:F0}% indicates your stopping mechanics need work more than your speed. " +
                     "Practice stopping exercises: move to a target, stop completely, then move to the next. Train the deceleration phase."
-                ));
+                )));
                 return obs;
             }
 
@@ -1355,7 +1568,7 @@ namespace CleanAimTracker.Services
             // High undershoot = consistently falling short (> 35%)
             if (r.UndershootPct > 35)
             {
-                obs.Add(Pick(idx,
+                obs.Add(("undershoot", Pick(idx,
                     $"You're undershooting {r.UndershootPct:F0}% of clicks — you're stopping short of the target rather than committing through it. " +
                     "Aim for a point slightly past target center; natural deceleration will land you on it.",
                     $"Undershoot rate: {r.UndershootPct:F0}%. This often means sensitivity is slightly too low or you're hesitating at the end of each movement. " +
@@ -1364,7 +1577,7 @@ namespace CleanAimTracker.Services
                     "Extend your follow-through and the accuracy will improve.",
                     $"High undershoot at {r.UndershootPct:F0}% is a confidence pattern — you're not fully committing to the destination. " +
                     "In your next session, practice movements that intentionally go 10% past the target, then work backwards to center."
-                ));
+                )));
                 return obs;
             }
 
@@ -1372,7 +1585,7 @@ namespace CleanAimTracker.Services
             // High lag between target direction change and player response (> 120ms)
             if (r.AvgDirectionChangeLagMs > 120)
             {
-                obs.Add(Pick(idx,
+                obs.Add(("direction_lag", Pick(idx,
                     $"You're lagging {r.AvgDirectionChangeLagMs:F0}ms behind direction changes on average. " +
                     "That gap means you're reacting to changes rather than anticipating them. " +
                     "Study the bounce/reversal pattern for 2 seconds at the start of each drill before committing to it.",
@@ -1383,7 +1596,7 @@ namespace CleanAimTracker.Services
                     "Use the pattern's rhythm: if a target reverses every ~0.8s, start your counter-movement at 0.7s.",
                     $"Direction lag at {r.AvgDirectionChangeLagMs:F0}ms. The players who close this gap aren't reacting faster — they're reading the pattern. " +
                     "In your next session, spend the first 5 seconds observing without clicking to learn the reversal timing."
-                ));
+                )));
                 return obs;
             }
 
@@ -1400,7 +1613,7 @@ namespace CleanAimTracker.Services
                     double weakScore  = Math.Min(horizAcc, vertAcc);
                     double strongScore = Math.Max(horizAcc, vertAcc);
 
-                    obs.Add(Pick(idx,
+                    obs.Add(("axis_split", Pick(idx,
                         $"You're {strongScore:F0}% accurate on the strong axis but only {weakScore:F0}% on {weakAxis} tracking — a {axisDelta:F0}-point split. " +
                         $"That gap usually means your wrist mechanics are weaker for {weakAxis} movement. " +
                         "Drill that axis specifically: use an Air Tracking Diagonal variant to isolate it.",
@@ -1412,7 +1625,7 @@ namespace CleanAimTracker.Services
                         "Add one Air Tracking session focused exclusively on that axis to your weekly routine.",
                         $"Your tracking splits {strongScore:F0}% vs {weakScore:F0}% across axes — the {weakAxis} side is limiting your ceiling. " +
                         "Axis imbalances rarely resolve on their own. Isolate it with horizontal-only or vertical-only drills for 2 sessions."
-                    ));
+                    )));
                     return obs;
                 }
             }
@@ -1423,7 +1636,7 @@ namespace CleanAimTracker.Services
             {
                 if (r.PeekEarlyClickPct > 30)
                 {
-                    obs.Add(Pick(idx,
+                    obs.Add(("peek_early", Pick(idx,
                         $"You're clicking early {r.PeekEarlyClickPct:F0}% of the time — firing before the target is fully exposed. " +
                         "In real games that means whiffing on a peeking enemy. Wait for center-mass, then fire.",
                         $"{r.PeekEarlyClickPct:F0}% early clicks means you're anticipating the peek instead of reacting to it. " +
@@ -1432,12 +1645,12 @@ namespace CleanAimTracker.Services
                         "Hold your shot until the center of the target is visible, even if it feels late.",
                         $"High early-click rate at {r.PeekEarlyClickPct:F0}%. That pattern means you're guessing the peek timing rather than reading it. " +
                         "In WideSwing and Jiggle variants, the peak exposure time is consistent — learn the window and fire inside it, not before."
-                    ));
+                    )));
                     return obs;
                 }
                 if (r.PeekLateClickPct > 30)
                 {
-                    obs.Add(Pick(idx,
+                    obs.Add(("peek_late", Pick(idx,
                         $"You're clicking late {r.PeekLateClickPct:F0}% of the time — firing after the target has already started retreating. " +
                         "In game that's shooting at where they were, not where they are. Tighten your window: commit when you first see center-mass.",
                         $"{r.PeekLateClickPct:F0}% late clicks means hesitation is costing you. You're seeing the target but waiting too long to pull the trigger. " +
@@ -1446,7 +1659,7 @@ namespace CleanAimTracker.Services
                         "Work on the decision trigger: the moment you see chest/head, fire. Don't wait for 'perfect alignment.'",
                         $"High late-click rate at {r.PeekLateClickPct:F0}% indicates an over-cautious trigger. " +
                         "Trust the first moment of exposure more. Aim to halve your decision-to-fire time over the next 3 sessions."
-                    ));
+                    )));
                     return obs;
                 }
             }
@@ -1463,7 +1676,9 @@ namespace CleanAimTracker.Services
                 return v switch {
                     0 => "Personal records don't happen by accident — you earned this one.",
                     1 => "That's a new benchmark. Now you know what you're capable of.",
-                    2 => "Records are proof the work is paying off. Keep showing up.",
+                    2 => c.NewAccuracyRecord
+                             ? $"New accuracy record at {r.Accuracy:F0}% — that number belongs to you now."
+                             : $"New reaction record at {r.AvgReactionMs:F0}ms — that's your new ceiling to beat.",
                     _ => "New personal best. That number is yours to beat now."
                 };
 
@@ -1472,15 +1687,14 @@ namespace CleanAimTracker.Services
                     0 => $"Session {c.SessionCount} in the books — the trend is real and it's pointing up.",
                     1 => $"{c.SessionCount} sessions logged and the improvement is measurable. Stay consistent.",
                     2 => "The improvement is measurable and it's real. Trust the process.",
-                    _ => $"Upward trend confirmed across {c.SessionCount} sessions. Don't break the streak."
+                    _ => $"Upward trend confirmed across {c.SessionCount} sessions. The data says keep doing what you're doing."
                 };
 
+            // TASK-0.2: population-claim variants ("most players", "top tier", "vast majority") removed.
             if (c.AccuracyGrade == "elite")
                 return v switch {
-                    0 => "You're performing at a level most players never reach. Keep showing up.",
-                    1 => "Elite accuracy isn't luck — it's reps. You're putting them in.",
-                    2 => "Top tier performance. The gap between you and average players is widening.",
-                    _ => "That accuracy puts you ahead of the vast majority. Maintain it."
+                    0 => "Elite accuracy isn't luck — it's reps. You're putting them in.",
+                    _ => "Elite accuracy isn't luck — it's reps. You're putting them in."
                 };
 
             if (c.IsFirstSession)
@@ -1517,7 +1731,7 @@ namespace CleanAimTracker.Services
 
             return v switch {
                 0 => "Every drill is a deposit in the bank. It adds up faster than you think.",
-                1 => "Showing up consistently is the actual skill. You're building it.",
+                1 => $"{r.Accuracy:F0}% this session. Every rep at this level is building the pattern that shows up when it counts.",
                 2 => "Progress in aim training is slow and then suddenly obvious. Keep going.",
                 _ => "The session is logged. That's one more data point working in your favor."
             };

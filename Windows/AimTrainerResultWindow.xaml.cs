@@ -48,9 +48,11 @@ namespace CleanAimTracker.Windows
             {
                 // EvaluateAchievements and ShowXp both call SettingsService.Save().
                 // Run them sequentially to prevent the last writer overwriting the other's changes.
+                // EvaluateAchievements is wrapped so an exception there never blocks ShowXpAsync —
+                // if achievements fail, XP must still display (XAML default is "+0 XP").
                 _ = Task.Run(async () =>
                 {
-                    await EvaluateAchievementsAsync(result);
+                    try { await EvaluateAchievementsAsync(result); } catch { /* non-critical */ }
                     await ShowXpAsync(result);
                 });
                 _ = LoadPersonalBestsAsync(result);
@@ -636,6 +638,15 @@ namespace CleanAimTracker.Windows
                 }
 
                 var report = await Task.Run(() => AiCoachService.Analyze(result, memory));
+
+                // Save tip rotation keys so next session's coach knows what was shown
+                try
+                {
+                    var s = SettingsService.Load();
+                    s.RecentTipKeys = memory.RecentTipKeys;
+                    SettingsService.Save(s);
+                }
+                catch { /* non-critical */ }
 
                 // TASK-13: Save prescription for follow-up next session
                 bool showFull = TrialService.IsFullVersion() || _isFullSession;

@@ -414,7 +414,8 @@
                                 </ItemsControl>
                                 </StackPanel>
 
-                                <!-- Strengths -->
+                                <!-- Strengths — TASK-2.2: wrapped so an empty list collapses its header -->
+                                <StackPanel x:Name="StrengthsSection">
                                 <TextBlock Text="✅  STRENGTHS"
                                            Foreground="{DynamicResource AccentGreen}"
                                            FontSize="11" FontWeight="Bold"
@@ -429,6 +430,7 @@
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
+                                </StackPanel>
 
                                 <!-- Advice -->
                                 <StackPanel x:Name="AdviceSection">

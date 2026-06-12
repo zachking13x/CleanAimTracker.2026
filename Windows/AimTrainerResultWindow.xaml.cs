@@ -644,10 +644,12 @@ namespace CleanAimTracker.Windows
                 var settings = await Task.Run(() => SettingsService.Load());
                 var memory   = await Task.Run(() => CoachMemoryBuilder.Build(result, settings));
 
-                if (FreeCoachSessionService.ShouldTriggerFreeSession(settings, memory))
+                // TASK-0.3: the flag is consumed AFTER the full report renders
+                // with content — never before (a blank report must not burn the
+                // one-time preview).
+                bool freeSessionPending = FreeCoachSessionService.ShouldTriggerFreeSession(settings, memory);
+                if (freeSessionPending)
                 {
-                    // Mark used immediately — before window renders — so it can't show twice
-                    FreeCoachSessionService.MarkFreeSessionUsed(settings);
                     _isFullSession = true;
                     Dispatcher.Invoke(() =>
                     {
@@ -691,6 +693,20 @@ namespace CleanAimTracker.Windows
                 }
 
                 PopulateCoaching(report, showFull);
+
+                // TASK-0.3: consume the one-time preview only now that a report
+                // with an actual coach body has rendered.
+                bool reportHasBody = report.Strengths.Count > 0
+                                  || report.Weaknesses.Count > 0
+                                  || report.Advice.Count > 0;
+                if (freeSessionPending && reportHasBody)
+                    FreeCoachSessionService.MarkFreeSessionUsed(settings);
+                else if (freeSessionPending)
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (FreeSessionBanner != null)
+                            FreeSessionBanner.Visibility = Visibility.Collapsed;
+                    });
             }
             catch (Exception ex)
             {
@@ -741,9 +757,13 @@ namespace CleanAimTracker.Windows
             WeaknessesList.ItemsSource = report.Weaknesses;
             AdviceList.ItemsSource     = report.Advice;
 
-            WeaknessesSection.Visibility     = showFull ? Visibility.Visible : Visibility.Collapsed;
-            AdviceSection.Visibility         = showFull ? Visibility.Visible : Visibility.Collapsed;
-            NextDrillSection.Visibility      = showFull ? Visibility.Visible : Visibility.Collapsed;
+            // TASK-2.2: a section with zero surviving observations renders no
+            // header — an orphan header reads as a rendering bug.
+            StrengthsSection.Visibility      = report.Strengths.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            WeaknessesSection.Visibility     = showFull && report.Weaknesses.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            AdviceSection.Visibility         = showFull && report.Advice.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            NextDrillSection.Visibility      = showFull && !string.IsNullOrEmpty(report.NextDrillSuggestion)
+                                                   ? Visibility.Visible : Visibility.Collapsed;
             CoachingLockedOverlay.Visibility = showFull ? Visibility.Collapsed : Visibility.Visible;
 
             if (showFull)

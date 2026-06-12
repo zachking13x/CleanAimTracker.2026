@@ -41,11 +41,14 @@ namespace CleanAimTracker.Services
                 state.PracticeDrillRun = true;
 
             // ── Compare only in matching scenario context with a valid metric ──
+            // SmoothnessScore is tracker-owned: drill results always read it as 0,
+            // which would fake a "flat" loop — TrackerCoachService owns that loop.
+            bool metricReadableHere = state.VerifyMetric != "SmoothnessScore";
             bool contextMatches = result.Scenario == state.ScenarioContext
                                || result.Scenario == state.PracticeScenario;
             bool metricValid = prescription.RequiredMetrics.All(isMetricValid);
 
-            if (contextMatches && metricValid)
+            if (contextMatches && metricValid && metricReadableHere)
             {
                 double oldV = state.BaselineValue;
                 double newV = TechniquePrescriptionLibrary.ReadVerifyMetric(state.VerifyMetric, result);
@@ -81,6 +84,8 @@ namespace CleanAimTracker.Services
                     string easier = StepDifficultyDown(state.PracticeDifficulty);
                     state.PracticeDifficulty = easier;
 
+                    // VOICE TASK-1.3: escalation speaks evidence → cause →
+                    // adjusted instruction, with both numbers displayed.
                     return new CoachObservation
                     {
                         FactKey      = "prescription_followup",
@@ -91,8 +96,9 @@ namespace CleanAimTracker.Services
                         RequiresBehaviorChange = true,
                         RequiredMetrics = prescription.RequiredMetrics.ToList(),
                         Message = $"{MetricLabel(state.VerifyMetric)} hasn't moved in {state.SessionsSince} sessions " +
-                                  $"({oldV:F0} → {newV:F0}) — let's change the approach. Same focus, easier rep: " +
-                                  $"{state.PracticeScenario} · {state.PracticeVariant} at {easier}. {prescription.Instruction}"
+                                  $"({oldV:F0} → {newV:F0}) — odds are {prescription.CauseClause}. " +
+                                  $"Let's change the approach: same focus, easier rep. {prescription.Instruction} " +
+                                  $"({state.PracticeScenario} · {state.PracticeVariant} at {easier}.)"
                     };
                 }
             }

@@ -354,22 +354,29 @@ namespace CleanAimTracker.Services
             // the area slot (severity 70 beats generic weakness areas at 60); its
             // PracticeDrill takes the drill slot (severity 20 beats rx_next_drill
             // at 10) so the area and the suggested drill always agree.
+            var rxCtx = new PrescriptionContext(r, memory, m => DrillMetricValid(r, m));
             var technique = followUp != null
                 ? null
-                : TechniquePrescriptionSelector.Select(
-                    new PrescriptionContext(r, memory, m => DrillMetricValid(r, m)));
+                : TechniquePrescriptionSelector.Select(rxCtx);
             if (technique != null)
             {
+                // VOICE TASK-1.1: the area renders the full four-beat template
+                // (evidence → cause → instruction → stake) with live numbers.
+                // movement_efficiency shares the path_efficiency aspect with the
+                // legacy telemetry tip — same FactKey so only one can ever render.
+                string areaFactKey = technique.Prescription.PrescriptionKey == "movement_efficiency"
+                    ? "path_efficiency"
+                    : technique.Prescription.PrescriptionKey;
                 candidates.Add(new CoachObservation
                 {
-                    FactKey      = technique.Prescription.PrescriptionKey,
+                    FactKey      = areaFactKey,
                     SourceEngine = nameof(TechniquePrescriptionLibrary),
                     Section      = CoachSection.Area,
                     Polarity     = ObservationPolarity.Concern,
                     Severity     = 70,
                     RequiresBehaviorChange = true,
                     RequiredMetrics = technique.Prescription.RequiredMetrics.ToList(),
-                    Message      = technique.Prescription.Instruction
+                    Message      = technique.Prescription.ComposeMessage(rxCtx)
                 });
                 candidates.Add(new CoachObservation
                 {
@@ -431,7 +438,9 @@ namespace CleanAimTracker.Services
             // TASK-2.1: open the verification loop only if the prescription
             // actually rendered (the composer is the arbiter, not the selector).
             if (technique != null
-                && composed.SurvivingFactKeys.Contains(technique.Prescription.PrescriptionKey))
+                && (composed.SurvivingFactKeys.Contains(technique.Prescription.PrescriptionKey)
+                    || (technique.Prescription.PrescriptionKey == "movement_efficiency"
+                        && composed.SurvivingFactKeys.Contains("path_efficiency"))))
             {
                 // Baseline = the verify metric's value right now. Smoothness is a
                 // tracker metric — read it from the latest valid tracker session.
@@ -1319,20 +1328,10 @@ namespace CleanAimTracker.Services
                     list.Add(("scenario_habit", "In Switching, scan for the next target while clicking the current one — don't wait until after you've clicked to look for what's next."));
             }
 
-            if (list.Count == 0)
-            {
-                // TASK-0.3: the raw WeakArea key printed "reaction" for scenarios
-                // that measure time per target — translate to honest display names.
-                string weakLabel = c.WeakArea switch
-                {
-                    "reaction"  => ReactionMetric.IsTrueReaction(r.Scenario) ? "reaction" : "pace",
-                    "accuracy"  => "accuracy",
-                    "streak"    => "streak consistency",
-                    "endurance" => "late-session focus",
-                    _           => c.WeakArea
-                };
-                list.Add(("weak_area_generic", $"Your {weakLabel} is the area with the most room to grow — even small improvements there will lift your overall score significantly."));
-            }
+            // VOICE TASK-2.1: NO filler fallback. "Your X has the most room to
+            // grow — small improvements lift your score" is the generic-trainer
+            // sentence the spec bans. If no concrete, numbered concern survives,
+            // the area slot collapses — absent is honest, filler is noise.
 
             // TASK-2.2: persistence moved to GenerateReport — only keys that
             // SURVIVE composition are recorded for rotation. (The old "routing

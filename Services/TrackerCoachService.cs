@@ -201,6 +201,90 @@ namespace CleanAimTracker.Services
                 Message = "Tracking Standard — Medium — keep the rhythm you showed this session"
             });
 
+            // ── VOICE TASK-2.3: the session coach consumes the technique library
+            // through the same selector. The context carries a synthetic empty
+            // drill result, so only tracker-metric signatures (grip) can fire —
+            // drill-metric prescriptions see invalid metrics and stay silent.
+            var rxCtx = new PrescriptionContext(
+                new AimTrainerResult { Scenario = "Tracker" },
+                memory ?? new CoachMemory(),
+                session.IsMetricValid);
+
+            // Verification loop for tracker-issued prescriptions (smoothness).
+            CoachObservation? trackerFollowUp = null;
+            var rxState = memory?.ActivePrescription;
+            if (rxState != null && rxState.VerifyMetric == "SmoothnessScore"
+                && session.IsMetricValid("SmoothnessScore"))
+            {
+                rxState.SessionsSince++;
+                double oldV = rxState.BaselineValue;
+                double newV = session.SmoothnessScore;
+
+                if (newV > oldV * (1 + PrescriptionFollowUpService.ImprovementFactor))
+                {
+                    memory!.ActivePrescription = null;   // loop closed
+                    trackerFollowUp = new CoachObservation
+                    {
+                        FactKey = "prescription_followup",
+                        SourceEngine = nameof(TrackerCoachService),
+                        Section = CoachSection.Strength,
+                        Polarity = ObservationPolarity.Strength,
+                        Severity = 60,
+                        Message = $"Last session you worked on your grip pressure. " +
+                                  $"Smoothness went {oldV:F0} → {newV:F0}. It's working — keep the change."
+                    };
+                }
+                else if (rxState.SessionsSince >= PrescriptionFollowUpService.FlatSessionsBeforeEscalation
+                         && !rxState.Escalated)
+                {
+                    rxState.Escalated = true;
+                    trackerFollowUp = new CoachObservation
+                    {
+                        FactKey = "prescription_followup",
+                        SourceEngine = nameof(TrackerCoachService),
+                        Section = CoachSection.Area,
+                        Polarity = ObservationPolarity.Concern,
+                        Severity = 75,
+                        RequiresBehaviorChange = true,
+                        Message = $"Smoothness hasn't moved in {rxState.SessionsSince} sessions " +
+                                  $"({oldV:F0} → {newV:F0}) — odds are you're still gripping too tight. " +
+                                  "Let's change the approach: shorter reps, full attention on the grip. " +
+                                  $"{rxState.PracticeScenario} · {rxState.PracticeVariant} at {rxState.PracticeDifficulty}, 60 seconds at a time."
+                    };
+                }
+            }
+            if (trackerFollowUp != null)
+                candidates.Add(trackerFollowUp);
+
+            var selectedRx = trackerFollowUp == null
+                ? TechniquePrescriptionSelector.Select(rxCtx)
+                : null;
+            if (selectedRx != null)
+            {
+                candidates.Add(new CoachObservation
+                {
+                    FactKey = selectedRx.Prescription.PrescriptionKey,
+                    SourceEngine = nameof(TechniquePrescriptionLibrary),
+                    Section = CoachSection.Area,
+                    Polarity = ObservationPolarity.Concern,
+                    Severity = 70,
+                    RequiresBehaviorChange = true,
+                    RequiredMetrics = selectedRx.Prescription.RequiredMetrics.ToList(),
+                    Message = selectedRx.Prescription.ComposeMessage(rxCtx)
+                });
+                candidates.Add(new CoachObservation
+                {
+                    FactKey = "rx_technique",
+                    SourceEngine = nameof(TechniquePrescriptionLibrary),
+                    Section = CoachSection.Prescription,
+                    Polarity = ObservationPolarity.Concern,
+                    Severity = 20,
+                    PrescriptionType = PrescriptionType.Remedial,
+                    RequiredMetrics = selectedRx.Prescription.RequiredMetrics.ToList(),
+                    Message = selectedRx.Drill.ToString()
+                });
+            }
+
             // ── Compose — the only path to user-facing text ────────────────────
             // TASK-3.4: the headline delta comes from the single TrendReport, so
             // it is exact arithmetic over the same baseline every surface shows.
@@ -214,6 +298,17 @@ namespace CleanAimTracker.Services
                     BaselineDelta: trend.VsRecentBaselineDelta,
                     IsShortSession: isShortSession,
                     IsLowActivity: session.IsLowActivitySession));
+
+            // VOICE TASK-2.3: open the loop only if the prescription rendered.
+            if (selectedRx != null && memory != null
+                && composed.SurvivingFactKeys.Contains(selectedRx.Prescription.PrescriptionKey))
+            {
+                double baseline = selectedRx.Prescription.VerifyMetric == "SmoothnessScore"
+                    ? session.SmoothnessScore
+                    : 0;
+                TechniquePrescriptionSelector.RecordPrescribed(memory, selectedRx, baseline);
+                memory.ActivePrescription!.ScenarioContext = "Tracker";
+            }
 
             // ── TASK-06: persist rotation keys for what actually rendered ──────
             if (memory != null && composed.SurvivingFactKeys.Count > 0)

@@ -82,9 +82,11 @@ namespace CleanAimTracker.Windows
                 RecommendedCm360WarningText.Text = "";
             }
 
-            // Confidence
-            ConfidenceText.Text =
-                $"Confidence: {_rec.Confidence}%";
+            // Confidence — TASK-0.2: a junk session has no confidence to report;
+            // showing its computed % would imply the junk moved the needle.
+            ConfidenceText.Text = _s.IsLowActivitySession
+                ? "Confidence: — (not enough movement this session)"
+                : $"Confidence: {_rec.Confidence}%";
 
             // Explanation
             ExplanationText.Text = _rec.Explanation;
@@ -182,11 +184,25 @@ namespace CleanAimTracker.Windows
             try
             {
                 var history = SessionStorage.LoadAll();
-                // Exclude current session (it was just saved before this window opened)
+                // TASK-0.2: low-activity sessions never enter PB or progress —
+                // they scored nothing, so they compare as nothing.
                 var previous = history
-                    .Where(h => h.Timestamp < _s.Timestamp)
+                    .Where(h => h.Timestamp < _s.Timestamp && !h.IsLowActivitySession)
                     .OrderByDescending(h => h.Timestamp)
                     .ToList();
+
+                // TASK-0.2: an unscored current session makes no progress claims.
+                bool currentScored = !_s.IsLowActivitySession;
+
+                if (!currentScored)
+                {
+                    QualityCompareText.Text  = "Quality: — (not enough movement to score this session)";
+                    VelocityCompareText.Text = "";
+                    BaselineText.Text        = previous.Count > 0
+                        ? $"{previous.Count} scored sessions on record — this one doesn't count against them."
+                        : "";
+                    return;
+                }
 
                 if (previous.Count == 0)
                 {
@@ -210,12 +226,11 @@ namespace CleanAimTracker.Windows
 
                 QualityCompareText.Text = $"Quality:  {_s.OverallQualityScore:F0}  ({qualityDeltaStr})  •  PB: {pbQuality:F0}";
 
-                // TASK-27: Surface the personal best moment.
-                // Margin must be ≥ 1 displayed point — "beats your previous best
-                // by 0 pts" is a rounding tie, not a record.
-                double margin = _s.OverallQualityScore - pbQuality;
-                if (margin >= 1.0)
+                // TASK-0.4: PB requires STRICTLY greater (≥ 1 displayed point) —
+                // "beats your previous best by 0 pts" is a tie, not a record.
+                if (MetricValidation.IsNewPersonalBest(_s.OverallQualityScore, pbQuality))
                 {
+                    double margin = _s.OverallQualityScore - pbQuality;
                     PersonalBestBanner.Visibility = Visibility.Visible;
                     PersonalBestScoreText.Text =
                         $"Quality {_s.OverallQualityScore:F0}/100 — beats your previous best " +
@@ -228,7 +243,7 @@ namespace CleanAimTracker.Windows
                 string velDeltaStr = velDelta >= 0 ? $"+{velDelta:F1}" : $"{velDelta:F1}";
                 VelocityCompareText.Text = $"Avg Speed:  {_s.AverageVelocity:F1} cm/s  ({velDeltaStr} vs last)";
 
-                // Since first session
+                // Since first session — scored sessions only.
                 var first = previous.LastOrDefault();
                 if (first != null && previous.Count >= 3)
                 {
@@ -305,15 +320,32 @@ namespace CleanAimTracker.Windows
                 var memory        = CoachMemoryBuilder.Build(null, settings);
                 int trackerCount  = SessionStorage.LoadAll()?.Count ?? 0;
 
-                // Free tracker session check
-                if (FreeCoachSessionService.ShouldTriggerFreeTrackerSession(settings, trackerCount))
+                // TASK-0.3: free tracker preview — consume only AFTER the report
+                // composes with content. The June 12 burn: a junk session at the
+                // trigger spent the preview on an empty report.
+                bool freeTrackerPending =
+                    FreeCoachSessionService.ShouldTriggerFreeTrackerSession(settings, trackerCount);
+
+                var report = TrackerCoachService.Analyze(_s, history, memory);
+
+                bool reportHasBody = report.Observations.Count > 0 || report.Suggestions.Count > 0;
+                if (freeTrackerPending && reportHasBody)
                 {
                     FreeCoachSessionService.MarkFreeTrackerSessionUsed(settings);
                     if (FreeTrackerSessionBanner != null)
                         FreeTrackerSessionBanner.Visibility = Visibility.Visible;
                 }
 
-                var report = TrackerCoachService.Analyze(_s, history, memory);
+                // VOICE TASK-2.3: persist the technique-prescription loop state the
+                // session coach may have opened, advanced, or closed.
+                try
+                {
+                    var fresh = SettingsService.Load();
+                    fresh.ActiveTechniquePrescription = memory.ActivePrescription;
+                    fresh.PrescriptionCooldowns = memory.PrescriptionCooldowns;
+                    SettingsService.Save(fresh);
+                }
+                catch { /* non-critical */ }
 
                 CoachHeadlineText.Text             = report.Headline;
                 CoachObservationsList.ItemsSource  = report.Observations;

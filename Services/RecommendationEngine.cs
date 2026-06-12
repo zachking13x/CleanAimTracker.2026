@@ -168,7 +168,11 @@ namespace CleanAimTracker.Services
             // a pro coach does not prescribe major changes from bad data.
             // ══════════════════════════════════════════════════════
 
-            rec.IsActionable = rec.Confidence >= ActionableConfidenceFloor;
+            // TASK-0.2: a low-activity session carries no settings signal — it can
+            // neither raise nor lower the recommendation's standing (observed:
+            // confidence 95% → 77% after a 0.9cm junk session).
+            rec.IsActionable = rec.Confidence >= ActionableConfidenceFloor
+                && !s.IsLowActivitySession;
 
             if (!rec.IsActionable)
             {

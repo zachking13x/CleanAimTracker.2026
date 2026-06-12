@@ -447,9 +447,15 @@ namespace CleanAimTracker.Windows
             if (double.TryParse(SensitivityInput.Text, out double sens)) _sensitivity = sens;
             LogService.Info($"Session start — DPI:{_dpi} Sens:{_sensitivity}");
 
+            // TASK-0.1: EVERY per-session buffer resets at session start. Only
+            // _totalDistance was reset here before — smoothness sums, flick
+            // counts, peak velocity, idle accounting all accumulated across
+            // sessions within one app run, so a 22s near-zero-movement session
+            // rendered the PREVIOUS session's diagnostics and scored a PB on them.
+            ResetSessionMetrics();
+
             _isTracking = true;
             _sessionStart = DateTime.Now;
-            _totalDistance = 0;
 
             TotalDistanceText.Text = "0";
             DxDyText.Text = "dX: 0  dY: 0";
@@ -660,29 +666,7 @@ namespace CleanAimTracker.Windows
             _timer.Stop();
             RecordingPanel.Visibility = Visibility.Collapsed;
 
-            _totalDistance = 0;
-            _peakVelocity = 0;
-            _averageVelocity = 0;
-            _currentVelocity = 0;
-            _movementEvents = 0;
-            _sessionSeconds = 0;
-            _flickCount = 0;
-            _smallFlicks = 0;
-            _largeFlicks = 0;
-            _jitterAmount = 0;
-            _movementDensity = 0;
-            _idleTime = 0;
-            _idleBurstCount = 0;
-            _lastAngle = 0;
-            _previousAngle = 0;       // TASK-1.1: was missing — first event of a new session compared against the previous session's last angle
-            _angleStability = 0;
-            _angleChangeTotal = 0;
-            _movementConsistency = 0;
-            _smoothnessScore = 0;
-            _smoothnessSum = 0;       // TASK-1.1
-            _smoothnessSamples = 0;   // TASK-1.1
-            _correctionSharpness = 0;
-            _overallQualityScore = 0;
+            ResetSessionMetrics();
 
             LastDeltaText.Text = "Last Delta: 0, 0";
             DxDyText.Text = "dX: 0  dY: 0";
@@ -693,6 +677,50 @@ namespace CleanAimTracker.Windows
             VelocityVerdictText.Text   = "";
             QualityVerdictText.Text    = "";
             SmoothnessVerdictText.Text = "";
+        }
+
+        /// <summary>
+        /// TASK-0.1: the single complete per-session reset — called at session
+        /// START (StartButton_Click) and on manual reset. Every field that feeds
+        /// BuildSessionSummary lives here; a field missing from this list is a
+        /// cross-session data leak.
+        /// </summary>
+        private void ResetSessionMetrics()
+        {
+            _totalDistance   = 0;
+            _peakVelocity    = 0;
+            _averageVelocity = 0;
+            _currentVelocity = 0;
+            _previousVelocity = 0;
+
+            _movementEvents          = 0;
+            _lastMovementCount       = 0;
+            _movementCountThisSecond = 0;
+            _sessionSeconds          = 0;
+
+            _flickCount  = 0;
+            _smallFlicks = 0;
+            _largeFlicks = 0;
+
+            _jitterAmount    = 0;
+            _movementDensity = 0;
+
+            _idleTime        = 0;
+            _idleTimeSeconds = 0;   // the accumulator BuildSessionSummary reads — was never reset anywhere
+            _idleBurstCount  = 0;
+            _wasIdle         = false;
+
+            _lastAngle        = 0;
+            _previousAngle    = 0;  // first event of a new session must not compare against the previous session's last angle
+            _angleStability   = 0;
+            _angleChangeTotal = 0;
+
+            _movementConsistency = 0;
+            _smoothnessScore     = 0;
+            _smoothnessSum       = 0;
+            _smoothnessSamples   = 0;
+            _correctionSharpness = 0;
+            _overallQualityScore = 0;
         }
 
         // OVERLAY
@@ -1223,7 +1251,7 @@ namespace CleanAimTracker.Windows
             var qualityValidity     = MetricValidation.ForOverallQuality(
                 smoothValidity, consistencyValidity, correctionValidity);
 
-            return new SessionSummary
+            var summary = new SessionSummary
             {
                 MetricValidities = new Dictionary<string, MetricValidity>
                 {
@@ -1257,6 +1285,11 @@ namespace CleanAimTracker.Windows
                     : 0,
                 TotalSamples    = _movementEvents
             };
+
+            // TASK-0.2: low-activity sessions score nothing — invalidate the
+            // movement metrics so Quality/PB/Progress/trends all skip them.
+            MetricValidation.ApplyLowActivityGate(summary);
+            return summary;
         }
 
         // TASK-1.1: logs smoothness internals per session and returns the final score.

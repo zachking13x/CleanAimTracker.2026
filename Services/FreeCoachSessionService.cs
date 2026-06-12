@@ -13,7 +13,10 @@ namespace CleanAimTracker.Services
 
         /// <summary>
         /// Returns true when the user has earned their one-time free full coaching
-        /// report. Fires exactly at the trigger session, never again.
+        /// report. TASK-0.3: fires at the FIRST session at-or-after the trigger
+        /// count (the old exact-count match meant a suppressed/blank trigger
+        /// session burned the moment forever — the count moved past it). The flag
+        /// is consumed only AFTER a full report actually renders.
         /// </summary>
         public static bool ShouldTriggerFreeSession(UserSettings settings, CoachMemory memory)
         {
@@ -23,13 +26,13 @@ namespace CleanAimTracker.Services
                 ? settings.FreeFullSessionTrigger
                 : 5;  // default guard
 
-            // Fires at exactly the trigger count — TotalDrillCount includes the current session
-            return memory.TotalDrillCount == trigger;
+            return memory.TotalDrillCount >= trigger;
         }
 
         /// <summary>
-        /// Marks the free session as used immediately. Must be called when the
-        /// window loads — not when it closes — to prevent showing it twice.
+        /// Marks the free session as used. TASK-0.3: call only AFTER the full
+        /// preview report has actually rendered with content — a consumed flag on
+        /// a blank report spends the best conversion moment on nothing.
         /// Loads fresh settings before saving to avoid overwriting concurrent
         /// XP saves that may have run on a parallel async path.
         /// </summary>
@@ -55,23 +58,24 @@ namespace CleanAimTracker.Services
                 ? settings.FreeFullSessionTrigger
                 : 5;
 
-            return memory.TotalDrillCount == trigger;
+            return memory.TotalDrillCount >= trigger;
         }
 
         // ── Tracker coach free full session ───────────────────────────
 
         /// <summary>
         /// Returns true when the user has earned their one-time free full tracker
-        /// coaching report. Fires exactly at tracker session 3.
+        /// coaching report. TASK-0.3: at-or-after tracker session 3, until consumed.
         /// </summary>
         public static bool ShouldTriggerFreeTrackerSession(UserSettings settings, int trackerSessionCount)
         {
             if (settings.HasUsedFreeFullTrackerSession) return false;
-            return trackerSessionCount == 3;
+            return trackerSessionCount >= 3;
         }
 
         /// <summary>
-        /// Marks the free tracker session as used. Must be called immediately on window load.
+        /// Marks the free tracker session as used. TASK-0.3: call only AFTER a
+        /// full report with content has rendered — never on a suppressed report.
         /// </summary>
         public static void MarkFreeTrackerSessionUsed(UserSettings settings)
         {

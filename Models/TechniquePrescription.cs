@@ -45,12 +45,28 @@ namespace CleanAimTracker.Models
         /// <summary>
         /// The physical/technique change — imperative and specific (what to do
         /// with hand/arm/eyes/crosshair), never a read of the user's body state.
+        /// The bare imperative core; the full four-beat render is ComposeMessage.
         /// </summary>
         public string Instruction { get; init; } = "";
 
         /// <summary>Short noun phrase for follow-ups: "Last session you worked on
         /// [InstructionShort]" — e.g. "your grip pressure".</summary>
         public string InstructionShort { get; init; } = "";
+
+        /// <summary>
+        /// VOICE TASK-1.2: the second-person mechanical cause, present tense —
+        /// "you're still gripping too tight". A mechanical behavior the data can
+        /// see, never a body state it cannot. Used by the escalation follow-up.
+        /// </summary>
+        public string CauseClause { get; init; } = "";
+
+        /// <summary>
+        /// VOICE TASK-1.1: renders the full four-beat prescription —
+        /// EVIDENCE (live session numbers) → CAUSE (second-person mechanical) →
+        /// INSTRUCTION (imperative) → STAKE (the verify metric, named).
+        /// Every cited number obeys the displayed-arithmetic rule.
+        /// </summary>
+        public Func<PrescriptionContext, string> ComposeMessage { get; init; } = _ => "";
 
         /// <summary>Practice drill, computed from context (some prescriptions use
         /// the current scenario/difficulty or a difficulty step-up).</summary>

@@ -44,6 +44,31 @@ namespace CleanAimTracker.Services
         }
 
         /// <summary>
+        /// TASK-0.2: a low-activity session scores NOTHING. The low-activity gate
+        /// previously suppressed coach prose but Quality/PB/Progress consumed the
+        /// values anyway. Invalidating the movement metrics binds every
+        /// downstream consumer (display "—", PB, progress deltas, trends).
+        /// </summary>
+        public static void ApplyLowActivityGate(SessionSummary s)
+        {
+            if (!s.IsLowActivitySession) return;
+            foreach (var metric in new[]
+                     { "SmoothnessScore", "MovementConsistency",
+                       "CorrectionSharpness", "OverallQualityScore" })
+            {
+                s.MetricValidities[metric] =
+                    MetricValidity.Invalid(MetricInvalidReason.InsufficientSamples, s.TotalSamples);
+            }
+        }
+
+        /// <summary>
+        /// TASK-0.4: a personal best requires STRICTLY greater — by at least one
+        /// displayed point, so "beats your best by 0 pts" can never render.
+        /// </summary>
+        public static bool IsNewPersonalBest(double current, double previousBest)
+            => current - previousBest >= 1.0;
+
+        /// <summary>
         /// Overall quality is a weighted blend of smoothness, consistency, and
         /// correction sharpness — it is only as valid as its inputs.
         /// </summary>

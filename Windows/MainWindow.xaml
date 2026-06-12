@@ -686,7 +686,7 @@
                                            FontSize="10"
                                            Foreground="{DynamicResource MutedText}"
                                            Margin="0,-8,0,8"
-                                           ToolTip="Centimeters of physical desk movement for one full 360° turn. Most players prefer 20–50 cm/360."/>
+                                           ToolTip="Centimeters of physical desk movement for one full 360° turn. Common range: 20–50 cm/360."/>
                             </StackPanel>
 
                             <StackPanel Grid.Column="1">

@@ -1,19 +1,19 @@
 <Window x:Class="CleanAimTracker.Windows.OnboardingCalibrationWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="CleanAimTracker — Setup"
-        Width="520" Height="420"
+        Title="Clean Aim Tracker — Calibration"
+        Width="780" Height="600"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="{DynamicResource AppBackground}"
         ShowInTaskbar="True">
+    <!-- TASK-4.1: opaque window — AllowsTransparency removed and the background
+         keys verified against DarkTheme.xaml (the old window referenced
+         PanelBackground/HeaderBackground, which don't exist → desktop wallpaper
+         bled through behind the body text). -->
 
-    <Border Background="{DynamicResource PanelBackground}"
-            BorderBrush="{DynamicResource AccentBrush}"
-            BorderThickness="1"
-            CornerRadius="10">
+    <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1">
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -22,192 +22,182 @@
             </Grid.RowDefinitions>
 
             <!-- Title bar -->
-            <Grid Grid.Row="0" Background="{DynamicResource HeaderBackground}"
+            <Grid Grid.Row="0" Background="{DynamicResource CardBackground}"
                   MouseLeftButtonDown="TitleBar_MouseDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="CLEAN AIM TRACKER — FIRST RUN SETUP"
-                           FontSize="11" FontWeight="Bold"
-                           Foreground="{DynamicResource MutedText}"
-                           VerticalAlignment="Center"
-                           Margin="16,10"/>
+                <StackPanel Orientation="Horizontal" Margin="18,12">
+                    <TextBlock Text="CLEAN AIM TRACKER" FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Text="  ·  CALIBRATION" FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource MutedText}"/>
+                </StackPanel>
                 <Button Grid.Column="1" Content="✕"
-                        x:Name="CloseBtn"
                         Click="Skip_Click"
                         Background="Transparent"
                         Foreground="{DynamicResource MutedText}"
                         BorderThickness="0"
                         FontSize="14"
-                        Margin="0,0,12,0"
+                        Padding="10,4"
+                        Margin="0,0,8,0"
                         Cursor="Hand"/>
             </Grid>
 
-            <!-- Page content -->
-            <Grid Grid.Row="1" Margin="32,24,32,0">
+            <!-- ═══════════ Content states ═══════════ -->
+            <Grid Grid.Row="1" Margin="36,28,36,0">
 
-                <!-- PAGE 0: Welcome -->
-                <StackPanel x:Name="PageWelcome" Visibility="Visible">
-                    <TextBlock Text="Welcome to CleanAimTracker"
-                               FontSize="22" FontWeight="Bold"
+                <!-- STATE 0: Welcome -->
+                <StackPanel x:Name="PageWelcome" Visibility="Visible" MaxWidth="560">
+                    <TextBlock Text="Find out exactly what's holding your aim back."
+                               FontSize="26" FontWeight="Bold"
                                Foreground="{DynamicResource PrimaryText}"
-                               Margin="0,0,0,12"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
+                               TextWrapping="Wrap"
+                               Margin="0,16,0,16"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="14" LineHeight="22"
                                Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20"
-                               Margin="0,0,0,16">
-                        CleanAimTracker measures your real mouse mechanics — smoothness, consistency, flick patterns — and connects them to your in-game performance.
+                               Margin="0,0,0,14">
+                        Clean Aim Tracker measures your real mouse mechanics and tells you what's wrong and what to fix — directly, with numbers.
                     </TextBlock>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
-                               Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20">
-                        The coach learns from your sessions over time. The more you play, the more specific and useful the feedback becomes.
+                    <TextBlock TextWrapping="Wrap" FontSize="14" LineHeight="22"
+                               Foreground="{DynamicResource SecondaryText}">
+                        It starts with a 5-minute calibration: four short tests, one per aim skill. When they're done, the coach shows you your baseline, your weakest skill, and the one drill to run first.
                     </TextBlock>
                 </StackPanel>
 
-                <!-- PAGE 1: CalibrationBrief -->
-                <StackPanel x:Name="PageCalibrationBrief" Visibility="Collapsed">
-                    <TextBlock Text="Baseline calibration"
-                               FontSize="22" FontWeight="Bold"
+                <!-- STATE 1: Brief -->
+                <StackPanel x:Name="PageBrief" Visibility="Collapsed" MaxWidth="560">
+                    <TextBlock Text="Four tests. 30 seconds each."
+                               FontSize="24" FontWeight="Bold"
                                Foreground="{DynamicResource PrimaryText}"
-                               Margin="0,0,0,12"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
-                               Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20"
-                               Margin="0,0,0,16">
-                        We'll run three short aim trainer sessions to establish your starting baseline. This gives the coach real data to compare against your future sessions.
-                    </TextBlock>
-                    <Border Background="{DynamicResource CardBackground}"
-                            CornerRadius="6" Padding="14,10" Margin="0,0,0,16">
-                        <StackPanel>
-                            <TextBlock Text="What gets measured:" FontSize="11" FontWeight="Bold"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="  •  Accuracy and reaction time per scenario" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}" Margin="0,0,0,4"/>
-                            <TextBlock Text="  •  Correction patterns and movement quality" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}" Margin="0,0,0,4"/>
-                            <TextBlock Text="  •  Your natural sensitivity range" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock Text="Takes about 5 minutes total."
-                               FontSize="12" FontStyle="Italic"
-                               Foreground="{DynamicResource MutedText}"/>
-                </StackPanel>
-
-                <!-- PAGE 2: CalibrationRunning -->
-                <StackPanel x:Name="PageCalibrationRunning" Visibility="Collapsed">
-                    <TextBlock Text="Ready to calibrate"
-                               FontSize="22" FontWeight="Bold"
-                               Foreground="{DynamicResource PrimaryText}"
-                               Margin="0,0,0,12"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
-                               Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20"
-                               Margin="0,0,0,20">
-                        The aim trainer will open. Run three sessions at whatever scenario feels natural — Tracking or Flicking are good starting points.
-                    </TextBlock>
-                    <Border Background="#0A00D4FF" CornerRadius="6" Padding="14,10" Margin="0,0,0,16">
-                        <TextBlock TextWrapping="Wrap" FontSize="13"
-                                   Foreground="{DynamicResource PrimaryText}"
-                                   LineHeight="20">
-                            The coach won't give feedback yet — it needs a few sessions before it has enough data to say something useful.
-                        </TextBlock>
-                    </Border>
-                    <TextBlock TextWrapping="Wrap" FontSize="12"
+                               Margin="0,8,0,16"/>
+                    <StackPanel x:Name="BriefTestList"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12" FontStyle="Italic"
                                Foreground="{DynamicResource MutedText}"
-                               LineHeight="18">
-                        Click "Start Calibration" below to close this window and open the aim trainer. Come back after 3 sessions.
+                               Margin="0,14,0,0">
+                        Don't warm up, don't try to game it — the coach needs your honest baseline to coach you properly.
                     </TextBlock>
                 </StackPanel>
 
-                <!-- PAGE 3: FirstInsight -->
-                <StackPanel x:Name="PageFirstInsight" Visibility="Collapsed">
-                    <TextBlock Text="Calibration complete"
-                               FontSize="22" FontWeight="Bold"
-                               Foreground="{DynamicResource AccentGreen}"
-                               Margin="0,0,0,12"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
-                               Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20"
-                               Margin="0,0,0,16">
-                        You now have a baseline. The coach will compare every future session against these numbers and flag real changes — not noise.
-                    </TextBlock>
-                    <Border Background="{DynamicResource CardBackground}"
-                            CornerRadius="6" Padding="14,10">
+                <!-- STATE 2: Calibration running -->
+                <Grid x:Name="PageCalibration" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="What happens next:" FontSize="11" FontWeight="Bold"
-                                       Foreground="{DynamicResource AccentBrush}"
-                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="  •  Each session gets a quality score and trend line" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}" Margin="0,0,0,4"/>
-                            <TextBlock Text="  •  The coach identifies one thing to improve per session" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}" Margin="0,0,0,4"/>
-                            <TextBlock Text="  •  Percentile rankings unlock after 5 sessions" FontSize="12"
-                                       Foreground="{DynamicResource SecondaryText}"/>
+                            <TextBlock x:Name="TestLabel" Text="Test 1/4"
+                                       FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryText}"/>
+                            <TextBlock x:Name="TestDesc" Text=""
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,2,0,0"/>
                         </StackPanel>
+                        <TextBlock Grid.Column="1" x:Name="TimerText" Text="0:30"
+                                   FontSize="26" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                            BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
+                            CornerRadius="8" ClipToBounds="True">
+                        <Canvas x:Name="TestCanvas" Background="#070F14"
+                                MouseDown="TestCanvas_MouseDown"
+                                Cursor="Cross"/>
                     </Border>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                        <TextBlock Text="HITS " FontSize="11" Foreground="{DynamicResource MutedText}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LiveHitsText" Text="0" FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentGreen}" Margin="0,0,18,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="ACCURACY " FontSize="11" Foreground="{DynamicResource MutedText}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LiveAccText" Text="--" FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}" Margin="0,0,18,0" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LiveReactLabel" Text="PACE " FontSize="11" Foreground="{DynamicResource MutedText}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="LiveReactText" Text="--" FontSize="13" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryText}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- STATE 3: First Insight -->
+                <StackPanel x:Name="PageInsight" Visibility="Collapsed" MaxWidth="560">
+                    <TextBlock Text="Your baseline."
+                               FontSize="24" FontWeight="Bold"
+                               Foreground="{DynamicResource PrimaryText}"
+                               Margin="0,4,0,14"/>
+                    <StackPanel x:Name="InsightScoreList" Margin="0,0,0,12"/>
+                    <Border Background="{DynamicResource AccentSubtle}"
+                            BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+                            CornerRadius="8" Padding="14,12" Margin="0,0,0,12">
+                        <TextBlock x:Name="InsightSentence" TextWrapping="Wrap"
+                                   FontSize="13" LineHeight="20"
+                                   Foreground="{DynamicResource PrimaryText}"/>
+                    </Border>
+                    <Button x:Name="FreeReportBtn"
+                            Content="📋  See my full coaching report (free)"
+                            Click="FreeReport_Click"
+                            Background="Transparent"
+                            Foreground="{DynamicResource AccentBrush}"
+                            BorderBrush="{DynamicResource AccentBrush}"
+                            BorderThickness="1"
+                            Padding="12,8"
+                            HorizontalAlignment="Left"
+                            Cursor="Hand"/>
                 </StackPanel>
 
-                <!-- PAGE 4: FirstDrill -->
-                <StackPanel x:Name="PageFirstDrill" Visibility="Collapsed">
-                    <TextBlock Text="Your first drill"
-                               FontSize="22" FontWeight="Bold"
+                <!-- STATE 4: First Drill -->
+                <StackPanel x:Name="PageFirstDrill" Visibility="Collapsed" MaxWidth="560">
+                    <TextBlock Text="Your first drill."
+                               FontSize="24" FontWeight="Bold"
                                Foreground="{DynamicResource PrimaryText}"
-                               Margin="0,0,0,12"/>
-                    <TextBlock TextWrapping="Wrap" FontSize="13"
+                               Margin="0,8,0,14"/>
+                    <TextBlock x:Name="FirstDrillReason" TextWrapping="Wrap"
+                               FontSize="14" LineHeight="22"
                                Foreground="{DynamicResource SecondaryText}"
-                               LineHeight="20"
-                               Margin="0,0,0,20">
-                        Start with Tracking — Medium. It's the best baseline scenario for measuring movement quality and builds a consistent foundation for all other scenarios.
-                    </TextBlock>
-                    <Border Background="#0A4CAF50" CornerRadius="6" Padding="14,10" Margin="0,0,0,16">
+                               Margin="0,0,0,16"/>
+                    <Border Background="{DynamicResource CardBgGreen}"
+                            BorderBrush="{DynamicResource AccentGreen}" BorderThickness="1"
+                            CornerRadius="8" Padding="16,14">
                         <StackPanel>
-                            <TextBlock Text="SUGGESTED STARTING DRILL" FontSize="10" FontWeight="Bold"
+                            <TextBlock Text="PRESCRIBED DRILL" FontSize="10" FontWeight="Bold"
                                        Foreground="{DynamicResource AccentGreen}"
                                        Margin="0,0,0,6"/>
-                            <TextBlock Text="Tracking — Medium" FontSize="15" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource PrimaryText}"
-                                       Margin="0,0,0,4"/>
-                            <TextBlock Text="Focus on smooth, deliberate movement. Accuracy over speed."
+                            <TextBlock x:Name="FirstDrillName" Text=""
+                                       FontSize="17" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryText}"/>
+                            <TextBlock x:Name="FirstDrillCue" Text=""
                                        FontSize="12" FontStyle="Italic"
-                                       Foreground="{DynamicResource MutedText}"/>
+                                       Foreground="{DynamicResource MutedText}"
+                                       Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="You can always change scenarios — this is just where the data says to start."
-                               FontSize="12"
-                               Foreground="{DynamicResource MutedText}"
-                               TextWrapping="Wrap"/>
                 </StackPanel>
-
             </Grid>
 
-            <!-- Navigation footer -->
-            <Grid Grid.Row="2" Margin="32,16,32,24">
+            <!-- ═══════════ Footer ═══════════ -->
+            <Grid Grid.Row="2" Margin="36,16,36,24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Page indicator dots -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="Dot0" Width="7" Height="7" Margin="0,0,5,0"
-                             Fill="{DynamicResource AccentBrush}"/>
-                    <Ellipse x:Name="Dot1" Width="7" Height="7" Margin="0,0,5,0"
-                             Fill="{DynamicResource MutedText}"/>
-                    <Ellipse x:Name="Dot2" Width="7" Height="7" Margin="0,0,5,0"
-                             Fill="{DynamicResource MutedText}"/>
-                    <Ellipse x:Name="Dot3" Width="7" Height="7" Margin="0,0,5,0"
-                             Fill="{DynamicResource MutedText}"/>
-                    <Ellipse x:Name="Dot4" Width="7" Height="7"
-                             Fill="{DynamicResource MutedText}"/>
-                </StackPanel>
+                <TextBlock x:Name="StepIndicator" Text=""
+                           FontSize="11"
+                           Foreground="{DynamicResource MutedText}"
+                           VerticalAlignment="Center"/>
 
-                <!-- Skip link (hidden on last pages) -->
                 <Button Grid.Column="1" x:Name="SkipBtn"
                         Content="Skip setup"
                         Click="Skip_Click"
@@ -218,14 +208,16 @@
                         Cursor="Hand"
                         VerticalAlignment="Center"/>
 
-                <!-- Primary action button -->
-                <Button Grid.Column="3" x:Name="NextBtn"
-                        Content="Get started"
-                        Click="Next_Click"
-                        Style="{StaticResource GlowButton}"
-                        Width="130"
-                        Foreground="{DynamicResource AccentBrush}"
-                        FontWeight="Bold"/>
+                <Button Grid.Column="3" x:Name="PrimaryBtn"
+                        Content="Start calibration"
+                        Click="Primary_Click"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="#07090C"
+                        FontWeight="Bold"
+                        FontSize="13"
+                        BorderThickness="0"
+                        Padding="20,10"
+                        Cursor="Hand"/>
             </Grid>
         </Grid>
     </Border>

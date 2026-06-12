@@ -12,6 +12,9 @@ namespace CleanAimTracker.Models
         public List<AimTrainerResult> RecentDrills { get; set; } = new();  // last 10, newest first
         public List<AimTrainerResult> AllDrills    { get; set; } = new();  // full history, newest first
         public int TotalDrillCount                 { get; set; } = 0;
+        /// <summary>Drills excluding calibration/assessment sessions — the count
+        /// the user thinks of as "my sessions" (used in user-facing counts).</summary>
+        public int RealDrillCount                  { get; set; } = 0;
 
         // ── Per-scenario baselines (calculated from history excluding current) ──
         public Dictionary<string, double> BaselineAccuracy    { get; set; } = new();
@@ -75,5 +78,13 @@ namespace CleanAimTracker.Models
         /// <summary>Keys of recently shown tips (newest first, max 20 entries).
         /// Loaded from UserSettings before each coaching call; updated after tips are selected.</summary>
         public List<string> RecentTipKeys { get; set; } = new();
+
+        // ── TASK-2.1/2.2: technique prescription loop ─────────────────────────
+        /// <summary>The open prescription loop, or null. Mutated during Analyze;
+        /// the caller persists it back to UserSettings after the report.</summary>
+        public PrescriptionState? ActivePrescription { get; set; } = null;
+
+        /// <summary>PrescriptionKey → TotalDrillCount when last prescribed.</summary>
+        public Dictionary<string, int> PrescriptionCooldowns { get; set; } = new();
     }
 }

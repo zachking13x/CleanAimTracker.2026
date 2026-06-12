@@ -26,13 +26,24 @@
                     Background="{DynamicResource CardBackground}"
                     CornerRadius="14 14 0 0"
                     Padding="24 18">
+                <!-- TASK-4.3: headline and score live in SEPARATE grid columns —
+                     a 2-line headline can no longer flow underneath the score.
+                     TASK-0.2: NO ellipsis on the verdict line — the headline
+                     wraps to two FULL lines; templates carry a ≤110-char budget
+                     so two lines always fit at default size. -->
                 <Grid>
-                    <StackPanel>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0" Margin="0 0 16 0">
                         <TextBlock x:Name="HeadlineText"
                                    Text="Drill Complete"
                                    FontSize="20" FontWeight="Bold"
                                    Foreground="{DynamicResource PrimaryText}"
-                                   TextWrapping="Wrap"/>
+                                   TextWrapping="Wrap"
+                                   LineHeight="26"/>
                         <StackPanel Orientation="Horizontal" Margin="0 6 0 0">
                             <Border x:Name="RatingBadge"
                                     Background="#1A00D4FF"
@@ -52,7 +63,7 @@
                     </StackPanel>
 
                     <!-- Score -->
-                    <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="SCORE"
                                    Foreground="{DynamicResource MutedText}"
                                    FontSize="10" FontWeight="SemiBold"
@@ -96,7 +107,9 @@
                         <Border Grid.Column="1" Background="{DynamicResource CardBackground}"
                                 CornerRadius="8" Padding="12 10" Margin="0 0 8 0">
                             <StackPanel>
-                                <TextBlock Text="AVG REACTION" Foreground="{DynamicResource MutedText}"
+                                <!-- TASK-0.3: label set from code — "AVG REACTION" only for
+                                     stimulus-anchored scenarios, else "AVG TIME/TARGET". -->
+                                <TextBlock x:Name="AvgReactionLabel" Text="AVG REACTION" Foreground="{DynamicResource MutedText}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="AvgReactionText" Text="--"
                                            FontSize="22" FontWeight="Bold"
@@ -108,7 +121,7 @@
                         <Border Grid.Column="2" Background="{DynamicResource CardBackground}"
                                 CornerRadius="8" Padding="12 10" Margin="0 0 8 0">
                             <StackPanel>
-                                <TextBlock Text="BEST REACTION" Foreground="{DynamicResource MutedText}"
+                                <TextBlock x:Name="BestReactionLabel" Text="BEST REACTION" Foreground="{DynamicResource MutedText}"
                                            FontSize="9" FontWeight="SemiBold"/>
                                 <TextBlock x:Name="BestReactionText" Text="--"
                                            FontSize="22" FontWeight="Bold"

@@ -229,34 +229,36 @@
                 </StackPanel>
             </Border>
 
-            <!-- Advanced Diagnostics -->
+            <!-- TASK-4.4: raw engine diagnostics live behind a collapsed
+                 Advanced expander. The Weighted Diagnostic re-homes here per
+                 TASK-1.4 (it is the RecommendationEngine's sensitivity-fit
+                 score, NOT session quality — OverallQualityScore is THE verdict). -->
             <Border Background="{DynamicResource CardBackground}"
                     CornerRadius="8"
                     Padding="12"
                     Margin="0,0,0,12">
-                <StackPanel>
-                    <TextBlock Text="Advanced Metrics"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="16"
-                               FontWeight="SemiBold"/>
+                <Expander Header="Advanced"
+                          IsExpanded="False"
+                          Foreground="{DynamicResource SecondaryText}"
+                          FontSize="14">
+                    <StackPanel Margin="0,8,0,0">
+                        <TextBlock x:Name="CorrectionSharpnessText"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="14"/>
 
-                    <TextBlock x:Name="CorrectionSharpnessText"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="14"
-                               Margin="0,4,0,0"/>
+                        <TextBlock x:Name="VelocityStabilityText"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="14"/>
 
-                    <TextBlock x:Name="VelocityStabilityText"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="14"/>
+                        <TextBlock x:Name="IdlePenaltyText"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="14"/>
 
-                    <TextBlock x:Name="IdlePenaltyText"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="14"/>
-
-                    <TextBlock x:Name="OverallDiagnosticText"
-                               Foreground="{DynamicResource PrimaryText}"
-                               FontSize="14"/>
-                </StackPanel>
+                        <TextBlock x:Name="OverallDiagnosticText"
+                                   Foreground="{DynamicResource PrimaryText}"
+                                   FontSize="14"/>
+                    </StackPanel>
+                </Expander>
             </Border>
 
             <!-- Trend -->
@@ -374,7 +376,7 @@
                                Margin="0,0,0,10"/>
 
                     <!-- Suggestions — TASK-07: leads before Observations -->
-                    <TextBlock Text="WHAT TO WORK ON"
+                    <TextBlock x:Name="WorkOnHeader" Text="WHAT TO WORK ON"
                                FontSize="10" FontWeight="Bold"
                                Foreground="{DynamicResource MutedText}"
                                Margin="0,0,0,6"/>
@@ -391,7 +393,7 @@
                     </ItemsControl>
 
                     <!-- Observations -->
-                    <TextBlock Text="WHAT I NOTICED"
+                    <TextBlock x:Name="NoticedHeader" Text="WHAT I NOTICED"
                                FontSize="10" FontWeight="Bold"
                                Foreground="{DynamicResource MutedText}"
                                Margin="0,0,0,6"/>
@@ -408,7 +410,7 @@
                     </ItemsControl>
 
                     <!-- Next drill -->
-                    <TextBlock Text="SUGGESTED NEXT DRILL"
+                    <TextBlock x:Name="NextDrillHeader" Text="SUGGESTED NEXT DRILL"
                                FontSize="10" FontWeight="Bold"
                                Foreground="#00D4FF"
                                Margin="0,0,0,6"/>

@@ -92,6 +92,14 @@
         // Tip rotation — keys of recently shown tips (newest first, max 20 entries)
         public List<string> RecentTipKeys { get; set; } = new();
 
+        // TASK-0.1: achievement toasts queued past the 2-per-session display cap
+        public List<string> PendingAchievementToasts { get; set; } = new();
+
+        // TASK-2.1/2.2: technique prescription loop state
+        public PrescriptionState? ActiveTechniquePrescription { get; set; } = null;
+        // PrescriptionKey → TotalDrillCount when last prescribed (cooldown tracking)
+        public Dictionary<string, int> PrescriptionCooldowns { get; set; } = new();
+
         public ScenarioDifficultyState GetScenarioState(
             string scenario, string variant)
         {

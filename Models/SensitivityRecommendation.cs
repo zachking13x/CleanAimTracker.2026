@@ -25,8 +25,9 @@ namespace CleanAimTracker.Models
         public int RecommendedDPI { get; set; }
         public double RecommendedSensitivity { get; set; }
         public double RecommendedCm360 { get; set; }
+        // TASK-3.1: sensitivity displays at 2 decimals — never "7.6208"/"13.0000".
         public string SensitivityRangeText =>
-            $"{RecommendedSensitivityMin:F4} – {RecommendedSensitivityMax:F4}";
+            $"{RecommendedSensitivityMin:F2} – {RecommendedSensitivityMax:F2}";
 
         public double RecommendedSensitivityMin { get; set; }
         public double RecommendedSensitivityMax { get; set; }
@@ -79,5 +80,14 @@ namespace CleanAimTracker.Models
         // FLAGS
         // -----------------------------
         public bool MinimalChangeRecommended { get; set; }
+
+        // TASK-3.1: confidence gate. Below the floor the engine recommends NO
+        // change (recommended values = current values) and the verdicts carry
+        // the collecting-data message instead of an actionable prescription.
+        public bool IsActionable { get; set; } = true;
+
+        // TASK-3.1: true when the recommended cm/360 differs from current by
+        // more than 15% — surfaces MUST render the step-by-step transition plan.
+        public bool RequiresTransitionPlan { get; set; }
     }
 }

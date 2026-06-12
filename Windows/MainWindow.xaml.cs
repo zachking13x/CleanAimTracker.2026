@@ -387,13 +387,20 @@ namespace CleanAimTracker.Windows
             SessionTimeText.Text = $"{elapsed:mm\\:ss}";
             _sessionSeconds = elapsed.TotalSeconds;
 
-            if (_wasIdle) _idleTimeSeconds += 1.0;
-            else _idleTimeSeconds = 0;
-
             int eventsThisTick = _movementEvents - _lastMovementCount;
             _movementCountThisSecond = eventsThisTick;
             MpsText.Text = $"{_movementCountThisSecond}";
             _lastMovementCount = _movementEvents;
+
+            // Idle accounting (fixed): _idleTimeSeconds is the session TOTAL.
+            // The old code reset it to 0 on any movement (it measured the current
+            // idle streak, not the total), and _wasIdle only updates when raw-input
+            // events arrive — an untouched mouse generates no events, so true idle
+            // never counted. A tick with zero raw-input events IS an idle second.
+            // Hand-check: 600s session, mouse untouched for 300s → 300 zero-event
+            // ticks → IdlePercentage = 300/600 = 50%.
+            if (eventsThisTick == 0 || _wasIdle)
+                _idleTimeSeconds += 1.0;
 
             _rollingDensity = _movementCountThisSecond;
             RollingDensityText.Text = $"{_rollingDensity:F2}";
@@ -477,21 +484,26 @@ namespace CleanAimTracker.Windows
             RecordingPanel.Visibility = Visibility.Collapsed;
             LogService.Info("Tracking stopped");
 
-            // TASK-11: Populate plain-English verdicts if session was long enough
+            // Build ONCE per stop — the double build logged SMOOTHNESS-DIAG twice
+            // and did duplicate work for the same numbers.
             if (_sessionSeconds >= 10)
-                PopulateTrackerInterpretations(BuildSessionSummary());
+            {
+                var summary = BuildSessionSummary();
 
-            // Always save sessions >= 10s; show banner when >= 45s
-            if (_sessionSeconds >= 10)
-                TrySaveAndShowCoachBanner();
+                // TASK-11: Populate plain-English verdicts if session was long enough
+                PopulateTrackerInterpretations(summary);
+
+                // Always save sessions >= 10s; show banner when >= 45s
+                TrySaveAndShowCoachBanner(summary);
+            }
         }
 
-        private void TrySaveAndShowCoachBanner()
+        private void TrySaveAndShowCoachBanner(SessionSummary summary)
         {
             // ── Step 1: Save the session — always, for any session >= 10s ──────
             try
             {
-                _pendingSessionSummary = BuildSessionSummary();
+                _pendingSessionSummary = summary;
                 SessionStorage.Save(_pendingSessionSummary);
                 _pendingStreak = StreakService.UpdateStreak();
                 LoadTodayStats();

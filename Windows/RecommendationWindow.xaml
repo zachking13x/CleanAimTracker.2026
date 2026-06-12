@@ -266,16 +266,21 @@
                                     <ItemsControl ItemsSource="{Binding Tips}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
-                                                    <TextBlock Text="→ "
+                                                <!-- TASK-4.3: Grid so the wrapping TextBlock has bounded width. -->
+                                                <Grid Margin="0,3,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="→ "
                                                                Foreground="{StaticResource AccentPrimary}"
                                                                FontSize="11"
                                                                VerticalAlignment="Top"/>
-                                                    <TextBlock Text="{Binding ., Mode=OneWay}"
+                                                    <TextBlock Grid.Column="1" Text="{Binding ., Mode=OneWay}"
                                                                TextWrapping="Wrap"
                                                                Foreground="{StaticResource TextSecondary}"
                                                                FontSize="11"/>
-                                                </StackPanel>
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -415,19 +420,26 @@
                                                Style="{StaticResource MetricLabelStyle}"
                                                Margin="0,0,0,8"/>
 
+                                    <!-- TASK-4.3: Grid, not horizontal StackPanel — a wrapping
+                                         TextBlock inside a horizontal StackPanel gets unbounded
+                                         width, so it clipped mid-sentence instead of wrapping. -->
                                     <ItemsControl ItemsSource="{Binding GameTipsLines, ElementName=RootWindow}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                                    <TextBlock Text="→ "
+                                                <Grid Margin="0,4,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="→ "
                                                                Foreground="{StaticResource AccentPrimary}"
                                                                FontSize="11"
                                                                VerticalAlignment="Top"/>
-                                                    <TextBlock Text="{Binding ., Mode=OneWay}"
+                                                    <TextBlock Grid.Column="1" Text="{Binding ., Mode=OneWay}"
                                                                TextWrapping="Wrap"
                                                                Foreground="{StaticResource TextSecondary}"
                                                                FontSize="11"/>
-                                                </StackPanel>
+                                                </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>

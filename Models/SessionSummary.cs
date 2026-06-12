@@ -58,6 +58,36 @@
 
         public bool IsMetricValid(string metricName) => GetValidity(metricName).IsValid;
 
+        // ── TASK-1.3: low-activity session detection ─────────────────────────
+        // Floors calibrated against real session history (2026-05/06 data):
+        //   genuine gameplay sessions: AvgVel ≈ 1.0–1.25 cm/s, ≈ 59–74 cm of
+        //   travel per minute. A known junk session (mouse mostly untouched):
+        //   AvgVel 0.45 cm/s, 28 cm/min. Floors sit between the two clusters.
+        // IdlePercentage > 80 kept per spec, but observed values are near 0
+        // even on hour-long sessions, so velocity/distance floors are the
+        // effective gates.
+        public const double LowActivityIdlePctFloor       = 80.0;
+        public const double LowActivityMinAvgVelocity     = 0.7;  // cm/s
+        public const double LowActivityMinDistPerMinute   = 45.0; // cm of travel per minute
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsLowActivitySession
+        {
+            get
+            {
+                if (IdlePercentage > LowActivityIdlePctFloor) return true;
+                if (AverageVelocity > 0 && AverageVelocity < LowActivityMinAvgVelocity) return true;
+                if (SessionSeconds >= 60)
+                {
+                    // Hand-check: 74 cm over 158 s → 74/(158/60) = 28.1 cm/min < 45 → low.
+                    //             3747 cm over 3447 s → 65.2 cm/min ≥ 45 → normal.
+                    double distPerMinute = TotalDistanceCm / (SessionSeconds / 60.0);
+                    if (distPerMinute < LowActivityMinDistPerMinute) return true;
+                }
+                return false;
+            }
+        }
+
 
 
 

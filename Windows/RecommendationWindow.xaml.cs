@@ -114,8 +114,9 @@ namespace CleanAimTracker.Windows
 
         public double ConfidenceRatio => _rec.Confidence / 100.0;
 
+        // TASK-3.1: sensitivity renders at 2 decimals everywhere.
         public string RecommendedSensitivityRange =>
-            $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
+            $"Range: {_rec.RecommendedSensitivityMin:F2} – {_rec.RecommendedSensitivityMax:F2}";
 
         /// <summary>
         /// The single plain instruction shown directly below the hero number.
@@ -135,8 +136,13 @@ namespace CleanAimTracker.Windows
                     ? _rec.CurrentSensitivity
                     : SettingsService.Load().Sensitivity;
 
+                // TASK-3.1: collecting-data state — no actionable instruction.
+                if (!_rec.IsActionable)
+                    return $"Keep your current {game} sensitivity ({currentSens:F2}) for now — " +
+                           "the coach is still collecting data.";
+
                 return $"In {game}, change your sensitivity from " +
-                       $"{currentSens:F4} to {_rec.RecommendedSensitivity:F4}.";
+                       $"{currentSens:F2} to {_rec.RecommendedSensitivity:F2}.";
             }
         }
 
@@ -205,6 +211,21 @@ namespace CleanAimTracker.Windows
             var settings = SettingsService.Load();
             var plan = settings.ActiveTransitionPlan;
 
+            // TASK-3.1: a recommended cm/360 change > 15% MUST render the
+            // step-by-step plan. If none is active yet, generate and activate one
+            // from this recommendation (this was the spec'd behavior that never
+            // fired — 10.6 → 18.0 cm/360 shipped with no plan).
+            if ((plan == null || plan.IsComplete) && _rec.RequiresTransitionPlan)
+            {
+                plan = SensitivityTransitionService.GeneratePlan(
+                    _rec.CurrentCm360,
+                    _rec.RecommendedCm360,
+                    _rec.RecommendedDPI,
+                    _rec.RecommendedSensitivity);
+                settings.ActiveTransitionPlan = plan;
+                SettingsService.Save(settings);
+            }
+
             if (plan == null || plan.IsComplete)
             {
                 TransitionPlanCard.Visibility = System.Windows.Visibility.Collapsed;
@@ -227,7 +248,7 @@ namespace CleanAimTracker.Windows
             {
                 var step = plan.Steps[plan.CurrentStepIndex];
                 TransitionCurrentTargetText.Text =
-                    $"{step.TargetSensitivity:F4} sens  ·  {step.TargetCmPer360:F1} cm/360";
+                    $"{step.TargetSensitivity:F2} sens  ·  {step.TargetCmPer360:F1} cm/360";
                 TransitionSessionsText.Text =
                     $"{step.CompletedSessions} / {step.RequiredSessions}";
             }
@@ -298,7 +319,7 @@ namespace CleanAimTracker.Windows
             sb.AppendLine("🎯 Recommended Settings");
             sb.AppendLine($"• DPI: {_rec.RecommendedDPI}");
             sb.AppendLine($"• Sensitivity: {_rec.RecommendedSensitivity:F4}");
-            sb.AppendLine($"• Sensitivity Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}");
+            sb.AppendLine($"• Sensitivity Range: {_rec.RecommendedSensitivityMin:F2} – {_rec.RecommendedSensitivityMax:F2}");
             sb.AppendLine($"• cm/360: {_rec.RecommendedCm360:F2}");
             sb.AppendLine();
             sb.AppendLine("Confidence: " + _rec.Confidence + "%");

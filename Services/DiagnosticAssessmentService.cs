@@ -56,6 +56,60 @@ namespace CleanAimTracker.Services
         };
 
         // ------------------------------------------------------------------ //
+        //  TASK-4.1: Onboarding calibration — 4 fixed tests, one per capability
+        //  dimension (clicking, tracking, switching, reaction). Fixed scenarios
+        //  produce comparable baselines; self-chosen scenarios do not.
+        // ------------------------------------------------------------------ //
+
+        public static readonly IReadOnlyList<AssessmentTest> CalibrationTests = new List<AssessmentTest>
+        {
+            new("CloseRangeStatic",   "StaticClicking", "Standard",  30,
+                "Click stationary targets as fast and accurately as you can"),
+
+            new("HorizontalTracking", "Tracking",       "Smooth",    30,
+                "Keep your crosshair glued to a moving target"),
+
+            new("CloseSwitching",     "Switching",      "4-Target",  30,
+                "Snap between multiple targets — speed and precision together"),
+
+            new("PeekReaction",       "PeekTraining",   "WideSwing", 30,
+                "React the instant a target peeks out"),
+        };
+
+        /// <summary>
+        /// Builds a profile from the 4 calibration tests. Unlike BuildProfile,
+        /// weakest/strongest are ranked over the TESTED dimensions only — an
+        /// untested dimension scoring 0 must never be named "weakest".
+        /// </summary>
+        public static DiagnosticProfile BuildCalibrationProfile(
+            IList<AimTrainerResult> results,
+            int sessionNumber)
+        {
+            var dimensionScores = new Dictionary<string, double>();
+            for (int i = 0; i < CalibrationTests.Count && i < results.Count; i++)
+                dimensionScores[CalibrationTests[i].Dimension] = ScoreTest(results[i], CalibrationTests[i]);
+
+            string weakest   = dimensionScores.Count > 0
+                ? dimensionScores.OrderBy(kv => kv.Value).First().Key : "";
+            string strongest = dimensionScores.Count > 0
+                ? dimensionScores.OrderByDescending(kv => kv.Value).First().Key : "";
+
+            double Get(string dim) => dimensionScores.TryGetValue(dim, out double v) ? v : 0;
+
+            return new DiagnosticProfile
+            {
+                CompletedAt         = DateTime.Now,
+                CloseRangeStatic    = Get("CloseRangeStatic"),
+                HorizontalTracking  = Get("HorizontalTracking"),
+                CloseSwitching      = Get("CloseSwitching"),
+                PeekReaction        = Get("PeekReaction"),
+                WeakestDimension    = weakest,
+                StrongestDimension  = strongest,
+                SessionNumber       = sessionNumber,
+            };
+        }
+
+        // ------------------------------------------------------------------ //
         //  Score Calculation
         // ------------------------------------------------------------------ //
 

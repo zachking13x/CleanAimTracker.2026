@@ -122,17 +122,27 @@ namespace CleanAimTracker.Windows
                         settings.CurrentStreak,
                         settings.ChallengesCompleted));
 
-                // Show achievement unlock popup (never on replay or during onboarding)
-                if (_newlyUnlocked != null && _newlyUnlocked.Count > 0 && !_isReplay && !_isOnboarding)
+                // TASK-0.1: rate-limit the celebration — max 2 toasts per session,
+                // queue the rest. (Never on replay or during onboarding.)
+                if (_newlyUnlocked != null && !_isReplay && !_isOnboarding)
                 {
-                    Dispatcher.Invoke(() =>
+                    var toastSettings = SettingsService.Load();
+                    var (show, queue) = AchievementService.SplitToasts(
+                        toastSettings.PendingAchievementToasts, _newlyUnlocked);
+                    toastSettings.PendingAchievementToasts = queue;
+                    SettingsService.Save(toastSettings);
+
+                    if (show.Count > 0)
                     {
-                        var popup = new AchievementUnlockWindow(_newlyUnlocked)
+                        Dispatcher.Invoke(() =>
                         {
-                            Owner = Window.GetWindow(this) ?? Application.Current.MainWindow
-                        };
-                        popup.ShowDialog();
-                    });
+                            var popup = new AchievementUnlockWindow(show)
+                            {
+                                Owner = Window.GetWindow(this) ?? Application.Current.MainWindow
+                            };
+                            popup.ShowDialog();
+                        });
+                    }
                 }
 
                 // Near-miss hint — show only if no achievement was just unlocked (avoid noise)
@@ -217,7 +227,10 @@ namespace CleanAimTracker.Windows
                     // #7A6010 — darkened gold from the --accent-gold family (DESIGN_SPEC)
                     if (isBestScore)    badgesToShow.Add(("🏆 New Best Score!", "#7A6010"));
                     if (isBestAccuracy) badgesToShow.Add(("🎯 Best Accuracy!",  "#7A6010"));
-                    if (isBestReaction) badgesToShow.Add(("⚡ Best Reaction!",  "#7A6010"));
+                    // TASK-0.3: "reaction" only for stimulus-anchored scenarios.
+                    if (isBestReaction) badgesToShow.Add((
+                        ReactionMetric.IsTrueReaction(result.Scenario) ? "⚡ Best Reaction!" : "⚡ Best Pace!",
+                        "#7A6010"));
                     if (isBestStreak)   badgesToShow.Add(("🔥 Best Streak!",    "#7A6010"));
 
                     if (badgesToShow.Count > 0)
@@ -268,8 +281,10 @@ namespace CleanAimTracker.Windows
                     _ = CelebratePersonalBests(isBestScore, isBestAccuracy, isBestReaction, isBestStreak);
 
                 // ── TASK-17: Top 5 by score for this scenario ─────────────
+                // Calibration sessions are baseline data, not accomplishments —
+                // they don't compete on the leaderboard.
                 var top5 = all
-                    .Where(r => r.Scenario == result.Scenario)
+                    .Where(r => r.Scenario == result.Scenario && !r.IsAssessmentSession)
                     .OrderByDescending(r => r.Score)
                     .Take(5)
                     .Select((r, i) => new Top5Row
@@ -589,6 +604,10 @@ namespace CleanAimTracker.Windows
             ScenarioBadgeText.Text = $"{GetDisplayScenario(r.Scenario)}{variantPart}  •  {r.Difficulty}  •  {r.DurationSeconds}s";
 
             AccuracyText.Text    = $"{r.Accuracy:F0}%";
+            // TASK-0.3: honest labels — "reaction" only when the scenario measures
+            // stimulus-to-hit; hit-anchored scenarios measure time per target.
+            AvgReactionLabel.Text  = ReactionMetric.CardLabel(r.Scenario);
+            BestReactionLabel.Text = ReactionMetric.BestCardLabel(r.Scenario);
             AvgReactionText.Text = $"{r.AvgReactionMs:F0}ms";
             BestReactionText.Text = $"{r.BestReactionMs:F0}ms";
             StreakText.Text      = r.MaxStreak.ToString();
@@ -639,11 +658,14 @@ namespace CleanAimTracker.Windows
 
                 var report = await Task.Run(() => AiCoachService.Analyze(result, memory));
 
-                // Save tip rotation keys so next session's coach knows what was shown
+                // Save tip rotation keys + technique prescription loop state so
+                // the next session's coach can verify or escalate (TASK-2.1/2.2).
                 try
                 {
                     var s = SettingsService.Load();
                     s.RecentTipKeys = memory.RecentTipKeys;
+                    s.ActiveTechniquePrescription = memory.ActivePrescription;
+                    s.PrescriptionCooldowns = memory.PrescriptionCooldowns;
                     SettingsService.Save(s);
                 }
                 catch { /* non-critical */ }
@@ -814,20 +836,18 @@ namespace CleanAimTracker.Windows
                 settings.LastTomorrowPromptDate = DateTime.Today;
                 SettingsService.Save(settings);
 
+                // TASK-4.2: styled in-app dialog — never the raw system MessageBox
+                // for retention prompts.
                 int streak = settings.CurrentStreak;
+                string promptTitle = streak >= 3 ? $"Day {streak} done." : "Good session.";
                 string promptMsg = streak >= 7
-                    ? $"Day {streak} — seriously impressive.\n\nSee you tomorrow for Day {streak + 1}? Schedule a reminder so you don't break it."
+                    ? $"Day {streak} — seriously impressive. See you tomorrow for Day {streak + 1}? Schedule a reminder so you don't break the streak."
                     : streak >= 3
-                        ? $"Day {streak} done. You're building a real habit.\n\nSee you tomorrow for Day {streak + 1}?\n\nSchedule a reminder?"
-                        : "Good session. Come back tomorrow — consistency beats perfection.\n\nSchedule a reminder?";
+                        ? $"You're building a real habit. See you tomorrow for Day {streak + 1}?"
+                        : "Come back tomorrow — consistency beats perfection. Want a reminder?";
 
-                var response = MessageBox.Show(
-                    promptMsg,
-                    "See You Tomorrow",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.None);
-
-                if (response == MessageBoxResult.Yes)
+                var prompt = new ReminderPromptWindow(promptTitle, promptMsg) { Owner = this };
+                if (prompt.ShowDialog() == true)
                     ToastService.ScheduleTomorrowReminder();
             }
 

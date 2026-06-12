@@ -92,16 +92,53 @@ namespace CleanAimTracker.Services
             catch { }
         }
 
+        // TASK-0.1: minimum real drills before a tier is evaluated — a tier is an
+        // average; one drill is not an average.
+        public const int MinDrillsForTier = 5;
+
         public static List<Achievement> EvaluateAfterSession(
             AimTrainerResult result,
             List<AimTrainerResult> allResults,
             int currentStreakDays,
             int challengesCompleted = 0)
         {
-            var unlocked      = LoadUnlocked();
-            var unlockedIds   = unlocked.Select(a => a.Id).ToHashSet();
+            var unlocked = LoadUnlocked();
+            var newlyUnlocked = EvaluateCore(
+                result, allResults, currentStreakDays, challengesCompleted,
+                unlocked.Select(a => a.Id).ToHashSet());
+
+            if (newlyUnlocked.Count > 0)
+            {
+                unlocked.AddRange(newlyUnlocked);
+                SaveUnlocked(unlocked);
+            }
+            return newlyUnlocked;
+        }
+
+        /// <summary>
+        /// TASK-0.1: pure evaluation core — no disk I/O, unit-testable.
+        /// Calibration/assessment sessions are excluded entirely: the evaluated
+        /// session never earns achievements, and stored assessment results never
+        /// count toward totals, tiers, or scenario coverage. (This was the root
+        /// cause of the 8-achievement cascade: the first real drill after
+        /// calibration was evaluated against allResults polluted with the four
+        /// calibration sessions.)
+        /// </summary>
+        public static List<Achievement> EvaluateCore(
+            AimTrainerResult result,
+            List<AimTrainerResult> allResults,
+            int currentStreakDays,
+            int challengesCompleted,
+            HashSet<string> unlockedIds)
+        {
             var definitions   = GetAllDefinitions();
             var newlyUnlocked = new List<Achievement>();
+
+            // Calibration sessions are baseline data, not accomplishments.
+            if (result.IsAssessmentSession) return newlyUnlocked;
+            allResults = (allResults ?? new List<AimTrainerResult>())
+                .Where(r => !r.IsAssessmentSession)
+                .ToList();
 
             void TryUnlock(string id)
             {
@@ -110,7 +147,6 @@ namespace CleanAimTracker.Services
                 if (def == null) return;
                 def.IsUnlocked = true;
                 def.UnlockedAt = DateTime.UtcNow;
-                unlocked.Add(def);
                 newlyUnlocked.Add(def);
                 unlockedIds.Add(id);
             }
@@ -143,8 +179,14 @@ namespace CleanAimTracker.Services
             };
             if (result.Accuracy >= eliteThreshold) TryUnlock("elite_grade");
 
-            if (result.AvgReactionMs > 0 && result.AvgReactionMs < 300) TryUnlock("reaction_300");
-            if (result.AvgReactionMs > 0 && result.AvgReactionMs < 220) TryUnlock("reaction_220");
+            // TASK-0.3: reaction badges only for scenarios that measure true
+            // stimulus-to-hit reaction — a 240ms time-per-target in Tracking is
+            // not a 240ms reaction.
+            if (ReactionMetric.IsTrueReaction(result.Scenario))
+            {
+                if (result.AvgReactionMs > 0 && result.AvgReactionMs < 300) TryUnlock("reaction_300");
+                if (result.AvgReactionMs > 0 && result.AvgReactionMs < 220) TryUnlock("reaction_220");
+            }
 
             if (result.MaxStreak >= 20) TryUnlock("max_streak_20");
             if (result.MaxStreak >= 50) TryUnlock("max_streak_50");
@@ -206,29 +248,68 @@ namespace CleanAimTracker.Services
             if (currentStreakDays >= 14) TryUnlock("streak_14");
             if (currentStreakDays >= 30) TryUnlock("streak_30");
 
-            // Tier is computed from aim trainer accuracy so aim-trainer-only users are not
-            // locked at Rookie forever. ProgressionService uses tracker sessions which
-            // may be empty for users who only use the aim trainer.
-            double avgAccuracy = allResults.Count > 0 ? allResults.Average(r => r.Accuracy) : 0;
-            string tierName = avgAccuracy >= 82 ? "Elite"
-                            : avgAccuracy >= 70 ? "Gold"
-                            : avgAccuracy >= 55 ? "Silver"
-                            : avgAccuracy >= 40 ? "Bronze"
-                            : "Rookie";
+            // ── TASK-0.1: tier achievements ───────────────────────────────────
+            // Tiers are sequential states — the user holds exactly ONE current
+            // tier. Reaching Gold awards Gold on the session that crosses the
+            // threshold; it does not retroactively dump Bronze and Silver too.
+            // A tier is an average, so it needs a real sample first.
+            if (allResults.Count >= MinDrillsForTier)
+            {
+                double avgAccuracy = allResults.Average(r => r.Accuracy);
+                string tierName = avgAccuracy >= 82 ? "Elite"
+                                : avgAccuracy >= 70 ? "Gold"
+                                : avgAccuracy >= 55 ? "Silver"
+                                : avgAccuracy >= 40 ? "Bronze"
+                                : "Rookie";
 
-            if (tierName is "Bronze" or "Silver" or "Gold" or "Elite") TryUnlock("reach_bronze");
-            if (tierName is "Silver" or "Gold" or "Elite")              TryUnlock("reach_silver");
-            if (tierName is "Gold" or "Elite")                          TryUnlock("reach_gold");
-            if (tierName == "Elite")                                     TryUnlock("reach_elite");
+                string tierAchievement = tierName switch
+                {
+                    "Bronze" => "reach_bronze",
+                    "Silver" => "reach_silver",
+                    "Gold"   => "reach_gold",
+                    "Elite"  => "reach_elite",
+                    _        => ""
+                };
+                if (tierAchievement.Length > 0) TryUnlock(tierAchievement);
+            }
 
             if (challengesCompleted >= 1)  TryUnlock("first_challenge");
             if (challengesCompleted >= 7)  TryUnlock("challenge_7");
             if (challengesCompleted >= 30) TryUnlock("challenge_30");
 
-            if (newlyUnlocked.Count > 0)
-                SaveUnlocked(unlocked);
-
             return newlyUnlocked;
+        }
+
+        /// <summary>
+        /// TASK-0.1: toast rate-limit — at most 2 unlock toasts per session.
+        /// Previously queued toasts show first (oldest debt first); everything
+        /// beyond 2 is queued for the next session. Achievements themselves are
+        /// always unlocked immediately — only the celebration is paced.
+        /// </summary>
+        public static (List<Achievement> Show, List<string> Queue) SplitToasts(
+            List<string> pendingIds,
+            List<Achievement> newlyUnlocked)
+        {
+            const int MaxToastsPerSession = 2;
+
+            var definitions = GetAllDefinitions();
+            var all = new List<Achievement>();
+
+            foreach (var id in pendingIds ?? new List<string>())
+            {
+                var def = definitions.FirstOrDefault(d => d.Id == id);
+                if (def != null && all.All(a => a.Id != id))
+                {
+                    def.IsUnlocked = true;
+                    all.Add(def);
+                }
+            }
+            foreach (var a in newlyUnlocked ?? new List<Achievement>())
+                if (all.All(x => x.Id != a.Id))
+                    all.Add(a);
+
+            return (all.Take(MaxToastsPerSession).ToList(),
+                    all.Skip(MaxToastsPerSession).Select(a => a.Id).ToList());
         }
 
         /// <summary>
@@ -308,13 +389,17 @@ namespace CleanAimTracker.Services
             if (!ids.Contains("accuracy_80") && result.Accuracy >= 72 && result.Accuracy < 80)
                 return $"🎖️  Almost Sharp — hit 80% accuracy once to unlock it";
 
-            if (!ids.Contains("reaction_220") && result.AvgReactionMs > 0
-                    && result.AvgReactionMs >= 220 && result.AvgReactionMs < 265)
-                return $"⚡  {(result.AvgReactionMs - 220):F0}ms from the Lightning badge";
+            // TASK-0.3: reaction near-miss hints only where the metric IS reaction.
+            if (ReactionMetric.IsTrueReaction(result.Scenario))
+            {
+                if (!ids.Contains("reaction_220") && result.AvgReactionMs > 0
+                        && result.AvgReactionMs >= 220 && result.AvgReactionMs < 265)
+                    return $"⚡  {(result.AvgReactionMs - 220):F0}ms from the Lightning badge";
 
-            if (!ids.Contains("reaction_300") && result.AvgReactionMs > 0
-                    && result.AvgReactionMs >= 300 && result.AvgReactionMs < 355)
-                return $"🤠  {(result.AvgReactionMs - 300):F0}ms from Quick Draw";
+                if (!ids.Contains("reaction_300") && result.AvgReactionMs > 0
+                        && result.AvgReactionMs >= 300 && result.AvgReactionMs < 355)
+                    return $"🤠  {(result.AvgReactionMs - 300):F0}ms from Quick Draw";
+            }
 
             if (!ids.Contains("max_streak_50") && result.MaxStreak >= 35 && result.MaxStreak < 50)
                 return $"👑  {50 - result.MaxStreak} more consecutive hits for God Mode";

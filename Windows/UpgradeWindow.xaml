@@ -39,7 +39,7 @@
                         </StackPanel>
                         <TextBlock Text="Excellent — your reaction time is elite for this scenario."
                                    FontSize="12" Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap"/>
-                        <TextBlock Text="✅  Flick precision is in the top tier  •  Consistent micro-adjustments"
+                        <TextBlock Text="✅  Flick precision clears the Voltaic advanced threshold  •  Consistent micro-adjustments"
                                    FontSize="11" Foreground="LightGreen" Margin="0,5,0,0"/>
                         <TextBlock Text="💡  Focus on reducing overswing on fast horizontal targets..."
                                    FontSize="11" Foreground="{DynamicResource AccentBrush}" Margin="0,4,0,0"/>

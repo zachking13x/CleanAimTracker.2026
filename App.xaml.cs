@@ -58,22 +58,24 @@ namespace CleanAimTracker
 
             var settings = SettingsService.Load();
 
-            // TASK-13: New user detection — show onboarding calibration before anything else
+            ThemeService.ApplyTheme(settings.ThemeMode ?? "Dark");
+
+            // TASK-4.1: ONE first-run flow. New users get the calibration flow
+            // (Welcome → Brief → 4 tests → First Insight → First Drill), which
+            // sets FirstLaunchComplete itself — the legacy FirstLaunchWindow
+            // wizard can never stack on top of it. It remains only as the
+            // fallback for legacy installs that predate CalibrationComplete.
             bool isNewUser = !settings.CalibrationComplete
                 && !settings.OnboardingSkipped
                 && AimTrainerStorage.LoadAll().Count == 0;
             if (isNewUser)
             {
-                var onboarding = new OnboardingCalibrationWindow();
-                onboarding.ShowDialog();
+                new OnboardingCalibrationWindow().ShowDialog();
+                settings = SettingsService.Load(); // onboarding mutates settings
             }
-
-            ThemeService.ApplyTheme(settings.ThemeMode ?? "Dark");
-
-            if (!settings.FirstLaunchComplete)
+            else if (!settings.FirstLaunchComplete)
             {
-                var onboarding = new FirstLaunchWindow();
-                onboarding.ShowDialog();
+                new FirstLaunchWindow().ShowDialog();
             }
 
             var main = new MainWindow();

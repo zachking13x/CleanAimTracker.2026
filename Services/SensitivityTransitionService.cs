@@ -26,6 +26,13 @@ namespace CleanAimTracker.Services
         /// <paramref name="targetCmPer360"/>.  If the delta is under the minimum threshold,
         /// returns a single-step "Direct" plan.
         /// </summary>
+        /// <param name="baseSensitivity">The sensitivity that PRODUCES
+        /// <paramref name="targetCmPer360"/> (the recommendation's consistent
+        /// pair). Step sensitivities are scaled from this anchor — pairing it
+        /// with the CURRENT cm/360 produced step values outside the
+        /// current→target range entirely (10.27 when the path runs 17.9→11.4).
+        /// Hand-check: anchor (11.43 sens ↔ 18.0 cm); step at 12.8 cm →
+        /// 11.43 × 18.0 / 12.8 = 16.07; final step (18.0 cm) → exactly 11.43.</param>
         public static SensitivityTransitionPlan GeneratePlan(
             double currentCmPer360,
             double targetCmPer360,
@@ -52,7 +59,7 @@ namespace CleanAimTracker.Services
                 {
                     StepNumber        = 1,
                     TargetCmPer360    = targetCmPer360,
-                    TargetSensitivity = CmPer360ToSens(targetCmPer360, dpi, baseSensitivity, currentCmPer360),
+                    TargetSensitivity = CmPer360ToSens(targetCmPer360, dpi, baseSensitivity, targetCmPer360),
                     RequiredSessions  = SessionsPerStep,
                     CompletedSessions = 0,
                     IsComplete        = false,
@@ -66,7 +73,7 @@ namespace CleanAimTracker.Services
             {
                 double frac     = (double)i / totalSteps;
                 double stepCm   = currentCmPer360 + (targetCmPer360 - currentCmPer360) * frac;
-                double stepSens = CmPer360ToSens(stepCm, dpi, baseSensitivity, currentCmPer360);
+                double stepSens = CmPer360ToSens(stepCm, dpi, baseSensitivity, targetCmPer360);
 
                 plan.Steps.Add(new SensitivityTransitionStep
                 {

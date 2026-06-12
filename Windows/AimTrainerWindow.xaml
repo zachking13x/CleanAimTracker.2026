@@ -599,7 +599,8 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Avg Reaction" Foreground="{DynamicResource LabelText}" FontSize="12"/>
+                        <!-- TASK-0.3: label set per scenario in UpdateLiveStats. -->
+                        <TextBlock x:Name="LiveReactionLabel" Text="Avg Reaction" Foreground="{DynamicResource LabelText}" FontSize="12"/>
                         <TextBlock x:Name="LiveReactionText" Grid.Column="1"
                                    Foreground="{DynamicResource PrimaryText}" FontSize="14" FontWeight="Bold" Text="--"/>
                     </Grid>

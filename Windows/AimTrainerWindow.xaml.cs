@@ -977,6 +977,11 @@ namespace CleanAimTracker.Windows
             string accStr = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "--";
             LiveAccuracyText.Text = accStr;
 
+            // TASK-0.3: honest label — "Avg Reaction" only for stimulus-anchored
+            // scenarios; hit-anchored scenarios measure time per target.
+            LiveReactionLabel.Text = ReactionMetric.IsTrueReaction(_scenario)
+                ? "Avg Reaction"
+                : "Avg Time/Target";
             LiveReactionText.Text = _scenarioInstance.AvgReactionMs > 0
                 ? $"{_scenarioInstance.AvgReactionMs:F0}ms"
                 : "--";

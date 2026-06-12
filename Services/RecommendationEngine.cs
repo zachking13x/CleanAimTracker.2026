@@ -11,6 +11,12 @@ namespace CleanAimTracker.Services
         private static readonly int[] StandardDpiSteps =
             { 400, 800, 1200, 1600, 3200, 6400, 7200 };
 
+        // TASK-3.1: below this confidence the engine recommends no change.
+        public const int ActionableConfidenceFloor = 70;
+
+        // TASK-3.1: cm/360 changes above this percentage must render a transition plan.
+        public const double TransitionPlanThresholdPct = 15.0;
+
         // ══════════════════════════════════════════════════════════
         //  MAIN ENTRY
         // ══════════════════════════════════════════════════════════
@@ -35,9 +41,13 @@ namespace CleanAimTracker.Services
                 CurrentSensitivity = safeSens,
                 CurrentCm360 = safeCm360,
                 GameName = p.Name ?? "Unknown Game",
-                ProAverageCm360 = p.ProAverageCm360,
-                Cm360RangeMin = p.RecommendedCm360Min,
-                Cm360RangeMax = p.RecommendedCm360Max
+                ProAverageCm360 = p.ProAverageCm360
+                // TASK-3.2: Cm360RangeMin/Max are NO LONGER the game profile's
+                // recommended range — that independent source produced ranges like
+                // 18.0–45.0 next to a recommendation of 18.0 (the recommendation
+                // sitting on its own range edge was the tell). They are now derived
+                // from the recommended sensitivity range via the cm/360 formula —
+                // see section 4 below.
             };
 
             // ══════════════════════════════════════════════════════
@@ -93,13 +103,29 @@ namespace CleanAimTracker.Services
             double maxSens = p.TypicalSensMax > minSens ? p.TypicalSensMax : minSens * 4;
 
             sens = Math.Clamp(sens, minSens, maxSens);
-            sens = Math.Round(sens, 4);
+            // TASK-3.1: sensitivity carries 2 decimals everywhere — stored rounded
+            // so no surface can render "7.6208" or "13.0000".
+            sens = Math.Round(sens, 2);
 
             rec.RecommendedSensitivity = sens;
 
             // Sensitivity range (±5%)
-            rec.RecommendedSensitivityMin = Math.Round(sens * 0.95, 4);
-            rec.RecommendedSensitivityMax = Math.Round(sens * 1.05, 4);
+            rec.RecommendedSensitivityMin = Math.Round(sens * 0.95, 2);
+            rec.RecommendedSensitivityMax = Math.Round(sens * 1.05, 2);
+
+            // TASK-3.2: displayed cm/360 range DERIVED from the sensitivity range
+            // endpoints via cm = (360 / (sens × dpi × yaw)) × 2.54 = 914.4 / (sens × dpi × yaw).
+            // cm/360 is inversely proportional to sens, so the LOWER sens endpoint
+            // gives the HIGHER cm endpoint and vice versa.
+            // Hand-verified: 1200 DPI, Fortnite yaw 0.005555 → cm = 914.4/(1200×0.005555×sens)
+            //   = 137.16/sens. Sens range 7.24–8.00 → 137.16/8.00 = 17.1 cm (min),
+            //   137.16/7.24 = 18.9 cm (max). The recommended value always falls
+            //   strictly inside because the range is sens ± 5%.
+            double rangeYaw = p.YawPerCount <= 0 ? 0.022 : p.YawPerCount;
+            rec.Cm360RangeMin = Math.Round(
+                914.4 / (rec.RecommendedSensitivityMax * rec.RecommendedDPI * rangeYaw), 1);
+            rec.Cm360RangeMax = Math.Round(
+                914.4 / (rec.RecommendedSensitivityMin * rec.RecommendedDPI * rangeYaw), 1);
 
             // ══════════════════════════════════════════════════════
             // 5. MUSCLE MEMORY PROTECTION
@@ -132,6 +158,62 @@ namespace CleanAimTracker.Services
             if (s.FlickCount < 3) confidence -= 10;
 
             rec.Confidence = Math.Clamp(confidence, 30, 100);
+
+            // ══════════════════════════════════════════════════════
+            // 6b. TASK-3.1: CONFIDENCE GATE
+            // Below 70% the engine prescribes NOTHING: recommended values
+            // collapse to current values and every verdict carries the
+            // collecting-data message. A 41% sensitivity change was recommended
+            // at 61% confidence off a session with a dead smoothness metric —
+            // a pro coach does not prescribe major changes from bad data.
+            // ══════════════════════════════════════════════════════
+
+            rec.IsActionable = rec.Confidence >= ActionableConfidenceFloor;
+
+            if (!rec.IsActionable)
+            {
+                // N sessions estimate: a clean full-length session removes the
+                // short-session penalty (-20) and lifts the diagnostic component;
+                // ~15 confidence points per clean session is the observed rate.
+                int sessionsNeeded = Math.Max(1,
+                    (int)Math.Ceiling((ActionableConfidenceFloor - rec.Confidence) / 15.0));
+                string collecting =
+                    $"Collecting data — run {sessionsNeeded} more active session{(sessionsNeeded == 1 ? "" : "s")} " +
+                    "for a reliable recommendation.";
+
+                rec.RecommendedCm360         = Math.Round(safeCm360, 1);
+                rec.RecommendedDPI           = (int)Math.Round(safeDpi);
+                rec.RecommendedSensitivity   = Math.Round(safeSens, 2);
+                rec.RecommendedSensitivityMin = Math.Round(safeSens * 0.95, 2);
+                rec.RecommendedSensitivityMax = Math.Round(safeSens * 1.05, 2);
+                double gateYaw = p.YawPerCount <= 0 ? 0.022 : p.YawPerCount;
+                rec.Cm360RangeMin = Math.Round(914.4 / (rec.RecommendedSensitivityMax * rec.RecommendedDPI * gateYaw), 1);
+                rec.Cm360RangeMax = Math.Round(914.4 / (rec.RecommendedSensitivityMin * rec.RecommendedDPI * gateYaw), 1);
+                rec.MinimalChangeRecommended = true;
+                rec.RequiresTransitionPlan   = false;
+
+                rec.DpiVerdict     = collecting;
+                rec.SensVerdict    = collecting;
+                rec.Cm360Verdict   = collecting;
+                rec.OverallVerdict = collecting;
+                rec.Explanation    = "There isn't enough clean movement data yet to recommend a settings change. " +
+                                     "Keep your current settings and log more active sessions.";
+                rec.Tips           = new List<string> { "Keep your current sensitivity until the coach has enough data to evaluate it properly." };
+
+                var historyEarly = SessionStorage.LoadAll() ?? new List<SessionSummary>();
+                rec.HasTrendData = historyEarly.Count >= 3;
+                rec.TrendSummary = rec.HasTrendData
+                    ? BuildTrendSummary(historyEarly)
+                    : "Not enough session data for trend analysis (need at least 3 sessions).";
+                return rec;
+            }
+
+            // TASK-3.1: a recommended cm/360 change > 15% MUST ship with the
+            // step-by-step transition plan — surfaces check this flag.
+            double cmChangePct = safeCm360 > 0
+                ? Math.Abs(targetCm360 - safeCm360) / safeCm360 * 100.0
+                : 0;
+            rec.RequiresTransitionPlan = cmChangePct > TransitionPlanThresholdPct;
 
             // ══════════════════════════════════════════════════════
             // 7. VERDICTS
@@ -393,15 +475,16 @@ namespace CleanAimTracker.Services
             if (pct < 3)
                 return "Your sensitivity is already at the recommended value.";
 
+            // TASK-3.1: sensitivity renders at 2 decimals everywhere.
             if (pct < 8)
                 return current > recommended
-                    ? $"Minor adjustment: lower sensitivity from {current:F4} to {recommended:F4}."
-                    : $"Minor adjustment: raise sensitivity from {current:F4} to {recommended:F4}.";
+                    ? $"Minor adjustment: lower sensitivity from {current:F2} to {recommended:F2}."
+                    : $"Minor adjustment: raise sensitivity from {current:F2} to {recommended:F2}.";
 
             return current > recommended
-                ? $"Lower your sensitivity from {current:F4} to {recommended:F4} — " +
+                ? $"Lower your sensitivity from {current:F2} to {recommended:F2} — " +
                   $"this is a {pct:F0}% change. Give yourself a few sessions to adjust."
-                : $"Raise your sensitivity from {current:F4} to {recommended:F4} — " +
+                : $"Raise your sensitivity from {current:F2} to {recommended:F2} — " +
                   $"this is a {pct:F0}% change. Give yourself a few sessions to adjust.";
         }
 
@@ -519,40 +602,18 @@ namespace CleanAimTracker.Services
         //  TREND ANALYSIS
         // ══════════════════════════════════════════════════════════
 
+        // TASK-3.4: trend math lives in TrendAnalysisService — the single source.
+        // Low-activity sessions are excluded; the smoothness average was dropped
+        // (legacy zero-valued sessions made it misleading, and OverallQuality is
+        // THE quality verdict per TASK-1.4).
         private static string BuildTrendSummary(List<SessionSummary> history)
         {
-            if (history == null || history.Count < 3)
+            var (avgQuality, direction, count) = TrendAnalysisService.Summarize(history);
+
+            if (direction == "insufficient")
                 return "Not enough data for trends.";
 
-            var recent = history
-                .OrderByDescending(h => h.Timestamp)
-                .Take(5)
-                .ToList();
-
-            if (recent.Count == 0)
-                return "Not enough data for trends.";
-
-            double avgQuality = recent.Average(s => s.OverallQualityScore);
-            double avgSmoothness = recent.Average(s => s.SmoothnessScore);
-
-            int splitIndex = recent.Count / 2;
-            if (splitIndex == 0) splitIndex = 1;
-
-            var older = recent.Skip(splitIndex).ToList();
-            var newer = recent.Take(splitIndex).ToList();
-
-            if (older.Count == 0 || newer.Count == 0)
-                return $"Across your last {recent.Count} sessions: Average quality {avgQuality:F0}/100, smoothness {avgSmoothness:F0}/100.";
-
-            double olderAvg = older.Average(s => s.OverallQualityScore);
-            double newerAvg = newer.Average(s => s.OverallQualityScore);
-
-            string direction =
-                newerAvg > olderAvg + 5 ? "improving" :
-                newerAvg < olderAvg - 5 ? "declining" :
-                "stable";
-
-            return $"Across your last {recent.Count} sessions: Average quality {avgQuality:F0}/100, smoothness {avgSmoothness:F0}/100. Trend: {direction}.";
+            return $"Across your last {count} sessions: average quality {avgQuality:F0}/100. Trend: {direction}.";
         }
 
         // ══════════════════════════════════════════════════════════

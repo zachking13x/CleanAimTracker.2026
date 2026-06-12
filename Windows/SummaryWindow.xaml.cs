@@ -32,12 +32,16 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         private void LoadRecommendedSettings()
         {
-            // Sensitivity
-            RecommendedSensitivityText.Text =
-                $"Recommended Sensitivity: {_rec.RecommendedSensitivity:F4}";
+            // TASK-3.1: sensitivity renders at 2 decimals everywhere.
+            // Collecting-data state: below the confidence floor the engine has
+            // already collapsed recommended values to current values and put the
+            // collecting message into the verdicts/explanation rendered below.
+            RecommendedSensitivityText.Text = _rec.IsActionable
+                ? $"Recommended Sensitivity: {_rec.RecommendedSensitivity:F2}"
+                : $"Current Sensitivity: {_rec.RecommendedSensitivity:F2} (keep for now)";
 
             RecommendedSensitivityRangeText.Text =
-                $"Range: {_rec.RecommendedSensitivityMin:F4} – {_rec.RecommendedSensitivityMax:F4}";
+                $"Range: {_rec.RecommendedSensitivityMin:F2} – {_rec.RecommendedSensitivityMax:F2}";
 
             // DPI
             RecommendedDpiText.Text =
@@ -85,6 +89,24 @@ namespace CleanAimTracker.Windows
             // Explanation
             ExplanationText.Text = _rec.Explanation;
 
+            // TASK-3.1: a > 15% cm/360 change MUST surface the transition plan
+            // on the summary card too — never a bare "change by 41%" instruction.
+            if (_rec.IsActionable && _rec.RequiresTransitionPlan)
+            {
+                var previewPlan = SensitivityTransitionService.GeneratePlan(
+                    _rec.CurrentCm360, _rec.RecommendedCm360,
+                    _rec.RecommendedDPI, _rec.RecommendedSensitivity);
+                if (previewPlan.Steps.Count > 0)
+                {
+                    var first = previewPlan.Steps[0];
+                    ExplanationText.Text +=
+                        $"\n\nThis is a big change — don't jump straight to it. Transition plan: " +
+                        $"{previewPlan.Steps.Count} steps, {first.RequiredSessions} sessions each. " +
+                        $"Step 1: {first.TargetSensitivity:F2} sens ({first.TargetCmPer360:F1} cm/360). " +
+                        "Open the Recommendation window for the full plan.";
+                }
+            }
+
             // Only replace explanation when there's a real out-of-range warning (not the data-missing prompt)
             bool hasWarning = cmIsValid && !string.IsNullOrEmpty(RecommendedCm360WarningText.Text);
             if (hasWarning && (_rec.Explanation.Contains("well-balanced") || _rec.Explanation.Contains("fine-tune")))
@@ -126,17 +148,30 @@ namespace CleanAimTracker.Windows
             SmallFlicksText.Text = $"Small Flicks: {_s.SmallFlickCount}";
             LargeFlicksText.Text = $"Large Flicks: {_s.LargeFlickCount}";
 
-            // Diagnostics
-            SmoothnessText.Text = $"Smoothness: {_s.SmoothnessScore:F0}";
-            SharpnessText.Text = $"Correction Sharpness: {_s.CorrectionSharpness:F0}";
-            ConsistencyText.Text = $"Consistency: {_s.MovementConsistency:F0}";
-            QualityText.Text = $"Overall Quality: {_s.OverallQualityScore:F0}";
+            // Diagnostics — TASK-4.4: invalid metrics render "—" + tooltip, never 0.
+            // TASK-4.4: "Correction Sharpness" (0 = good) renamed so polarity is
+            // self-evident and can't be confused with the engine's "Sharpness
+            // Score" (100 = good).
+            SmoothnessText.Text  = $"Smoothness: {MetricDisplay.Format(_s, "SmoothnessScore", _s.SmoothnessScore)}";
+            SharpnessText.Text   = $"Overcorrection: {MetricDisplay.Format(_s, "CorrectionSharpness", _s.CorrectionSharpness)} (lower is better)";
+            ConsistencyText.Text = $"Consistency: {MetricDisplay.Format(_s, "MovementConsistency", _s.MovementConsistency)}";
+            QualityText.Text     = $"Overall Quality: {MetricDisplay.Format(_s, "OverallQualityScore", _s.OverallQualityScore)}";
 
-            // Advanced diagnostics (from engine)
-            CorrectionSharpnessText.Text = $"Sharpness Score: {_rec.CorrectionSharpnessScore:F0}";
-            VelocityStabilityText.Text = $"Velocity Stability: {_rec.VelocityStabilityScore:F0}";
-            IdlePenaltyText.Text = $"Idle Penalty: {_rec.IdlePenaltyScore:F0}";
-            OverallDiagnosticText.Text = $"Weighted Diagnostic: {_rec.OverallDiagnostic:F0}";
+            SmoothnessText.ToolTip  = _s.IsMetricValid("SmoothnessScore")      ? null : MetricDisplay.InvalidTooltip;
+            SharpnessText.ToolTip   = _s.IsMetricValid("CorrectionSharpness")  ? null : MetricDisplay.InvalidTooltip;
+            ConsistencyText.ToolTip = _s.IsMetricValid("MovementConsistency")  ? null : MetricDisplay.InvalidTooltip;
+            QualityText.ToolTip     = _s.IsMetricValid("OverallQualityScore")  ? null : MetricDisplay.InvalidTooltip;
+
+            // Advanced diagnostics (engine scores, all 100 = good) — behind the
+            // collapsed Advanced expander (TASK-4.4).
+            CorrectionSharpnessText.Text = $"Correction Control: {_rec.CorrectionSharpnessScore:F0}/100 (higher is better)";
+            VelocityStabilityText.Text = $"Velocity Stability: {_rec.VelocityStabilityScore:F0}/100";
+            IdlePenaltyText.Text = $"Activity Score: {_rec.IdlePenaltyScore:F0}/100";
+            // TASK-1.4: Weighted Diagnostic ≠ session quality. OverallQualityScore
+            // is the session quality verdict (movement-quality blend, used by trends/
+            // headlines/PB). OverallDiagnostic is the RecommendationEngine's weighted
+            // sensitivity-fit diagnostic — Advanced-only per TASK-4.4.
+            OverallDiagnosticText.Text = $"Weighted Diagnostic (sensitivity fit): {_rec.OverallDiagnostic:F0}/100";
 
             // Trend
             TrendText.Text = _rec.TrendSummary;
@@ -163,8 +198,11 @@ namespace CleanAimTracker.Windows
 
                 // Personal best quality
                 double pbQuality   = previous.Max(h => h.OverallQualityScore);
-                double lastQuality = previous[0].OverallQualityScore;
-                double qualityDelta = _s.OverallQualityScore - lastQuality;
+
+                // TASK-3.4: deltas come from the single TrendReport — exact
+                // arithmetic over the same values every other surface shows.
+                var trend = TrendAnalysisService.Compute(_s, history);
+                double qualityDelta = trend.VsLastDelta ?? 0;
 
                 string qualityDeltaStr = qualityDelta >= 0
                     ? $"+{qualityDelta:F0} vs last"
@@ -172,11 +210,13 @@ namespace CleanAimTracker.Windows
 
                 QualityCompareText.Text = $"Quality:  {_s.OverallQualityScore:F0}  ({qualityDeltaStr})  •  PB: {pbQuality:F0}";
 
-                // TASK-27: Surface the personal best moment
-                if (_s.OverallQualityScore > pbQuality)
+                // TASK-27: Surface the personal best moment.
+                // Margin must be ≥ 1 displayed point — "beats your previous best
+                // by 0 pts" is a rounding tie, not a record.
+                double margin = _s.OverallQualityScore - pbQuality;
+                if (margin >= 1.0)
                 {
                     PersonalBestBanner.Visibility = Visibility.Visible;
-                    double margin = _s.OverallQualityScore - pbQuality;
                     PersonalBestScoreText.Text =
                         $"Quality {_s.OverallQualityScore:F0}/100 — beats your previous best " +
                         $"({pbQuality:F0}) by {margin:F0} pts";
@@ -279,6 +319,15 @@ namespace CleanAimTracker.Windows
                 CoachObservationsList.ItemsSource  = report.Observations;
                 CoachSuggestionsList.ItemsSource   = report.Suggestions;
                 CoachNextDrillText.Text            = report.NextDrillSuggestion;
+
+                // Empty sections hide their headers — a header over nothing
+                // reads as a rendering bug, not honest restraint.
+                WorkOnHeader.Visibility = report.Suggestions.Count > 0
+                    ? Visibility.Visible : Visibility.Collapsed;
+                NoticedHeader.Visibility = report.Observations.Count > 0
+                    ? Visibility.Visible : Visibility.Collapsed;
+                NextDrillHeader.Visibility = string.IsNullOrEmpty(report.NextDrillSuggestion)
+                    ? Visibility.Collapsed : Visibility.Visible;
             }
             catch
             {

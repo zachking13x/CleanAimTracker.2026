@@ -27,7 +27,11 @@ namespace CleanAimTracker.Services
             {
                 // ── Load raw data ─────────────────────────────────────────────
                 var allDrills  = AimTrainerStorage.LoadAll(); // newest last from storage
-                var allTracker = SessionStorage.LoadAll() ?? new List<SessionSummary>();
+                // TASK-1.3: low-activity sessions are excluded from all tracker
+                // baselines, trends, and memory — they carry no mechanics signal.
+                var allTracker = (SessionStorage.LoadAll() ?? new List<SessionSummary>())
+                    .Where(s => !s.IsLowActivitySession)
+                    .ToList();
 
                 // Order newest-first throughout
                 allDrills  = allDrills.OrderByDescending(d => d.Timestamp).ToList();
@@ -41,6 +45,7 @@ namespace CleanAimTracker.Services
                 // ── Core history ──────────────────────────────────────────────
                 memory.AllDrills       = allDrills;
                 memory.TotalDrillCount = allDrills.Count;
+                memory.RealDrillCount  = allDrills.Count(d => !d.IsAssessmentSession);
                 memory.RecentDrills    = allDrills.Take(10).ToList();
 
                 // ── Personal best (from PRIOR sessions only for PB detection) ─
@@ -239,6 +244,10 @@ namespace CleanAimTracker.Services
 
                 // ── Tip rotation ──────────────────────────────────────────────
                 memory.RecentTipKeys = settings.RecentTipKeys ?? new();
+
+                // ── TASK-2.1/2.2: technique prescription loop state ───────────
+                memory.ActivePrescription    = settings.ActiveTechniquePrescription;
+                memory.PrescriptionCooldowns = settings.PrescriptionCooldowns ?? new();
 
                 // ── Tracker history ───────────────────────────────────────────
                 memory.RecentTrackerSessions = allTracker.Take(5).ToList();

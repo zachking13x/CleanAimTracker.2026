@@ -10,6 +10,10 @@ namespace CleanAimTracker.Trainer.Scenarios
 {
     /// <summary>
     /// SMG / AR scenario — multiple moving targets with periodic direction changes.
+    /// CAT_AUTO_WEAPONS: this is an AUTOMATIC weapon — HOLD the left button to spray
+    /// (the host window synthesizes shots at a fixed cadence via IsAutoFire, exactly
+    /// like Track the Head). Targets take 3 shots to kill, so accuracy measures
+    /// SPRAY CONTROL: staying on a moving target through a burst, not click timing.
     /// Variants:
     ///   Standard — two simultaneous targets, independent random movement
     ///   Spray    — three simultaneous targets (falls back to two on very small canvases)
@@ -17,6 +21,8 @@ namespace CleanAimTracker.Trainer.Scenarios
     /// </summary>
     public class SmgArScenario : IAimScenario
     {
+        private const int ShotsToKill = 3;
+
         private readonly string _variant;
 
         private Canvas _canvas    = null!;
@@ -30,6 +36,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         private readonly List<(double cx, double cy)> _centers   = new();
         private readonly List<(double dx, double dy)> _velocities = new();
         private readonly List<Stopwatch>             _dirTimers  = new();
+        private readonly List<int>                   _hp         = new();
 
         // ── Strafe-specific ───────────────────────────────────────────
         private double            _strafeDx;        // shared horizontal velocity
@@ -37,16 +44,16 @@ namespace CleanAimTracker.Trainer.Scenarios
         private readonly Stopwatch _strafeTimer = new();
         private readonly List<double> _fixedYPositions = new();  // one per target row
 
-        // ── Reaction tracking ─────────────────────────────────────────
-        private readonly Stopwatch _reactionTimer = new();
-        private double _totalReactionMs;
-        private int    _streak;
+        private int _streak;
 
         public int    Hits           { get; private set; }
         public int    Misses         { get; private set; }
+        // CAT_AUTO_WEAPONS honesty: shots fire on a synthetic hold cadence, so a
+        // per-shot "reaction" number would be fabricated — same policy as HeadTrack.
         public double BestReactionMs { get; private set; } = double.MaxValue;
-        public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
+        public double AvgReactionMs  => 0;
         public int    MaxStreak      { get; private set; }
+        public bool   IsAutoFire     => true;
 
         public SmgArScenario(string variant = "Standard")
         {
@@ -92,8 +99,6 @@ namespace CleanAimTracker.Trainer.Scenarios
                     SpawnFreeTarget();
                     break;
             }
-
-            _reactionTimer.Restart();
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -119,6 +124,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         {
             foreach (var t in _targets) canvas.Children.Remove(t);
             _targets.Clear(); _centers.Clear(); _velocities.Clear(); _dirTimers.Clear();
+            _hp.Clear();
             _fixedYPositions.Clear();
         }
 
@@ -154,8 +160,6 @@ namespace CleanAimTracker.Trainer.Scenarios
 
         private bool HandleClickFree(Point clickPos)
         {
-            int targetCount = _variant == "Spray" && CanFitThreeTargets(_canvas) ? 3 : 2;
-
             for (int i = 0; i < _targets.Count; i++)
             {
                 var (cx, cy) = _centers[i];
@@ -165,11 +169,20 @@ namespace CleanAimTracker.Trainer.Scenarios
                 {
                     RecordHit();
 
+                    // CAT_AUTO_WEAPONS: 3 shots to kill — spray through the target.
+                    _hp[i]--;
+                    if (_hp[i] > 0)
+                    {
+                        DamageFlash(_targets[i]);
+                        return true;
+                    }
+
+                    TargetFactory.Burst(_canvas, new Point(cx, cy), Color.FromRgb(0x00, 0xD4, 0xFF));
                     _canvas.Children.Remove(_targets[i]);
                     _targets.RemoveAt(i); _centers.RemoveAt(i);
-                    _velocities.RemoveAt(i); _dirTimers.RemoveAt(i);
+                    _velocities.RemoveAt(i); _dirTimers.RemoveAt(i); _hp.RemoveAt(i);
 
-                    SpawnFreeTarget();   // always bring count back to targetCount
+                    SpawnFreeTarget();   // always bring the count back up
                     return true;
                 }
             }
@@ -240,14 +253,23 @@ namespace CleanAimTracker.Trainer.Scenarios
                 {
                     RecordHit();
 
+                    // CAT_AUTO_WEAPONS: 3 shots to kill — spray through the target.
+                    _hp[i]--;
+                    if (_hp[i] > 0)
+                    {
+                        DamageFlash(_targets[i]);
+                        return true;
+                    }
+
                     // Find which fixed row this target belongs to
                     int rowIndex = 0;
                     for (int ri = 0; ri < _fixedYPositions.Count; ri++)
                         if (Math.Abs(_fixedYPositions[ri] - cy) < 1.0) { rowIndex = ri; break; }
 
+                    TargetFactory.Burst(_canvas, new Point(cx, cy), Color.FromRgb(0x00, 0xD4, 0xFF));
                     _canvas.Children.Remove(_targets[i]);
                     _targets.RemoveAt(i); _centers.RemoveAt(i);
-                    _velocities.RemoveAt(i); _dirTimers.RemoveAt(i);
+                    _velocities.RemoveAt(i); _dirTimers.RemoveAt(i); _hp.RemoveAt(i);
 
                     // Respawn at same vertical row, current group horizontal position
                     double groupCx = _centers.Count > 0 ? _centers[0].cx : _canvas.ActualWidth / 2;
@@ -283,16 +305,25 @@ namespace CleanAimTracker.Trainer.Scenarios
             _velocities.Add(vel);
             var sw = new Stopwatch(); sw.Restart();
             _dirTimers.Add(sw);
+            _hp.Add(ShotsToKill);
         }
 
         private void RecordHit()
         {
             Hits++; _streak++;
             MaxStreak = Math.Max(MaxStreak, _streak);
-            double reaction = _reactionTimer.Elapsed.TotalMilliseconds;
-            _totalReactionMs += reaction;
-            if (reaction < BestReactionMs) BestReactionMs = reaction;
-            _reactionTimer.Restart();
+        }
+
+        /// <summary>Brief bright pulse on a non-lethal spray hit — "damage registered".</summary>
+        private static void DamageFlash(Ellipse target)
+        {
+            try
+            {
+                var pulse = new System.Windows.Media.Animation.DoubleAnimation(0.45, 1.0,
+                    TimeSpan.FromMilliseconds(120));
+                target.BeginAnimation(UIElement.OpacityProperty, pulse);
+            }
+            catch { /* FX never break gameplay */ }
         }
 
         private bool IsOverlapping(double cx, double cy, double minDist)

@@ -64,8 +64,30 @@ namespace CleanAimTracker.Services
         // ------------------------------------------------------------------ //
 
         /// <summary>
+        /// CAT_ROUTINE (2026-08-12): the difficulty gate the TRAINER actually enforces.
+        ///
+        /// This is deliberately separate from <see cref="GetAvailableDifficulties"/>.
+        /// Those per-scenario unlock flags drive progression messaging, but
+        /// AimTrainerWindow has never enforced them — Easy, Medium and Hard are always
+        /// selectable there, and only Nightmare is blocked, by this global history rule.
+        ///
+        /// The routine has to match what the trainer will actually let the player start.
+        /// Clamping to the flags instead produced a routine of nothing but Easy drills
+        /// for a player with 236 sessions logged at Medium and Hard — safe, and obviously
+        /// wrong. Both callers now share this method so the two can't drift apart.
+        /// </summary>
+        public static bool IsSelectableInTrainer(string difficulty, IEnumerable<AimTrainerResult>? history)
+        {
+            if (difficulty != "Nightmare") return true;   // Easy/Medium/Hard always open
+            return history != null && history.Any(r => r.Difficulty == "Hard" && r.Accuracy >= 80.0);
+        }
+
+        /// <summary>
         /// Returns the ordered list of difficulty labels the player has unlocked
         /// for the given scenario + variant combination.
+        ///
+        /// NOTE: these flags are NOT what the trainer enforces — see
+        /// <see cref="IsSelectableInTrainer"/>. Use this for progression display only.
         /// </summary>
         public static string[] GetAvailableDifficulties(
             string scenario, string variant, UserSettings settings)

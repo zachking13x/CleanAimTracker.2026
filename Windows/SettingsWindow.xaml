@@ -27,7 +27,8 @@
             <StackPanel>
                 <TextBlock Text="Settings"
                            FontSize="22" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryText}"/>
+                           Foreground="{DynamicResource PrimaryText}"
+                           MouseLeftButtonDown="DevFunnel_Tap"/>
                 <TextBlock Text="Customize your Clean Aim Tracker experience"
                            FontSize="12"
                            Foreground="{DynamicResource MutedText}"
@@ -130,6 +131,147 @@
                             <ComboBoxItem Content="Light"/>
                         </ComboBox>
                     </Grid>
+                </Border>
+
+                <!-- Sound -->
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="18" Margin="0 0 0 20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="Sound effects"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="Hit and miss feedback while you train"
+                                       Foreground="{DynamicResource MutedText}"
+                                       FontSize="11" Margin="0 2 0 0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="SoundToggle" Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Foreground="{DynamicResource PrimaryText}"/>
+                    </Grid>
+                </Border>
+
+                <!-- CAT_SESSION_REPORT: the escape hatch back to report-after-every-drill -->
+                <TextBlock Text="COACHING"
+                           Foreground="{DynamicResource MutedText}"
+                           FontSize="10" FontWeight="Bold"
+                           Margin="0 0 0 10"/>
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="16" Margin="0 0 0 20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="Coach report after every drill"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       FontSize="14" FontWeight="SemiBold"/>
+                            <TextBlock Text="Off by default — you get one line between drills and a full report when you finish training. Turn this on to open the full report after every single drill instead."
+                                       Foreground="{DynamicResource MutedText}"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0 2 8 0"/>
+                        </StackPanel>
+                        <CheckBox x:Name="ReportEveryDrillToggle"
+                                  Grid.Column="1"
+                                  VerticalAlignment="Center"
+                                  Foreground="{DynamicResource PrimaryText}"/>
+                    </Grid>
+                </Border>
+
+                <!-- Notifications -->
+                <TextBlock Text="NOTIFICATIONS"
+                           Foreground="{DynamicResource MutedText}"
+                           FontSize="10" FontWeight="Bold"
+                           Margin="0 0 0 10"/>
+
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="18" Margin="0 0 0 20">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Training reminders"
+                                           Foreground="{DynamicResource PrimaryText}"
+                                           FontSize="14" FontWeight="SemiBold"/>
+                                <TextBlock Text="Streak warnings, daily challenge, and a nudge if you drift — at most one a day."
+                                           Foreground="{DynamicResource MutedText}"
+                                           FontSize="11" TextWrapping="Wrap" Margin="0 2 8 0"/>
+                            </StackPanel>
+                            <CheckBox x:Name="NotificationsToggle"
+                                      Grid.Column="1"
+                                      VerticalAlignment="Center"
+                                      Foreground="{DynamicResource PrimaryText}"/>
+                        </Grid>
+                        <TextBlock x:Name="NotificationsOsWarning"
+                                   Visibility="Collapsed"
+                                   Foreground="#FFAA44"
+                                   FontSize="11" TextWrapping="Wrap" Margin="0 10 0 0"
+                                   Text="Windows currently has notifications off for Clean Aim Tracker. Turn them on in Windows Settings → Notifications to receive reminders."/>
+                    </StackPanel>
+                </Border>
+
+                <!-- CAT_TELEMETRY: privacy. Hidden entirely when no analytics endpoint is
+                     configured — a toggle for something the build cannot do is a lie. -->
+                <StackPanel x:Name="PrivacySection" Visibility="Collapsed">
+                    <TextBlock Text="PRIVACY"
+                               Foreground="{DynamicResource MutedText}"
+                               FontSize="10" FontWeight="Bold"
+                               Margin="0 0 0 10"/>
+                    <Border Background="{DynamicResource CardBackground}"
+                            CornerRadius="10" Padding="16" Margin="0 0 0 20">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Share anonymous usage data"
+                                               Foreground="{DynamicResource PrimaryText}"
+                                               FontSize="14" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Which drills get played and whether features are used — so I can fix what isn't working. Never your scores, accuracy, sensitivity, or anything that identifies you."
+                                               Foreground="{DynamicResource MutedText}"
+                                               FontSize="11" TextWrapping="Wrap" Margin="0 2 8 0"/>
+                                </StackPanel>
+                                <CheckBox x:Name="TelemetryToggle"
+                                          Grid.Column="1"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource PrimaryText}"/>
+                            </Grid>
+                            <TextBlock Foreground="{DynamicResource MutedText}"
+                                       FontSize="11" TextWrapping="Wrap" Margin="0 10 0 0"
+                                       Text="Turning this off also erases the random ID this install was using."/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Feedback -->
+                <TextBlock Text="FEEDBACK"
+                           Foreground="{DynamicResource MutedText}"
+                           FontSize="10" FontWeight="Bold"
+                           Margin="0 0 0 10"/>
+
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="18" Margin="0 0 0 20">
+                    <StackPanel>
+                        <TextBlock Text="Got a request or found something off? Tell me — I read these."
+                                   Foreground="{DynamicResource SecondaryText}"
+                                   FontSize="12" TextWrapping="Wrap" Margin="0 0 0 12" LineHeight="18"/>
+                        <Button x:Name="FeedbackButton"
+                                Content="Send feedback / Request a feature"
+                                Click="Feedback_Click"
+                                HorizontalAlignment="Left"
+                                Background="{DynamicResource AccentBrush}"
+                                Foreground="Black" FontSize="13" FontWeight="SemiBold"
+                                BorderThickness="0" Padding="14,8" Cursor="Hand"/>
+                    </StackPanel>
                 </Border>
 
                 <!-- Privacy -->

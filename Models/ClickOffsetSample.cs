@@ -11,11 +11,16 @@ namespace CleanAimTracker.Models
     {
         public readonly Point ClickPoint;
         public readonly Point TargetCenter;
+        // F6: Stopwatch.GetTimestamp() ticks at click time — same clock as
+        // RawInputSample.Timestamp, so the raw movement buffer can be split into
+        // per-acquisition segments at click boundaries for PathEfficiency.
+        public readonly long  Timestamp;
 
-        public ClickOffsetSample(Point clickPoint, Point targetCenter)
+        public ClickOffsetSample(Point clickPoint, Point targetCenter, long timestamp = 0)
         {
             ClickPoint   = clickPoint;
             TargetCenter = targetCenter;
+            Timestamp    = timestamp;
         }
     }
 }

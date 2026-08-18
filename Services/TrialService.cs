@@ -50,10 +50,19 @@ namespace CleanAimTracker.Services
 
         public static bool IsFullVersion()
         {
-            if (IsDeveloper) return true;
+            // Dev bypass — but honor the "preview as free user" dev toggle so Zach can
+            // actually SEE the paywall. PreviewingAsFree() is only evaluated when
+            // IsDeveloper is true, so real users never pay the settings-read cost.
+            if (IsDeveloper && !PreviewingAsFree()) return true;
             return LicenseService.HasPro
                 || LicenseService.HasTrainer
                 || LicenseService.HasLifetime;
+        }
+
+        private static bool PreviewingAsFree()
+        {
+            try { return SettingsService.Load().PreviewAsFreeUser; }
+            catch { return false; }
         }
 
         public static bool CanAccessProFeature()
@@ -69,43 +78,46 @@ namespace CleanAimTracker.Services
 
         public static string GetStatusText()
         {
-            if (IsFullVersion()) return "Pro";
-            int remaining = SessionsRemaining();
-            if (remaining <= 0) return "Free limit reached";
-            return $"Free — {remaining} session{(remaining == 1 ? "" : "s")} left";
+            return IsFullVersion() ? "Pro" : "Free";
         }
 
-        // TASK-12: Only show banner after at least one session is completed
+        // AUDIT (2026-07-06): training is UNLIMITED — nothing stops a free user from
+        // playing forever. The banner used to say "limit reached / N sessions left,"
+        // which was a lie (there is no session wall). The gate is the COACH, so the
+        // banner now honestly promotes the coach without inventing a countdown.
         public static string GetBannerText()
         {
             if (IsFullVersion()) return "";
 
             int completed = SessionsCompleted();
-            if (completed == 0) return "";      // TASK-12: suppress until first session done
+            if (completed == 0) return "";      // suppress until the first session is done
 
-            int remaining = SessionsRemaining();
-            if (remaining <= 0) return $"🎯 {completed} sessions done — ready for Pro?";
-            if (remaining <= 5) return $"⚡ {remaining} free session{(remaining == 1 ? "" : "s")} left";
-            return $"Free — {remaining} sessions remaining";
+            return "🎯 Unlock your coach — see exactly what to fix every session";
         }
 
-        /// <summary>True when the free trial has been fully used up.</summary>
+        /// <summary>
+        /// A conversion MOMENT (not a wall). Fires once the user is clearly committed —
+        /// training never stops, but a heavily-invested player is the best time to make
+        /// the coach pitch. Kept named IsAtFreeLimit for its existing call sites.
+        /// </summary>
         public static bool IsAtFreeLimit()
-            => !IsFullVersion() && SessionsRemaining() <= 0;
+            => !IsFullVersion() && SessionsCompleted() >= FreeSessions;
 
-        // TASK-11: Returns true if this session count is a value-moment milestone
+        // Value-moment milestones — early nudges before the big committed-player moment.
         public static bool IsValueMoment(int sessionCount)
         {
             return sessionCount == 3 || sessionCount == 10 || sessionCount == 25;
         }
 
+        // COACH-FIRST copy (AUDIT 2026-07-06): sell the OUTCOME (the coach tells you what
+        // to fix), never a feature checklist, and never a fake "sessions left" countdown.
         public static string GetValueMomentMessage(int sessionCount)
         {
             return sessionCount switch
             {
-                3  => "You've completed 3 sessions! Pro unlocks AI coaching, full history, and export.",
-                10 => $"10 sessions in — you're building real habits! You have {FreeSessions - 10} free sessions left. After that, Pro keeps your history, AI coaching, and trends going.",
-                25 => $"25 sessions! You're seriously committed. {FreeSessions - 25} free sessions left — Pro gives you unlimited sessions, AI coaching, and full trend history.",
+                3  => "3 sessions in. Unlock your coach and it'll tell you the one thing holding your aim back — and the drill to fix it.",
+                10 => "10 sessions — you're building real habits. Your coach can track them across every session and show you exactly where you're improving.",
+                25 => "25 sessions. You're committed. Unlock the coach for good and never wonder what to practice again — it tells you, every session.",
                 _  => ""
             };
         }

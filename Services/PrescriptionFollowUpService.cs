@@ -22,6 +22,22 @@ namespace CleanAimTracker.Services
         /// <summary>Sessions of no movement before the approach changes.</summary>
         public const int FlatSessionsBeforeEscalation = 3;
 
+        /// <summary>
+        /// After escalation, further sessions of no movement before the loop is
+        /// RELEASED. The escalation already delivered the honest "this isn't moving,
+        /// try the easier rep" word once; holding the loop open past that just blocks
+        /// every new technique prescription (Select yields while a loop is open), so a
+        /// stuck metric would starve all other coaching indefinitely.
+        /// </summary>
+        public const int AbandonSessionsAfterEscalation = 3;
+
+        /// <summary>
+        /// Hard backstop: an open loop is force-released after this many sessions no
+        /// matter what — covers a verify metric that never reads valid again or a
+        /// scenario context that never recurs. No prescription may block coaching forever.
+        /// </summary>
+        public const int MaxOpenLoopSessions = 10;
+
         public static CoachObservation? Evaluate(
             CoachMemory memory, AimTrainerResult result, Func<string, bool> isMetricValid)
         {
@@ -84,6 +100,17 @@ namespace CleanAimTracker.Services
                     string easier = StepDifficultyDown(state.PracticeDifficulty);
                     state.PracticeDifficulty = easier;
 
+                    // The trend phrase must match the data: "hasn't moved" only when the
+                    // number is genuinely flat. If it went the WRONG way (down-metric rose,
+                    // up-metric fell), say so — the displayed old→new would otherwise
+                    // contradict the words.
+                    bool wrongWay = (MetricDirection)state.ExpectedDirection == MetricDirection.Down
+                        ? newV > oldV
+                        : newV < oldV;
+                    string trend = wrongWay
+                        ? $"moved the wrong way over {state.SessionsSince} sessions"
+                        : $"hasn't moved in {state.SessionsSince} sessions";
+
                     // VOICE TASK-1.3: escalation speaks evidence → cause →
                     // adjusted instruction, with both numbers displayed.
                     return new CoachObservation
@@ -95,12 +122,33 @@ namespace CleanAimTracker.Services
                         Severity     = 75,   // honesty about a stalled loop leads the report
                         RequiresBehaviorChange = true,
                         RequiredMetrics = prescription.RequiredMetrics.ToList(),
-                        Message = $"{MetricLabel(state.VerifyMetric)} hasn't moved in {state.SessionsSince} sessions " +
+                        Message = $"{MetricLabel(state.VerifyMetric)} {trend} " +
                                   $"({oldV:F0} → {newV:F0}) — odds are {prescription.CauseClause}. " +
                                   $"Let's change the approach: same focus, easier rep. {prescription.Instruction} " +
                                   $"({state.PracticeScenario} · {state.PracticeVariant} at {easier}.)"
                     };
                 }
+
+                // Escalated and STILL flat after a fair grace: release the loop. The
+                // honest escalation was already delivered once; holding it open longer
+                // just blocks the next-priority habit. Silent close → this SAME report
+                // can surface that habit (Select runs because no follow-up fired).
+                if (!improved && state.Escalated
+                    && state.SessionsSince >= FlatSessionsBeforeEscalation + AbandonSessionsAfterEscalation)
+                {
+                    memory.ActivePrescription = null;
+                    return null;
+                }
+            }
+
+            // Hard backstop: a loop open this long is stale no matter what — covers a
+            // verify metric that never reads valid again, or a practice/scenario context
+            // that never recurs (the principled release above is unreachable then). No
+            // prescription may block coaching forever.
+            if (state.SessionsSince >= MaxOpenLoopSessions)
+            {
+                memory.ActivePrescription = null;
+                return null;
             }
 
             // ── Practice drill not run: one nudge, once, no guilt ─────────────
@@ -133,6 +181,7 @@ namespace CleanAimTracker.Services
             "PeekEarlyClickPct"       => "Early-click rate",
             "PeekLateClickPct"        => "Late-click rate",
             "Accuracy"                => "Accuracy",
+            "MovementOvershoot"       => "Your overshoot",
             "HitsOutsideStreakRatio"  => "Your hit spread",
             _                         => verifyMetric
         };

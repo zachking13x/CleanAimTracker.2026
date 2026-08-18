@@ -38,6 +38,10 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
 
+        // T1: click-offset / acquisition-segmentation telemetry — Flicking & Precision
+        // (and Adaptive's default inner) were blind without this.
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
+
         public StaticScenario(string baseScenario = "Precision", string variant = "Standard")
         {
             _baseScenario = baseScenario;
@@ -72,6 +76,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 if (dx * dx + dy * dy <= (size / 2) * (size / 2))
                 {
+                    LastHitCenter = new Point(cx, cy);   // T1: feed click-offset telemetry
                     Hits++;
                     _hitsOnCurrentSet++;
                     _streak++;

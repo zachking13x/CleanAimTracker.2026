@@ -26,6 +26,18 @@ namespace CleanAimTracker.Services
         public const string STOREID_PROMO       = "9P6Z5PSG984Z";   // promo_pro_access — LIVE
 
         // ── InAppOfferTokens (developer-defined — used for license checks) ──
+        /// <summary>
+        /// CAT_REGIONAL_PRICING: the customer's REAL localised prices, straight from the
+        /// Store, already currency-formatted for their market. Null until the Store has
+        /// been reached — callers fall back to the US strings in <see cref="Pricing"/>.
+        /// Never assume these are dollars.
+        /// </summary>
+        public static string? LifetimePrice { get; private set; }
+        public static string? MonthlyPrice  { get; private set; }
+
+        private static string? NullIfBlank(string? s)
+            => string.IsNullOrWhiteSpace(s) ? null : s;
+
         private const string TOKEN_LIFETIME     = "lifetime_unlock";
         private const string TOKEN_PRO          = "pro_monthly";
         private const string TOKEN_PRO_TRAINER  = "pro_trainer_monthly";
@@ -120,6 +132,23 @@ namespace CleanAimTracker.Services
                     }
                 }
 
+                // ── CAT_REGIONAL_PRICING: capture the REAL localised prices ──
+                // Partner Center now sets a different price per market, so the app can
+                // no longer display a hardcoded "$9.99". StoreProduct.Price.FormattedPrice
+                // is already localised and currency-formatted for this customer's market,
+                // which is the only string that will match what they see at checkout.
+                try
+                {
+                    var durables = await _context.GetAssociatedStoreProductsAsync(
+                        new[] { "Durable" });
+
+                    if (durables.Products != null)
+                        foreach (var kv in durables.Products)
+                            if (kv.Value.StoreId == STOREID_LIFETIME)
+                                LifetimePrice = NullIfBlank(kv.Value.Price?.FormattedPrice);
+                }
+                catch (Exception ex) { LogService.Error("Lifetime price lookup failed", ex); }
+
                 // ── Subscriptions — match by InAppOfferToken ─────────────────
                 var subsResult = await _context.GetAssociatedStoreProductsAsync(
                     new[] { "Subscription" });
@@ -130,6 +159,11 @@ namespace CleanAimTracker.Services
                     {
                         var product = kv.Value;
                         string token = product.InAppOfferToken ?? "";
+
+                        // CAT_REGIONAL_PRICING: capture the monthly price regardless of
+                        // whether it's owned — a free user is exactly who needs to see it.
+                        if (token == TOKEN_PRO)
+                            MonthlyPrice = NullIfBlank(product.Price?.FormattedPrice);
 
                         bool isActive = appLicense.AddOnLicenses.TryGetValue(
                             product.StoreId, out var subLic) && subLic.IsActive;

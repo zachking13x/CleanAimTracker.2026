@@ -192,10 +192,13 @@ namespace CleanAimTracker.Services
                     : $"Quality {q:F0}/100{deltaClause}. The area below is the priority.";
             }
 
-            // Nothing survived: neutral statement of the number only.
+            // T2: zero survivors on a VALID session (low-activity returns earlier in
+            // Compose, so this is always real play). A bare "Quality 94/100" read as
+            // a hollow/dumb report. This honest floor says the coach looked and found
+            // no single habit worth flagging — visibly distinct from LowActivityHeadline.
             return ctx.IsShortSession
-                ? $"Quality {q:F0}/100{deltaClause} — short session, directional read."
-                : $"Quality {q:F0}/100{deltaClause}.";
+                ? $"Clean session — {q:F0}/100{deltaClause}, directional read on a short session; no single habit stood out to flag."
+                : $"Clean session — {q:F0}/100{deltaClause}; no single habit stood out to flag today.";
         }
 
         private static string QualityTier(double score) => score switch

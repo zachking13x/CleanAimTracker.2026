@@ -1,0 +1,104 @@
+<Window x:Class="CleanAimTracker.Windows.AimProfileWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Your Aim Profile"
+        Width="960" Height="740"
+        MinWidth="720" MinHeight="560"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource AppBackground}">
+
+    <Grid Margin="28 22 28 22">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0 0 0 16">
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="YOUR AIM PROFILE"
+                               FontSize="11" FontWeight="Bold"
+                               Foreground="{DynamicResource MutedText}"/>
+                    <TextBlock x:Name="SummaryText" Text=""
+                               FontSize="19" FontWeight="Bold" TextWrapping="Wrap"
+                               Foreground="{DynamicResource PrimaryText}"
+                               Margin="0 4 0 0"/>
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <TextBlock x:Name="OverallText" Text=""
+                               FontSize="30" FontWeight="Black"
+                               HorizontalAlignment="Right"
+                               Foreground="#00D4FF"/>
+                    <TextBlock Text="overall"
+                               FontSize="10" HorizontalAlignment="Right"
+                               Foreground="{DynamicResource MutedText}"/>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+
+        <!-- Body: radar left, breakdown right -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.05*"/>
+                <ColumnDefinition Width="1.35*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="{DynamicResource CardBackground}"
+                    CornerRadius="12" Padding="10" Margin="0 0 12 0">
+                <Canvas x:Name="RadarCanvas" Background="Transparent"
+                        SizeChanged="RadarCanvas_SizeChanged"/>
+            </Border>
+
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="AxisList"/>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Footer -->
+        <StackPanel Grid.Row="2" Margin="0 14 0 0">
+            <TextBlock x:Name="FootnoteText" Text=""
+                       FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource MutedText}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0 12 0 0">
+                <Button x:Name="CopyBtn" Content="Copy summary"
+                        Click="Copy_Click"
+                        Height="34" Padding="16 0" Margin="0 0 8 0"
+                        Cursor="Hand"
+                        Background="Transparent"
+                        Foreground="{DynamicResource PrimaryText}"
+                        BorderBrush="{DynamicResource SeparatorBrush}"
+                        BorderThickness="1"/>
+                <Button Content="Close" Click="Close_Click"
+                        Height="34" Padding="24 0" Cursor="Hand"
+                        BorderThickness="0"
+                        Foreground="Black">
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#00D4FF"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                                CornerRadius="8">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Opacity" Value="0.88"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+                </Button>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

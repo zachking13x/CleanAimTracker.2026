@@ -29,6 +29,9 @@
         public double SmoothnessScore { get; set; }
         public double CorrectionSharpness { get; set; }
         public double MovementConsistency { get; set; }
+        // GATE 2: active-movement speed consistency (CV-based). -1 = not computed
+        // (legacy sessions); the engine falls back to its old estimate for those.
+        public double VelocityStability { get; set; } = -1;
         public double OverallQualityScore { get; set; }
         public double IdlePercentage { get; set; }
         public double JitterAmount { get; set; }

@@ -7,13 +7,31 @@ namespace CleanAimTracker.Windows
 {
     public partial class UpgradeWindow : Window
     {
-        public UpgradeWindow()
+        // CAT_TELEMETRY: which surface opened this window. Every entry point names
+        // itself so the funnel can answer "which prompt actually sells" rather than
+        // just "the paywall was seen N times".
+        private readonly string _trigger;
+
+        public UpgradeWindow(string trigger = "unknown")
         {
             InitializeComponent();
+            _trigger = trigger;
+
+            // Prices come from the single source of truth (Services/Pricing.cs), which
+            // must be kept in sync with Partner Center by hand.
+            LifetimePriceText.Text   = Pricing.Lifetime;
+            LifetimeBadgeText.Text   = Pricing.LifetimeLabel.ToUpperInvariant();
+            LifetimeCaptionText.Text = Pricing.LifetimeCaption;
+            MonthlyPriceText.Text    = Pricing.MonthlyPer;
+
+            TelemetryService.TrackPaywallShown(_trigger);
         }
 
         private async void Pro_Click(object sender, RoutedEventArgs e)
         {
+            // Purchase INTENT, not a completed sale — Partner Center owns revenue truth.
+            // What this measures is how far down the funnel people get before dropping.
+            TelemetryService.TrackPurchaseStarted("monthly", _trigger);
             ProBtn.IsEnabled = false;
             ProBtn.Content   = "Processing...";
             try
@@ -49,6 +67,7 @@ namespace CleanAimTracker.Windows
 
         private async void Lifetime_Click(object sender, RoutedEventArgs e)
         {
+            TelemetryService.TrackPurchaseStarted("lifetime", _trigger);
             LifetimeBtn.IsEnabled = false;
             LifetimeBtn.Content   = "Processing...";
             try
@@ -86,8 +105,8 @@ namespace CleanAimTracker.Windows
         {
             ProBtn.IsEnabled = true;
             var stack = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
-            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Pro  — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 14 });
-            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "$4.99 / month", FontSize = 16, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center });
+            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Or try monthly — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 13 });
+            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = Pricing.MonthlyPer, FontSize = 14, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center });
             ProBtn.Content = stack;
         }
 
@@ -95,8 +114,8 @@ namespace CleanAimTracker.Windows
         {
             LifetimeBtn.IsEnabled = true;
             var stack = new System.Windows.Controls.StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal };
-            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "Lifetime  — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 14 });
-            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "$24.99", FontSize = 17, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = "⭐  Unlock forever — ", VerticalAlignment = VerticalAlignment.Center, FontSize = 14 });
+            stack.Children.Add(new System.Windows.Controls.TextBlock { Text = Pricing.Lifetime, FontSize = 18, FontWeight = FontWeights.Black, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
             LifetimeBtn.Content = stack;
         }
 

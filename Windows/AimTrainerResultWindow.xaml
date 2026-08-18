@@ -170,6 +170,103 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ═══ CAT_ACTIVE_FIX: the prescription as a PLAN with a finish line ═══
+                         The coach opened a loop ("work on X") and verified it silently.
+                         The user never saw how long it would take or when they were done,
+                         so it never felt like a program — just recurring criticism. -->
+                    <Border x:Name="ActiveFixCard"
+                            Background="#14F5C842"
+                            BorderBrush="#55F5C842"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="16,13"
+                            Margin="0,0,0,12"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <TextBlock Text="YOUR ACTIVE FIX"
+                                           Foreground="{StaticResource AccentGold}"
+                                           FontSize="10" FontWeight="Bold"/>
+                                <TextBlock x:Name="ActiveFixProgressText"
+                                           Text=""
+                                           HorizontalAlignment="Right"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource MutedText}"/>
+                            </Grid>
+                            <TextBlock x:Name="ActiveFixTitleText"
+                                       Text=""
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,0,0,8"/>
+                            <Grid Margin="0,0,0,6">
+                                <Border Background="#1AFFFFFF" CornerRadius="3" Height="6"/>
+                                <Border x:Name="ActiveFixBar"
+                                        Background="{StaticResource AccentGold}"
+                                        CornerRadius="3" Height="6"
+                                        HorizontalAlignment="Left" Width="0"/>
+                            </Grid>
+                            <TextBlock x:Name="ActiveFixMetricText"
+                                       Text=""
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MutedText}"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ═══ CAT_BENCHMARK_DESTINATION: where you stand + the next rung ═══
+                         FREE for everyone, always visible, never displaceable. This is the
+                         answer to "…compared to what?" that the coach never gave. -->
+                    <Border x:Name="BenchmarkCard"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="#3300D4FF"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="16,13"
+                            Margin="0,0,0,12"
+                            Visibility="Collapsed">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock Text="WHERE YOU STAND"
+                                           Foreground="{DynamicResource MutedText}"
+                                           FontSize="10" FontWeight="Bold"/>
+                                <TextBlock x:Name="BenchmarkTierText"
+                                           Text=""
+                                           HorizontalAlignment="Right"
+                                           FontSize="14" FontWeight="Black"
+                                           Foreground="{StaticResource AccentGold}"/>
+                            </Grid>
+
+                            <!-- ladder: entry → intermediate → high-int → advanced -->
+                            <Grid Margin="0,0,0,6">
+                                <Border Background="#1AFFFFFF" CornerRadius="4" Height="8"/>
+                                <Border x:Name="BenchmarkBar"
+                                        Background="{DynamicResource AccentBrush}"
+                                        CornerRadius="4" Height="8"
+                                        HorizontalAlignment="Left" Width="0"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,10">
+                                <TextBlock Text="entry" FontSize="9" Foreground="{DynamicResource MutedText}"/>
+                                <TextBlock Text="intermediate" FontSize="9" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource MutedText}"/>
+                                <TextBlock Text="advanced" FontSize="9" HorizontalAlignment="Right"
+                                           Foreground="{DynamicResource MutedText}"/>
+                            </Grid>
+
+                            <TextBlock x:Name="BenchmarkNextText"
+                                       Text=""
+                                       FontSize="13"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       TextWrapping="Wrap"/>
+                            <TextBlock x:Name="BenchmarkFootnote"
+                                       Text="Voltaic-derived thresholds for this scenario type and difficulty."
+                                       FontSize="9"
+                                       Foreground="{DynamicResource MutedText}"
+                                       Margin="0,6,0,0"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ═══ TASK-16: Personal Best badges ═══ -->
                     <WrapPanel x:Name="PBBadgesPanel"
                                Margin="0,0,0,12"
@@ -203,6 +300,31 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ═══ REVIEW PROMPT — PB-triggered, light & dismissible (CAT_REVIEW_PROMPT) ═══ -->
+                    <Border x:Name="ReviewPromptBox" Visibility="Collapsed"
+                            Background="#142BD4FF"
+                            BorderBrush="{StaticResource AccentGold}" BorderThickness="1"
+                            CornerRadius="8" Padding="16,14" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="13" LineHeight="19"
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       Text="New personal best — nice work. If Clean Aim Tracker's helping, a quick rating goes a long way for a solo dev. No worries if not."/>
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="⭐ Rate it" Click="RateIt_Click"
+                                        Background="{StaticResource AccentGold}" Foreground="Black"
+                                        FontWeight="Bold" BorderThickness="0" Padding="14,7" Cursor="Hand"/>
+                                <Button Content="Maybe later" Click="MaybeLater_Click"
+                                        Background="Transparent" Foreground="{DynamicResource MutedText}"
+                                        BorderBrush="#444" BorderThickness="1" Padding="14,7"
+                                        Margin="10,0,0,0" Cursor="Hand"/>
+                                <Button Content="Don't ask again" Click="DontAskAgain_Click"
+                                        Background="Transparent" Foreground="{DynamicResource MutedText}"
+                                        FontSize="11" BorderThickness="0" Padding="8,7"
+                                        Margin="6,0,0,0" Cursor="Hand"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ═══ XP PANEL ═══ -->
                     <Border x:Name="XpPanel"
                             Background="{DynamicResource CardBackground}"
@@ -214,8 +336,10 @@
                                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="⚡ " FontSize="13"
                                                VerticalAlignment="Center"/>
+                                    <!-- T0.3: neutral placeholder, not "+0 XP" — ShowXpAsync
+                                         fills it within a frame; a false zero must never flash. -->
                                     <TextBlock x:Name="XpEarnedText"
-                                               Text="+0 XP"
+                                               Text="…"
                                                FontSize="13" FontWeight="Bold"
                                                Foreground="{StaticResource AccentGold}"
                                                VerticalAlignment="Center"/>
@@ -374,11 +498,13 @@
                                     Margin="0,0,0,0"
                                     Visibility="Collapsed">
                                 <StackPanel>
-                                    <TextBlock Text="Your first full coaching report — everything unlocked."
+                                    <TextBlock x:Name="FreeSessionBannerTitle"
+                                               Text="Full coaching report — everything unlocked."
                                                FontSize="13" FontWeight="Bold"
                                                Foreground="#00E5A0"
                                                TextWrapping="Wrap"/>
-                                    <TextBlock Text="This is a one-time preview so you know exactly what Pro gives you. Nothing held back."
+                                    <TextBlock x:Name="FreeSessionBannerBody"
+                                               Text="Your opening drills come fully coached, so you can see exactly what Pro does. Nothing held back."
                                                FontSize="12"
                                                Foreground="{DynamicResource MutedText}"
                                                TextWrapping="Wrap"
@@ -394,6 +520,50 @@
                                     <TextBlock Text="AI COACH" FontSize="11" FontWeight="Bold"
                                                Foreground="{DynamicResource AccentBrush}"
                                                VerticalAlignment="Center"/>
+                                </StackPanel>
+
+                                <!-- ═══ YOUR AIM — cross-session player profile (COACH_AIM_PROFILE) ═══ -->
+                                <StackPanel x:Name="AimProfileSection" Margin="0 0 0 16" Visibility="Collapsed">
+                                    <TextBlock Text="🎯  YOUR AIM"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               FontSize="11" FontWeight="Bold"
+                                               Margin="0 0 0 6"/>
+                                    <Border Background="#1400D4FF" CornerRadius="8"
+                                            BorderBrush="#3300D4FF" BorderThickness="1"
+                                            Padding="14 12">
+                                        <StackPanel>
+                                            <TextBlock x:Name="AimProfileCondensed"
+                                                       Foreground="{DynamicResource PrimaryText}"
+                                                       FontSize="13" TextWrapping="Wrap"
+                                                       LineHeight="19"/>
+                                            <Expander x:Name="AimProfileExpander"
+                                                      Header="See full aim profile"
+                                                      Foreground="{DynamicResource AccentBrush}"
+                                                      FontSize="12" FontWeight="SemiBold"
+                                                      Margin="0 10 0 0">
+                                                <StackPanel Margin="0 8 0 0">
+                                                    <ItemsControl x:Name="AimProfileFullList">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <TextBlock Text="{Binding}"
+                                                                           Foreground="{DynamicResource PrimaryText}"
+                                                                           FontSize="13" TextWrapping="Wrap"
+                                                                           Margin="0 0 0 8" LineHeight="19"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <TextBlock x:Name="AimProfileRecomputeCaption"
+                                                               Foreground="{DynamicResource MutedText}"
+                                                               FontSize="11" FontStyle="Italic"
+                                                               TextWrapping="Wrap" Margin="0 6 0 0"/>
+                                                    <TextBlock x:Name="AimProfileGameDisclaimer"
+                                                               Foreground="{DynamicResource MutedText}"
+                                                               FontSize="11" FontStyle="Italic"
+                                                               TextWrapping="Wrap" Margin="0 8 0 0"/>
+                                                </StackPanel>
+                                            </Expander>
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
 
                                 <!-- Weaknesses — TASK-07: leads before Strengths -->
@@ -496,10 +666,12 @@
                                         Margin="0,0,0,12"
                                         Visibility="Collapsed">
                                     <StackPanel HorizontalAlignment="Center">
-                                        <TextBlock Text="🔒  Full coaching is a Pro feature"
+                                        <TextBlock x:Name="CoachingLockedTitle"
+                                                   Text="Your coach spotted something this session"
                                                    Foreground="White"
                                                    FontSize="14" FontWeight="Bold"
                                                    HorizontalAlignment="Center"
+                                                   TextAlignment="Center"
                                                    Margin="0,0,0,8"/>
                                         <TextBlock x:Name="CoachingLockedHint"
                                                    Text="Upgrade to unlock weaknesses, tips, and drill prescriptions."
@@ -507,9 +679,15 @@
                                                    FontSize="12" TextWrapping="Wrap"
                                                    TextAlignment="Center"
                                                    HorizontalAlignment="Center"
-                                                   Margin="0,0,0,14"
+                                                   Margin="0,0,0,8"
                                                    MaxWidth="340"/>
-                                        <Button Content="Upgrade to Pro →"
+                                        <TextBlock x:Name="CoachingTrialProgress"
+                                                   Text="" Visibility="Collapsed"
+                                                   Foreground="#FFB347"
+                                                   FontSize="11" FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"
+                                                   Margin="0,0,0,12"/>
+                                        <Button Content="Unlock the full read →"
                                                 Click="CoachingUpgrade_Click"
                                                 Background="{DynamicResource AccentBrush}"
                                                 Foreground="Black"

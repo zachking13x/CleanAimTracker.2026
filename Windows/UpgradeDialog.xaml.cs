@@ -5,9 +5,20 @@ namespace CleanAimTracker.Windows
 {
     public partial class UpgradeDialog : Window
     {
+        // CAT_TELEMETRY: which locked feature raised this dialog, carried through to the
+        // UpgradeWindow so the funnel attributes the sale to the right prompt.
+        private readonly string _featureName;
+
         public UpgradeDialog(string featureName = "")
         {
             InitializeComponent();
+            _featureName = string.IsNullOrWhiteSpace(featureName) ? "generic" : featureName;
+            TelemetryService.TrackPaywallShown("feature_gate_" + _featureName);
+
+            // Prices from the single source of truth (Services/Pricing.cs).
+            LifetimePrice.Text = Pricing.Lifetime;
+            LifetimeBadge.Text = Pricing.LifetimeLabel.ToUpperInvariant();
+            MonthlyPrice.Text  = Pricing.Monthly;
 
             if (!string.IsNullOrEmpty(featureName))
             {
@@ -17,7 +28,7 @@ namespace CleanAimTracker.Windows
 
         private void Upgrade_Click(object sender, RoutedEventArgs e)
         {
-            var win = new UpgradeWindow();
+            var win = new UpgradeWindow("feature_gate_" + _featureName);
             win.Owner = this;
             win.ShowDialog();
             Close();

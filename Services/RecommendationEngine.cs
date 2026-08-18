@@ -308,12 +308,15 @@ namespace CleanAimTracker.Services
 
         private static double ScoreVelocityStability(SessionSummary s)
         {
+            // GATE 2: use the redefined metric (CV of speed over ACTIVE movement) when
+            // present. The old AvgVel/PeakVel estimate was structurally broken — peak
+            // latched a sub-ms spike and idle time diluted the average, pinning it to
+            // single digits. Legacy sessions (no new value) keep the old estimate.
+            if (s.VelocityStability >= 0) return ClampScore(s.VelocityStability);
+
             if (s.PeakVelocity <= 0) return 80;
-
             double ratio = s.AverageVelocity / Math.Max(1.0, s.PeakVelocity);
-            double score = ratio * 100.0;
-
-            return ClampScore(score);
+            return ClampScore(ratio * 100.0);
         }
 
         private static double ScoreIdlePenalty(SessionSummary s)

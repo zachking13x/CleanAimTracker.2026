@@ -1,267 +1,325 @@
+﻿using CleanAimTracker.Models;
 using System;
 using System.Linq;
+using WinToast = global::Windows.UI.Notifications;
 
 namespace CleanAimTracker.Services
 {
     /// <summary>
-    /// Windows toast notification service.
-    /// Uses Windows.UI.Notifications (WinRT) via net8.0-windows10.0.19041.0.
-    /// Uses global:: prefix throughout to avoid collision with CleanAimTracker.Windows namespace.
+    /// CAT_RETENTION_NOTIFICATIONS: the win-back channel. Uses WinRT
+    /// <see cref="WinToast.ScheduledToastNotification"/> so toasts fire even when CAT is
+    /// CLOSED — that's the entire point of a retention nudge. The schedule is re-built on
+    /// every app close (so it reflects current streak/challenge state) and CLEARED on
+    /// launch (so a stale nudge never fires after the user has already returned). Copy
+    /// comes from <see cref="NotificationMessages"/> — authored, data-backed, no chores.
+    ///
+    /// For MSIX-packaged apps the system already knows the app identity; the no-argument
+    /// CreateToastNotifier() overload must be used (an explicit AppId drops everything).
     /// </summary>
     public static class ToastService
     {
-        // NOTE: for MSIX-packaged apps the system already knows the app identity.
-        // The CreateToastNotifier() overload with no argument must be used — passing
-        // an explicit AppId string here fails silently and drops all notifications.
+        // ScheduledToastNotification.Id is capped at 16 chars by WinRT — keep these short.
+        private const string IdPrefix    = "catn";
+        private const string IdStreak    = "catn_streak";
+        private const string IdDaily     = "catn_daily";
+        private const string IdWinback2  = "catn_wb2";
+        private const string IdWinback4  = "catn_wb4";
+        private const string IdFirstDrill1 = "catn_fd1";
+        private const string IdFirstDrill2 = "catn_fd2";
 
-        // ── Public API ────────────────────────────────────────────────
+        // ── Public API ────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Shows a re-engagement toast if the user hasn't trained today
-        /// and their last aim trainer session was ≥ 20 hours ago.
-        /// Silent if the user has no sessions yet or has already trained today.
-        /// </summary>
-        public static void CheckAndNotify()
+        /// <summary>True only when the OS currently permits CAT toasts (T1.3 honesty:
+        /// detect a denied state instead of firing into a void).</summary>
+        public static bool OsAllowsToasts()
         {
             try
             {
-                var drills = AimTrainerStorage.LoadAll();
-                if (drills.Count == 0) return;
+                return WinToast.ToastNotificationManager.CreateToastNotifier().Setting
+                       == WinToast.NotificationSetting.Enabled;
+            }
+            catch { return false; }
+        }
 
-                var last = drills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
-                if (last == null) return;
-
-                if (last.Timestamp.Date == DateTime.Today) return;
-                if ((DateTime.Now - last.Timestamp).TotalHours < 20) return;
-
-                // Schedule for 30 minutes from now so it fires after the user closes the app,
-                // not immediately while they are looking at the screen.
-                var deliveryTime = DateTime.Now.AddMinutes(30);
-                ScheduleToast(
-                    "Time to train 🎯",
-                    $"Last drill was {DayText(last.Timestamp)} (accuracy: {last.Accuracy:F0}%). " +
-                    "A quick session keeps your streak alive.",
-                    deliveryTime);
+        /// <summary>Remove every CAT-scheduled toast still pending. Called on launch
+        /// (the user is here — stale nudges shouldn't fire) and before each reschedule.</summary>
+        public static void ClearScheduled()
+        {
+            try
+            {
+                var notifier = WinToast.ToastNotificationManager.CreateToastNotifier();
+                foreach (var s in notifier.GetScheduledToastNotifications().ToList())
+                    if (s.Id != null && s.Id.StartsWith(IdPrefix, StringComparison.Ordinal))
+                        notifier.RemoveFromSchedule(s);
             }
             catch { }
         }
 
         /// <summary>
-        /// Context-aware reminder scheduled for tomorrow at the same hour (clamped 10 am–9 pm).
-        /// Picks the most motivating message based on the user's actual state:
-        /// streak urgency → pending challenge → new user coaching → accuracy reference.
+        /// Rebuild the pending nudge queue from current state. Call on app CLOSE and on
+        /// session end. Schedules at most: a streak-at-risk warning tonight (loss
+        /// aversion), a daily nudge tomorrow, and win-back nudges at +2 and +4 days.
+        /// Never more than ~1/day. No-ops (and clears) if the user disabled notifications
+        /// or the OS has them off.
         /// </summary>
-        public static void ScheduleTomorrowReminder()
+        public static void RescheduleNudges()
         {
             try
             {
-                int hour         = Math.Clamp(DateTime.Now.Hour, 10, 21);
-                var deliveryTime = DateTime.Now.Date.AddDays(1).AddHours(hour);
+                ClearScheduled();
 
-                var settings     = SettingsService.Load();
-                int currentStreak = StreakService.GetStreakInfo().current; // always fresh, not stale from settings load
-                var allDrills    = AimTrainerStorage.LoadAll();
-                var lastDrill    = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
+                // CAT_NUDGE_CLOBBER: start a fresh attribution buffer for this pass. Every
+                // ScheduleToast below fills it; the single Save at the end commits it.
+                _pendingAttribution.Clear();
 
-                string title;
-                string body;
-
-                // Priority 1: meaningful streak at risk (≥3 days)
-                if (currentStreak >= 3)
-                {
-                    title = "Your streak is on the line 🔥";
-                    body  = $"Day {currentStreak} streak — train today to keep it alive.";
-                }
-                // Priority 2: daily challenge hasn't been completed
-                else if (settings.LastChallengeDate.Date < DateTime.Today)
-                {
-                    title = "Daily challenge waiting 🎯";
-                    body  = "A new challenge is ready. Complete it before midnight to stay consistent.";
-                }
-                // Priority 3: new user (fewer than 3 sessions)
-                else if (allDrills.Count < 3)
-                {
-                    int n = allDrills.Count;
-                    title = "Build the habit early 💪";
-                    body  = $"Only {n} session{(n == 1 ? "" : "s")} in. Three sessions builds a real trend.";
-                }
-                // Priority 4: reference last accuracy
-                else if (lastDrill != null)
-                {
-                    double acc = lastDrill.Accuracy;
-                    if (acc >= 85)
-                    {
-                        title = $"You hit {acc:F0}% accuracy 🔥";
-                        body  = "That's elite territory. Can you beat it today?";
-                    }
-                    else if (acc >= 70)
-                    {
-                        title = "Time to sharpen that aim 🎯";
-                        body  = $"You were at {acc:F0}% last session. 5 minutes today compounds over time.";
-                    }
-                    else
-                    {
-                        title = "Time to train 🎯";
-                        body  = "Consistency matters more than perfection. Jump in for 5 minutes.";
-                    }
-                }
-                else
-                {
-                    title = "Time to train 🎯";
-                    body  = "You set a reminder yesterday. 3 sessions builds a real trend — today's the day.";
-                }
-
-                ScheduleToast(title, body, deliveryTime);
-            }
-            catch { }
-        }
-
-        /// <summary>
-        /// Schedules an 8 pm "streak at risk" warning if the user hasn't trained today
-        /// and has built a streak of ≥ 2 days. Called on app startup.
-        /// </summary>
-        public static void ScheduleStreakAtRiskIfNeeded()
-        {
-            try
-            {
                 var settings = SettingsService.Load();
-                if (settings.CurrentStreak < 2) return;
-
-                // Already trained today — no warning needed
-                var lastDrill = AimTrainerStorage.LoadLast();
-                if (lastDrill != null && lastDrill.Timestamp.Date == DateTime.Today) return;
-
-                // Already past 8 pm — too late to schedule for tonight
-                if (DateTime.Now.Hour >= 20) return;
-
-                var deliveryTime = DateTime.Today.AddHours(20); // 8 pm tonight
-                int s = settings.CurrentStreak;
-                ScheduleToast(
-                    $"{s}-day streak at risk 🔥",
-                    $"You've trained {s} days in a row. Train before midnight or the streak resets — even one quick session counts.",
-                    deliveryTime);
-            }
-            catch { }
-        }
-
-        /// <summary>
-        /// Shows an immediate re-engagement toast when the user has been absent ≥ 3 days.
-        /// Marks <c>ReEngagementNotificationSent</c> so it only fires once per absence gap.
-        /// Reset the flag (to false) after each new session so it can fire again next time.
-        /// </summary>
-        public static void CheckAndScheduleReEngagement()
-        {
-            try
-            {
-                var settings  = SettingsService.Load();
-                if (settings.ReEngagementNotificationSent) return;
-
-                var allDrills = AimTrainerStorage.LoadAll();
-                if (allDrills.Count == 0) return;
-
-                var lastDrill = allDrills.OrderByDescending(r => r.Timestamp).FirstOrDefault();
-                if (lastDrill == null) return;
-
-                int daysSince = (int)(DateTime.Today - lastDrill.Timestamp.Date).TotalDays;
-                if (daysSince < 3) return;
-
-                string title;
-                string body;
-
-                if (daysSince >= 7)
+                if (!settings.NotificationsEnabled || !OsAllowsToasts())
                 {
-                    title = "You've been away a week 👀";
-                    body  = "Muscle memory fades fast. Even one session gets you back on track.";
-                }
-                else if (daysSince >= 5)
-                {
-                    title = "5 days since your last drill 😬";
-                    body  = "Your aim is a skill — use it or lose it. Come back for 5 minutes.";
-                }
-                else
-                {
-                    title = "3-day gap detected 🎯";
-                    body  = "Aim consistency breaks down quickly. A quick session now sets you straight.";
+                    // Nothing will be scheduled, so nothing can be attributed. Persist the
+                    // empty map rather than leaving stale entries pointing at toasts that
+                    // were just cleared and never replaced.
+                    if (settings != null && settings.ScheduledNudgeTimes.Count > 0)
+                    {
+                        settings.ScheduledNudgeTimes.Clear();
+                        SettingsService.Save(settings);
+                    }
+                    return;   // don't pretend the channel works when it can't deliver
                 }
 
-                ShowToast(title, body);
+                var ctx  = BuildContext(settings, out bool trainedToday, out DateTime? lastTs);
 
-                settings.ReEngagementNotificationSent = true;
+                int seed = settings.NotificationVariantSeed;
+                var now  = DateTime.Now;
+                int hour = Math.Clamp(settings.PreferredNudgeHour, 10, 21);
+
+                // CAT_RETENTION_HOLES (2026-07-30): opened-but-never-trained users used to
+                // hit `if (!ctx.HasAnySession) return;` and receive NOTHING — the highest
+                // churn-risk group was the one we never nudged. They have no real numbers,
+                // so they get the outcome-led first-drill nudge instead of the data-backed
+                // pools, at +1 and +3 days. Then we're done: two asks, never nagging.
+                if (!ctx.HasAnySession)
+                {
+                    var fd1 = NotificationMessages.BuildFirstDrillNudge(seed);
+                    ScheduleToast(fd1.Title, fd1.Body, now.Date.AddDays(1).AddHours(hour), IdFirstDrill1);
+                    var fd2 = NotificationMessages.BuildFirstDrillNudge(seed + 1);
+                    ScheduleToast(fd2.Title, fd2.Body, now.Date.AddDays(3).AddHours(hour), IdFirstDrill2);
+
+                    settings.NotificationVariantSeed = seed + 1;
+                    CommitAttribution(settings);       // CAT_NUDGE_CLOBBER
+                    SettingsService.Save(settings);
+                    return;
+                }
+
+                // 1) Streak at risk TONIGHT — strongest, time-sensitive return driver.
+                if (ctx.CurrentStreak >= 2 && !trainedToday && now.Hour < 22)
+                {
+                    var fire = now.Date.AddHours(20);                 // 8 pm tonight
+                    if (fire <= now.AddMinutes(2)) fire = now.AddMinutes(2); // already evening → soon, still today
+                    if (fire.Date == now.Date)
+                    {
+                        var copy = NotificationMessages.BuildDailyNudge(ctx, seed); // leads with streak when live
+                        ScheduleToast(copy.Title, copy.Body, fire, IdStreak);
+                    }
+                }
+
+                // 2) Daily nudge TOMORROW (no streak claim — it may reset at midnight).
+                var tomorrow = now.Date.AddDays(1).AddHours(hour);
+                var dailyCtx = Clone(ctx); dailyCtx.CurrentStreak = 0;
+                var daily = NotificationMessages.BuildDailyNudge(dailyCtx, seed);
+                ScheduleToast(daily.Title, daily.Body, tomorrow, IdDaily);
+
+                // 3) Win-back at +2 and +4 days (curiosity). Cleared on launch if they return.
+                var wb = NotificationMessages.BuildWinback(ctx, seed);
+                ScheduleToast(wb.Title, wb.Body, now.Date.AddDays(2).AddHours(hour), IdWinback2);
+                var wb4 = NotificationMessages.BuildWinback(ctx, seed + 1);  // different variant
+                ScheduleToast(wb4.Title, wb4.Body, now.Date.AddDays(4).AddHours(hour), IdWinback4);
+
+                // Advance the rotation so the next reschedule reads differently.
+                settings.NotificationVariantSeed = seed + 1;
+                if (lastTs is DateTime t) settings.PreferredNudgeHour = Math.Clamp(t.Hour, 10, 21);
+                CommitAttribution(settings);           // CAT_NUDGE_CLOBBER
                 SettingsService.Save(settings);
             }
             catch { }
         }
 
-        /// <summary>
-        /// Schedules a weekly summary toast for Sunday at 7 pm.
-        /// Only fires once per Sunday and only when ≥ 2 sessions were completed this week.
-        /// </summary>
-        public static void ScheduleWeeklySummaryIfNeeded()
+        /// <summary>Test/diagnostic hook: schedule a single nudge a few seconds out so the
+        /// "fires when closed" acceptance can be verified on a real machine.</summary>
+        public static void ScheduleDiagnosticToast(int secondsFromNow)
         {
             try
             {
-                if (DateTime.Today.DayOfWeek != DayOfWeek.Sunday) return;
-
-                var settings = SettingsService.Load();
-                if (settings.LastWeeklySummaryDate.Date == DateTime.Today) return;
-
-                // Already past 7 pm — skip until next week
-                if (DateTime.Now.Hour >= 19) return;
-
-                var allDrills    = AimTrainerStorage.LoadAll();
-                var weekStart    = DateTime.Today.AddDays(-6);
-                var weekSessions = allDrills.Where(r => r.Timestamp.Date >= weekStart).ToList();
-                if (weekSessions.Count < 2) return;
-
-                double avgAcc  = weekSessions.Average(r => r.Accuracy);
-                double bestAcc = weekSessions.Max(r => r.Accuracy);
-                string body    = $"{weekSessions.Count} sessions this week · avg accuracy {avgAcc:F0}% · peak {bestAcc:F0}%";
-
-                ScheduleToast("Your week in review 📊", body, DateTime.Today.AddHours(19));
-
-                settings.LastWeeklySummaryDate = DateTime.Today;
-                SettingsService.Save(settings);
+                // NB: id is OUTSIDE the "catn" prefix so RescheduleNudges' clear-on-close
+                // won't wipe it — it must survive the app closing to prove the channel.
+                ScheduleToast("CAT notification test 🎯",
+                    "If you can read this with the app closed, the win-back channel works.",
+                    DateTime.Now.AddSeconds(Math.Max(5, secondsFromNow)), "diag_test");
             }
             catch { }
         }
 
-        // ── Private helpers ───────────────────────────────────────────
-
-        private static void ScheduleToast(string title, string body, DateTime deliveryTime)
+        // ── Context ─────────────────────────────────────────────────────────────
+        private static NudgeContext BuildContext(UserSettings settings, out bool trainedToday, out DateTime? lastTs)
         {
-            var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
-                .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+            trainedToday = false;
+            lastTs = null;
+            var ctx = new NudgeContext();
 
-            var nodes = toastXml.GetElementsByTagName("text");
-            nodes[0].AppendChild(toastXml.CreateTextNode(title));
-            nodes[1].AppendChild(toastXml.CreateTextNode(body));
+            var all = AimTrainerStorage.LoadAll().OrderByDescending(r => r.Timestamp).ToList();
+            ctx.SessionCount = all.Count;
+            ctx.HasAnySession = all.Count > 0;
+            if (all.Count == 0) return ctx;
 
-            var scheduled = new global::Windows.UI.Notifications.ScheduledToastNotification(
-                toastXml, new DateTimeOffset(deliveryTime));
+            var last = all[0];
+            lastTs = last.Timestamp;
+            trainedToday = last.Timestamp.Date == DateTime.Today;
 
-            global::Windows.UI.Notifications.ToastNotificationManager
-                .CreateToastNotifier()
-                .AddToSchedule(scheduled);
+            ctx.LastAccuracy = last.Accuracy;
+            ctx.LastScenario = last.Scenario;
+            ctx.LastScore    = last.Score;
+            ctx.CurrentStreak = StreakService.GetStreakInfo().current;
+            ctx.ChallengeDoneToday = settings.LastChallengeDate.Date == DateTime.Today;
+            ctx.HasProfileUpdate = all.Count >= 5;
+
+            var sameScenario = all.Where(r => r.Scenario == last.Scenario).ToList();
+            ctx.ScenarioBestScore = sameScenario.Count > 0 ? sameScenario.Max(r => r.Score) : 0;
+
+            // overshoot improvement = previous same-scenario overshoot − latest (positive = dropped).
+            // V2 gate: only compare directional readings against directional readings —
+            // the V1→V2 metric change alone would read as a huge fake "improvement".
+            var overs = sameScenario.Where(r => r.ClickMetricVersion >= 2 && r.OvershootPct >= 0)
+                                    .Take(2).ToList();
+            if (overs.Count == 2)
+            {
+                double delta = overs[1].OvershootPct - overs[0].OvershootPct;
+                if (delta > 0) ctx.OvershootDeltaPct = delta;
+            }
+            return ctx;
         }
 
-        private static void ShowToast(string title, string body)
+        private static NudgeContext Clone(NudgeContext c) => new()
         {
-            var toastXml = global::Windows.UI.Notifications.ToastNotificationManager
-                .GetTemplateContent(global::Windows.UI.Notifications.ToastTemplateType.ToastText02);
+            HasAnySession = c.HasAnySession, SessionCount = c.SessionCount, CurrentStreak = c.CurrentStreak,
+            LastAccuracy = c.LastAccuracy, LastScenario = c.LastScenario, LastScore = c.LastScore,
+            ScenarioBestScore = c.ScenarioBestScore, OvershootDeltaPct = c.OvershootDeltaPct,
+            HasProfileUpdate = c.HasProfileUpdate, ChallengeDoneToday = c.ChallengeDoneToday,
+            ChallengeText = c.ChallengeText
+        };
 
-            var nodes = toastXml.GetElementsByTagName("text");
-            nodes[0].AppendChild(toastXml.CreateTextNode(title));
-            nodes[1].AppendChild(toastXml.CreateTextNode(body));
+        // ── WinRT scheduling ─────────────────────────────────────────────────────
+        private static void ScheduleToast(string title, string body, DateTime when, string id)
+        {
+            if (when <= DateTime.Now) return;   // never schedule in the past
 
-            var toast = new global::Windows.UI.Notifications.ToastNotification(toastXml);
-            global::Windows.UI.Notifications.ToastNotificationManager
-                .CreateToastNotifier()
-                .Show(toast);
+            var xml = WinToast.ToastNotificationManager
+                .GetTemplateContent(WinToast.ToastTemplateType.ToastText02);
+            var nodes = xml.GetElementsByTagName("text");
+            nodes[0].AppendChild(xml.CreateTextNode(title));
+            nodes[1].AppendChild(xml.CreateTextNode(body));
+
+            // Default activation: tapping the toast launches/foregrounds the app (to the
+            // main screen). Screen-specific deep-linking needs a COM toast activator,
+            // which doesn't register reliably for the sideloaded package — deferred.
+            var scheduled = new WinToast.ScheduledToastNotification(xml, new DateTimeOffset(when)) { Id = id };
+            WinToast.ToastNotificationManager.CreateToastNotifier().AddToSchedule(scheduled);
+
+            RecordScheduledForAttribution(id, when);
         }
 
-        private static string DayText(DateTime date)
-            => date.Date == DateTime.Today.AddDays(-1)
-                ? "yesterday"
-                : $"{(int)(DateTime.Now - date).TotalDays} days ago";
+        // ── CAT_TELEMETRY: nudge attribution ─────────────────────────────────────
+        // There is no true click signal here. Deep-linked toast activation needs a
+        // registered COM activator, which doesn't work reliably for this package (see
+        // the note in ScheduleToast), so a tapped toast is indistinguishable from any
+        // other launch. What we CAN observe: which nudges actually fired (a fired toast
+        // leaves the pending-schedule list) and whether the app opened soon after. That
+        // is a correlation, and it is reported as one — the event is called
+        // launch_after_nudge, not notification_clicked, and carries attribution=inferred.
+
+        /// <summary>How long after a nudge fires a launch is still plausibly attributable.</summary>
+        private static readonly TimeSpan AttributionWindow = TimeSpan.FromMinutes(30);
+
+        /// <summary>
+        /// Attribution entries accumulated during the CURRENT RescheduleNudges pass.
+        ///
+        /// CAT_NUDGE_CLOBBER (2026-08-16): this used to Load→mutate→Save settings on every
+        /// scheduled toast. RescheduleNudges loads settings ONCE at the top, schedules
+        /// (each write landing via its own load/save), then saves its own copy at the end —
+        /// a copy whose ScheduledNudgeTimes was still empty from before the scheduling ran.
+        /// The final save wiped every entry, deterministically, on every launch, for every
+        /// user. That's why `launch_after_nudge` had never once fired in production and
+        /// there was no signal on whether notifications bring anyone back.
+        ///
+        /// Buffering here and writing ONCE, as part of the same save that persists the
+        /// variant seed, removes the conflicting write entirely.
+        /// </summary>
+        private static readonly Dictionary<string, DateTime> _pendingAttribution = new();
+
+        /// <summary>Fold this pass's scheduled toasts onto the settings about to be saved.</summary>
+        private static void CommitAttribution(UserSettings settings)
+        {
+            settings.ScheduledNudgeTimes.Clear();
+            foreach (var kv in _pendingAttribution)
+                settings.ScheduledNudgeTimes[kv.Key] = kv.Value;
+        }
+
+        private static void RecordScheduledForAttribution(string id, DateTime when)
+            => _pendingAttribution[id] = when;
+
+        /// <summary>
+        /// Call ONCE on launch, BEFORE <see cref="ClearScheduled"/> — it needs the
+        /// still-pending list to work out which nudges already fired. Reports at most
+        /// one event (the most recent qualifying nudge) and then clears the map, so a
+        /// single fired nudge can never be credited with two launches.
+        /// </summary>
+        public static void ReportNudgeAttribution()
+        {
+            try
+            {
+                var s = SettingsService.Load();
+                if (s.ScheduledNudgeTimes.Count == 0) return;
+
+                var pending = new HashSet<string>(StringComparer.Ordinal);
+                try
+                {
+                    foreach (var t in WinToast.ToastNotificationManager
+                                              .CreateToastNotifier()
+                                              .GetScheduledToastNotifications())
+                        if (t.Id != null) pending.Add(t.Id);
+                }
+                catch { /* an unreadable schedule means "assume nothing fired" */ }
+
+                var now = DateTime.Now;
+                string?  bestId   = null;
+                DateTime bestTime = DateTime.MinValue;
+
+                foreach (var kv in s.ScheduledNudgeTimes)
+                {
+                    if (pending.Contains(kv.Key)) continue;              // still queued — never fired
+                    if (kv.Value > now) continue;                        // not due; removed some other way
+                    if (now - kv.Value > AttributionWindow) continue;    // too long ago to credit
+                    if (kv.Value > bestTime) { bestTime = kv.Value; bestId = kv.Key; }
+                }
+
+                if (bestId != null)
+                    TelemetryService.TrackLaunchAfterNudge(
+                        NudgeKind(bestId), (int)(now - bestTime).TotalMinutes);
+
+                s.ScheduledNudgeTimes.Clear();
+                SettingsService.Save(s);
+            }
+            catch { }
+        }
+
+        /// <summary>Toast id → a stable, non-identifying kind name for the event.</summary>
+        private static string NudgeKind(string id) => id switch
+        {
+            IdStreak       => "streak_at_risk",
+            IdDaily        => "daily",
+            IdWinback2     => "winback_2d",
+            IdWinback4     => "winback_4d",
+            IdFirstDrill1  => "first_drill_1d",
+            IdFirstDrill2  => "first_drill_3d",
+            _              => "other",
+        };
     }
 }

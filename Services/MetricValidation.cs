@@ -69,6 +69,16 @@ namespace CleanAimTracker.Services
             => current - previousBest >= 1.0;
 
         /// <summary>
+        /// A1: MovementOvershoot validity. The metric carries a -1 sentinel when
+        /// fewer than the minimum acquisition segments qualified; that renders "—",
+        /// never a false 0 (the C2-class "0 looks like perfect" trap).
+        /// </summary>
+        public static MetricValidity ForMovementOvershoot(double value, int qualifyingSegments)
+            => qualifyingSegments >= TelemetryCalculator.OvershootMinQualifyingSegments && value >= 0
+                ? MetricValidity.Valid(qualifyingSegments)
+                : MetricValidity.Invalid(MetricInvalidReason.InsufficientSamples, qualifyingSegments);
+
+        /// <summary>
         /// Overall quality is a weighted blend of smoothness, consistency, and
         /// correction sharpness — it is only as valid as its inputs.
         /// </summary>

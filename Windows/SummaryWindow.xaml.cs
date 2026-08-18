@@ -151,11 +151,12 @@ namespace CleanAimTracker.Windows
             LargeFlicksText.Text = $"Large Flicks: {_s.LargeFlickCount}";
 
             // Diagnostics — TASK-4.4: invalid metrics render "—" + tooltip, never 0.
-            // TASK-4.4: "Correction Sharpness" (0 = good) renamed so polarity is
-            // self-evident and can't be confused with the engine's "Sharpness
-            // Score" (100 = good).
+            // T0.2: "Overcorrection" renamed to "Speed Variability". The underlying
+            // metric is |Δspeed| between mouse events (now a session mean) — it cannot
+            // see overshoot/overcorrection (the tracker has no targets), so the old
+            // name promised a measurement the computation never performed.
             SmoothnessText.Text  = $"Smoothness: {MetricDisplay.Format(_s, "SmoothnessScore", _s.SmoothnessScore)}";
-            SharpnessText.Text   = $"Overcorrection: {MetricDisplay.Format(_s, "CorrectionSharpness", _s.CorrectionSharpness)} (lower is better)";
+            SharpnessText.Text   = $"Speed Variability: {MetricDisplay.Format(_s, "CorrectionSharpness", _s.CorrectionSharpness)} (lower is better)";
             ConsistencyText.Text = $"Consistency: {MetricDisplay.Format(_s, "MovementConsistency", _s.MovementConsistency)}";
             QualityText.Text     = $"Overall Quality: {MetricDisplay.Format(_s, "OverallQualityScore", _s.OverallQualityScore)}";
 
@@ -166,7 +167,8 @@ namespace CleanAimTracker.Windows
 
             // Advanced diagnostics (engine scores, all 100 = good) — behind the
             // collapsed Advanced expander (TASK-4.4).
-            CorrectionSharpnessText.Text = $"Correction Control: {_rec.CorrectionSharpnessScore:F0}/100 (higher is better)";
+            // T0.2: "Correction Control" → "Speed Steadiness" (100 − speed variability).
+            CorrectionSharpnessText.Text = $"Speed Steadiness: {_rec.CorrectionSharpnessScore:F0}/100 (higher is better)";
             VelocityStabilityText.Text = $"Velocity Stability: {_rec.VelocityStabilityScore:F0}/100";
             IdlePenaltyText.Text = $"Activity Score: {_rec.IdlePenaltyScore:F0}/100";
             // TASK-1.4: Weighted Diagnostic ≠ session quality. OverallQualityScore

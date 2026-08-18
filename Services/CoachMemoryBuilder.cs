@@ -230,7 +230,10 @@ namespace CleanAimTracker.Services
                         if (prevSess != null)
                         {
                             memory.PrevSessionPathEfficiency     = prevSess.PathEfficiency;
-                            memory.PrevSessionOvershootPct       = prevSess.OvershootPct;
+                            // V2 gate: legacy radial OvershootPct values are not comparable
+                            // to the directional metric — expose 0 ("no data") instead.
+                            memory.PrevSessionOvershootPct       = prevSess.ClickMetricVersion >= 2
+                                                                   ? prevSess.OvershootPct : 0;
                             memory.PrevSessionDirectionChangeLag = prevSess.AvgDirectionChangeLagMs;
                         }
                     }

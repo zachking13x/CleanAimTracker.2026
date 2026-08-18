@@ -98,6 +98,101 @@ namespace CleanAimTracker.Services
             },
         };
 
+        // ── CAT_BENCHMARK_DESTINATION (2026-08-03) ────────────────────────────
+        // The coach was excellent at "here's what's wrong" and silent on "…compared
+        // to what?". BenchmarkObservation only ever fired for tiers 0-1, as a
+        // Severity-1 tip, inside the Pro-gated report — so a beginner (the player who
+        // most needs a target) never saw a benchmark at all, and nobody ever saw what
+        // came NEXT. Standing() answers both: where you sit on the ladder, and the
+        // exact gap to the next rung. Rendered free, on every result.
+        //
+        // Same hard wording rule as above: these are Voltaic-derived STANDARDS, never
+        // population percentiles. "Clears the intermediate threshold" — never "top 20%".
+
+        /// <summary>Where a value sits on the ladder, and what it takes to climb one rung.</summary>
+        public sealed record BenchmarkStanding(
+            string  MetricLabel,      // "Accuracy" / "Pace"
+            int     TierIndex,        // 0 = advanced … 3 = entry, -1 = below entry
+            string  TierLabel,        // "advanced" … "entry" / "unranked"
+            double  Value,
+            string? NextTierLabel,    // null when already advanced
+            double? NextThreshold,
+            double? Gap,              // absolute distance to the next threshold
+            bool    LowerIsBetter,
+            double? TierThreshold);   // the threshold this value cleared; null when below entry
+
+        // ── CAT_BENCHMARK_COVERAGE (2026-08-12) ───────────────────────────────
+        // The accuracy tables cover five scenario families. CAT ships nineteen drills,
+        // so the "here's your destination" card rendered blank on most of what people
+        // actually play — including StaticClicking, the single most-played scenario.
+        //
+        // Two honest options existed, and this uses both:
+        //   1. MAP scenarios whose accuracy is measured on the SAME scale as an existing
+        //      family. StaticClicking is judged against Precision, DynamicClicking
+        //      against Flicking, and so on. Each mapping below is a claim that the two
+        //      drills score comparably, not a convenience.
+        //   2. Report NOTHING for the rest. Shotgun (pellet spread), Sniper (placement,
+        //      not speed) and the bot drills (a body takes two rounds, a head takes one)
+        //      measure accuracy differently enough that borrowing a table would be
+        //      inventing a standard. Those fall back to a personal-best destination in
+        //      the UI, clearly labelled as personal — see AimTrainerResultWindow.
+        private static readonly Dictionary<string, string> AccuracyFamily = new()
+        {
+            ["StaticClicking"]  = "Precision",   // stationary targets, precision-dominant
+            ["PeekTraining"]    = "Precision",   // hold-and-place on an exposed window
+            ["DynamicClicking"] = "Flicking",    // moving targets you click discretely
+            ["SpeedSwitching"]  = "Switching",   // same task, tighter time pressure
+            ["AirTracking"]     = "Tracking",    // continuous tracking, airborne path
+            ["Evasive"]         = "Tracking",    // continuous tracking, erratic path
+        };
+
+        /// <summary>The threshold family a scenario is judged against, or null if none applies.</summary>
+        public static string? FamilyFor(string scenario)
+        {
+            if (AccuracyThresholds.ContainsKey(scenario)) return scenario;
+            return AccuracyFamily.TryGetValue(scenario, out var fam) ? fam : null;
+        }
+
+        /// <summary>Accuracy standing for a drill, or null when no honest table applies.</summary>
+        public static BenchmarkStanding? AccuracyStanding(string scenario, string difficulty, double accuracy)
+        {
+            string? family = FamilyFor(scenario);
+            if (family == null) return null;
+            if (!AccuracyThresholds.TryGetValue(family, out var byDiff)) return null;
+            if (!byDiff.TryGetValue(difficulty, out var t)) return null;
+            return Build("Accuracy", AccuracyTier(family, difficulty, accuracy), accuracy, t, lowerIsBetter: false);
+        }
+
+        /// <summary>Pace standing for a drill, or null when it has no table / no valid reading.</summary>
+        public static BenchmarkStanding? PaceStanding(string scenario, string difficulty, double reactionMs)
+        {
+            if (scenario == "Sniper" || reactionMs <= 0) return null;
+            if (!ReactionThresholds.TryGetValue(scenario, out var byDiff)) return null;
+            if (!byDiff.TryGetValue(difficulty, out var t)) return null;
+            string label = ReactionMetric.IsTrueReaction(scenario) ? "Reaction" : "Pace";
+            return Build(label, ReactionTier(scenario, difficulty, reactionMs), reactionMs, t, lowerIsBetter: true);
+        }
+
+        private static BenchmarkStanding Build(string metric, int tier, double value, int[] t, bool lowerIsBetter)
+        {
+            // t is ordered hardest → easiest (index 0 = advanced). "Next" is therefore
+            // one index LOWER; below-entry (-1) climbs toward the last entry, index 3.
+            int nextIdx = tier < 0 ? t.Length - 1 : tier - 1;
+
+            string  tierLabel     = tier >= 0 ? TierLabels[tier] : "unranked";
+            double? tierThreshold = tier >= 0 ? t[tier] : null;
+
+            if (nextIdx < 0)
+                return new BenchmarkStanding(metric, tier, tierLabel, value,
+                                             null, null, null, lowerIsBetter, tierThreshold);
+
+            double nextThreshold = t[nextIdx];
+            double gap = lowerIsBetter ? value - nextThreshold : nextThreshold - value;
+            return new BenchmarkStanding(metric, tier, tierLabel, value,
+                                         TierLabels[nextIdx], nextThreshold, System.Math.Max(0, gap),
+                                         lowerIsBetter, tierThreshold);
+        }
+
         /// <summary>Tier index 0–3 the value clears, or -1 when below all/no benchmark.</summary>
         public static int AccuracyTier(string scenario, string difficulty, double accuracy)
         {

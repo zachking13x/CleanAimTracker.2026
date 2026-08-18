@@ -23,12 +23,26 @@ namespace CleanAimTracker.Windows
     /// </summary>
     public partial class OnboardingCalibrationWindow : Window
     {
-        private enum FlowState { Welcome, Brief, Calibration, Insight, FirstDrill }
-        private FlowState _state = FlowState.Welcome;
+        // CAT_CALIBRATION_AS_GAME: the calibration IS the fun — four scored rounds you chase,
+        // not a clinical test. Brief = the "score your aim" intro; Calibration = the rounds;
+        // Insight = the skill-score reveal. Same data captured, reframed as play.
+        private enum FlowState { Brief, Calibration, Insight, FirstDrill }
+        private FlowState _state = FlowState.Brief;
 
         private int  _currentTestIndex;
         private int  _secondsLeft;
         private bool _isTestRunning;
+        private int  _roundStreak;          // live combo within the current round
+        private bool _betweenRounds;        // showing a round's score before the next starts
+
+        // CAT_GAME_FEEL: 3-2-1 count-in before each round. Also guarantees the
+        // canvas has a layout pass before Start() reads ActualWidth — without it,
+        // round 1 spawned all six targets stacked at (0,0) on the same tick the
+        // calibration page became visible (T13 spawn-stack bug).
+        private bool _isCountingDown;
+        private int  _countdownValue;
+        private readonly DispatcherTimer _countdownTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
+        private int  _cumulativeScore;      // T15: skill-bar payout between rounds
 
         private IAimScenario? _scenario;
         private readonly Random _rng = new();
@@ -41,8 +55,10 @@ namespace CleanAimTracker.Windows
         public OnboardingCalibrationWindow()
         {
             InitializeComponent();
-            _gameTimer.Tick   += GameTimer_Tick;
-            _updateTimer.Tick += UpdateTimer_Tick;
+            _gameTimer.Tick      += GameTimer_Tick;
+            _updateTimer.Tick    += UpdateTimer_Tick;
+            _countdownTimer.Tick += CountdownTimer_Tick;
+            MuteBtn.Content = SettingsService.Load().SoundEnabled ? "🔊" : "🔇";
             BuildBriefList();
             ApplyState();
         }
@@ -51,46 +67,55 @@ namespace CleanAimTracker.Windows
 
         private void ApplyState()
         {
-            PageWelcome.Visibility     = _state == FlowState.Welcome     ? Visibility.Visible : Visibility.Collapsed;
+            PageWelcome.Visibility     = Visibility.Collapsed;   // reframed into PageBrief
+            PageOffer.Visibility       = Visibility.Collapsed;   // warm-up patch removed
             PageBrief.Visibility       = _state == FlowState.Brief       ? Visibility.Visible : Visibility.Collapsed;
             PageCalibration.Visibility = _state == FlowState.Calibration ? Visibility.Visible : Visibility.Collapsed;
             PageInsight.Visibility     = _state == FlowState.Insight     ? Visibility.Visible : Visibility.Collapsed;
             PageFirstDrill.Visibility  = _state == FlowState.FirstDrill  ? Visibility.Visible : Visibility.Collapsed;
 
+            int rounds = DiagnosticAssessmentService.CalibrationTests.Count;
             (PrimaryBtn.Content, StepIndicator.Text) = _state switch
             {
-                FlowState.Welcome     => ((object)"Start calibration", "Step 1 of 4 — about 5 minutes total"),
-                FlowState.Brief       => ("Begin test 1", "Step 2 of 4 — four 30-second tests"),
-                FlowState.Calibration => ("Skip this test", $"Test {_currentTestIndex + 1} of {DiagnosticAssessmentService.CalibrationTests.Count}"),
-                FlowState.Insight     => ("See my first drill", "Step 3 of 4 — your baseline"),
-                FlowState.FirstDrill  => ("Start this drill", "Step 4 of 4 — your first prescription"),
+                FlowState.Brief       => ((object)"Start Round 1", $"{rounds} quick rounds — beat your scores"),
+                FlowState.Calibration => ("Skip this round", $"Round {_currentTestIndex + 1} of {rounds}"),
+                FlowState.Insight     => ("See my first drill", "Your aim, scored"),
+                FlowState.FirstDrill  => ("Start this drill", "Your first drill"),
                 _                     => ("Continue", "")
             };
 
+            // T16: during a live round the accent button disappears entirely —
+            // "Skip this round" is DEMOTED to the muted footer link. The accent
+            // button only returns between rounds as "Next round →".
+            PrimaryBtn.Visibility = _state == FlowState.Calibration
+                ? Visibility.Collapsed : Visibility.Visible;
+
             // Once calibration data exists, leaving is "finish later", not "skip".
-            SkipBtn.Content    = _state >= FlowState.Insight ? "Take me to the app" : "Skip setup";
-            SkipBtn.Visibility = _state == FlowState.Calibration ? Visibility.Collapsed : Visibility.Visible;
+            SkipBtn.Content    = _state switch
+            {
+                FlowState.Calibration                     => "Skip this round",
+                FlowState.Insight or FlowState.FirstDrill => "Take me to the app",
+                _                                         => "Skip",
+            };
+            SkipBtn.Visibility = Visibility.Visible;
         }
 
         private void Primary_Click(object sender, RoutedEventArgs e)
         {
             switch (_state)
             {
-                case FlowState.Welcome:
-                    _state = FlowState.Brief;
-                    ApplyState();
-                    break;
-
                 case FlowState.Brief:
                     _state = FlowState.Calibration;
                     _currentTestIndex = 0;
                     _results.Clear();
+                    OnboardingFunnelService.Record(OnboardingFunnelService.CalibrationStarted);
                     ApplyState();
                     BeginTest(0);
                     break;
 
                 case FlowState.Calibration:
-                    if (_isTestRunning) FinishCurrentTest(); // "Skip this test"
+                    // T16: PrimaryBtn is only visible between rounds ("Next round →").
+                    if (_betweenRounds) { _betweenRounds = false; BeginTest(_currentTestIndex); }
                     break;
 
                 case FlowState.Insight:
@@ -104,6 +129,36 @@ namespace CleanAimTracker.Windows
             }
         }
 
+        /// <summary>
+        /// T16: the muted footer link. During a live round it skips the ROUND
+        /// (demoted from the old accent-button placement); everywhere else it is
+        /// the original whole-flow skip / "take me to the app".
+        /// </summary>
+        private void SkipSecondary_Click(object sender, RoutedEventArgs e)
+        {
+            if (_state == FlowState.Calibration && (_isTestRunning || _isCountingDown))
+            {
+                if (_isCountingDown)
+                {
+                    _countdownTimer.Stop();
+                    _isCountingDown = false;
+                    RoundCountdownText.Visibility = Visibility.Collapsed;
+                }
+                FinishCurrentTest();
+                return;
+            }
+            Skip_Click(sender, e);
+        }
+
+        private void MuteBtn_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = SettingsService.Load();
+            settings.SoundEnabled = !settings.SoundEnabled;
+            SettingsService.Save(settings);
+            SoundService.SetEnabled(settings.SoundEnabled);
+            MuteBtn.Content = settings.SoundEnabled ? "🔊" : "🔇";
+        }
+
         private void Skip_Click(object sender, RoutedEventArgs e)
         {
             StopTimers();
@@ -111,7 +166,12 @@ namespace CleanAimTracker.Windows
             if (_profile != null)
                 settings.CalibrationComplete = true;   // they finished — leaving from insight/drill is not a skip
             else
+            {
                 settings.OnboardingSkipped = true;
+                // T1.1: a genuine skip — record WHICH step they bailed from.
+                OnboardingFunnelService.Record(OnboardingFunnelService.OnboardingSkipped,
+                    detail: _state.ToString());
+            }
             settings.FirstLaunchComplete = true;       // ONE flow — the legacy wizard never runs after this
             SettingsService.Save(settings);
             Close();
@@ -172,25 +232,74 @@ namespace CleanAimTracker.Windows
 
             var test = DiagnosticAssessmentService.CalibrationTests[index];
 
-            TestLabel.Text = $"Test {index + 1}/{DiagnosticAssessmentService.CalibrationTests.Count} — {DiagnosticAssessmentService.GetDimensionLabel(test.Dimension)}";
+            // CAT_CALIBRATION_AS_GAME: round framing, no "test" language.
+            TestLabel.Text = $"Round {index + 1}: {RoundName(index)}";
             TestDesc.Text  = test.Description;
-            // TASK-0.3: honest live-stat label per scenario.
             LiveReactLabel.Text = ReactionMetric.IsTrueReaction(test.Scenario)
                 ? "REACTION " : "TIME/TARGET ";
-            StepIndicator.Text = $"Test {index + 1} of {DiagnosticAssessmentService.CalibrationTests.Count}";
+            StepIndicator.Text = $"Round {index + 1} of {DiagnosticAssessmentService.CalibrationTests.Count}";
+
+            _roundStreak   = 0;
+            _betweenRounds = false;
+            ComboText.Visibility     = Visibility.Collapsed;
+            SkillBarPanel.Visibility = Visibility.Collapsed;
+
+            // T16: accent button stays hidden while the round runs — the muted
+            // footer link is the only skip. "Next round →" brings it back.
+            PrimaryBtn.Visibility = Visibility.Collapsed;
+            SkipBtn.Content       = "Skip this round";
+            SkipBtn.Visibility    = Visibility.Visible;
 
             _scenario = CreateScenario(test);
             TestCanvas.Children.Clear();
+            _secondsLeft = test.DurationSeconds;
+            UpdateTimerText();
+
+            // CAT_GAME_FEEL: 3-2-1 count-in — play-first pacing, and the canvas is
+            // guaranteed laid out before Start() reads ActualWidth (T13 fix).
+            _isCountingDown = true;
+            _countdownValue = 3;
+            RoundCountdownText.Text = "3";
+            RoundCountdownText.Visibility = Visibility.Visible;
+            PulseRoundCountdown();
+            _countdownTimer.Start();
+        }
+
+        private void CountdownTimer_Tick(object? sender, EventArgs e)
+        {
+            _countdownValue--;
+            if (_countdownValue >= 1)
+            {
+                RoundCountdownText.Text = _countdownValue.ToString();
+                PulseRoundCountdown();
+                return;
+            }
+
+            _countdownTimer.Stop();
+            RoundCountdownText.Visibility = Visibility.Collapsed;
+            _isCountingDown = false;
+
+            if (_scenario == null) return;   // round was skipped mid-countdown
+
+            TestCanvas.UpdateLayout();       // belt + suspenders for the T13 spawn-stack bug
             _scenario.Start(TestCanvas, targetSize: 36, moveSpeed: 2.5, _rng);
 
-            _secondsLeft   = test.DurationSeconds;
             _isTestRunning = true;
-            UpdateTimerText();
             UpdateLiveStats();
-
             _gameTimer.Start();
             _updateTimer.Start();
         }
+
+        private void PulseRoundCountdown()
+        {
+            var pop = new System.Windows.Media.Animation.DoubleAnimation(1.5, 1.0, TimeSpan.FromMilliseconds(280))
+            { EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } };
+            RoundCountdownScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleXProperty, pop);
+            RoundCountdownScale.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, pop);
+        }
+
+        private static readonly string[] RoundNames = { "Clicking", "Tracking", "Switching", "Reaction" };
+        private static string RoundName(int index) => index >= 0 && index < RoundNames.Length ? RoundNames[index] : "Aim";
 
         private void FinishCurrentTest()
         {
@@ -226,16 +335,60 @@ namespace CleanAimTracker.Windows
                 _scenario = null;
             }
 
+            int roundScore = _results.Count > 0 ? _results[^1].Score : 0;
+
+            // T1.1 + T2.2: record this round's completion (both the legacy and round names).
+            OnboardingFunnelService.Record(_currentTestIndex switch
+            {
+                0 => OnboardingFunnelService.CalibrationTest1Done,
+                1 => OnboardingFunnelService.CalibrationTest2Done,
+                2 => OnboardingFunnelService.CalibrationTest3Done,
+                _ => OnboardingFunnelService.CalibrationTest4Done,
+            });
+            OnboardingFunnelService.Record(_currentTestIndex switch
+            {
+                0 => OnboardingFunnelService.Round1Done,
+                1 => OnboardingFunnelService.Round2Done,
+                2 => OnboardingFunnelService.Round3Done,
+                _ => OnboardingFunnelService.Round4Done,
+            });
+
             _currentTestIndex++;
+            _cumulativeScore += roundScore;
+
             if (_currentTestIndex < DiagnosticAssessmentService.CalibrationTests.Count)
             {
-                var pause = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
-                pause.Tick += (s, _) =>
-                {
-                    ((DispatcherTimer)s!).Stop();
-                    BeginTest(_currentTestIndex);
-                };
-                pause.Start();
+                // T1.1: score the instant the round ends, and invite the next as momentum.
+                _betweenRounds = true;
+                TestCanvas.Children.Clear();
+                TestLabel.Text   = $"Round {_currentTestIndex}: {roundScore:N0}";
+                ScoreText.Text   = roundScore.ToString("N0");
+                ComboText.Visibility = Visibility.Collapsed;
+
+                // T16: coach teaser — real numbers from the round just played,
+                // hinting at the report that's coming.
+                var justPlayed = _results[^1];
+                TestDesc.Text = justPlayed.Hits + justPlayed.Misses > 0
+                    ? $"Coach logged it: {justPlayed.Accuracy:F0}% accuracy, best streak ×{justPlayed.MaxStreak}. Next up: {RoundName(_currentTestIndex)}."
+                    : $"Next up: {RoundName(_currentTestIndex)}.";
+
+                // T15: the skill bar fills a quarter per round — visible progress
+                // toward the aim score from minute one.
+                int totalRounds = DiagnosticAssessmentService.CalibrationTests.Count;
+                SkillBarPanel.Visibility = Visibility.Visible;
+                SkillBarScoreText.Text   = _cumulativeScore.ToString("N0");
+                SkillBarRoundsText.Text  = $"{_currentTestIndex} of {totalRounds} rounds banked";
+                var fill = new System.Windows.Media.Animation.DoubleAnimation(
+                    SkillBarFill.Width is double w && !double.IsNaN(w) ? w : 0,
+                    380.0 * _currentTestIndex / totalRounds,
+                    TimeSpan.FromMilliseconds(500))
+                { EasingFunction = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut } };
+                SkillBarFill.BeginAnimation(WidthProperty, fill);
+
+                // T16: the accent button returns as forward momentum, skip hides.
+                PrimaryBtn.Content    = $"Next round: {RoundName(_currentTestIndex)}  →";
+                PrimaryBtn.Visibility = Visibility.Visible;
+                SkipBtn.Visibility    = Visibility.Collapsed;
             }
             else
             {
@@ -262,7 +415,32 @@ namespace CleanAimTracker.Windows
         private void TestCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (!_isTestRunning || _scenario == null) return;
-            _scenario.HandleClick(e.GetPosition(TestCanvas));
+            var pos = e.GetPosition(TestCanvas);
+            bool hit = _scenario.HandleClick(pos);
+
+            // CAT_VISUAL_JUICE: full sound-off-friendly feedback (ring + hitmarker + floating
+            // score) on hit; clear muted-red ✕ on miss; live combo.
+            if (hit)
+            {
+                SoundService.PlayHit();
+                Brush accent = TryFindResource("AccentBrush") as Brush
+                               ?? new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF));
+                HitFeedback.Hit(TestCanvas, pos, accent, points: 100);   // each calibration hit = 100
+
+                _roundStreak++;
+                if (_roundStreak >= 2)
+                {
+                    ComboText.Text = $"×{_roundStreak}";
+                    ComboText.Visibility = Visibility.Visible;
+                }
+            }
+            else
+            {
+                SoundService.PlayMiss();
+                HitFeedback.Miss(TestCanvas, pos);
+                _roundStreak = 0;
+                ComboText.Visibility = Visibility.Collapsed;
+            }
             UpdateLiveStats();
         }
 
@@ -282,6 +460,12 @@ namespace CleanAimTracker.Windows
         {
             StopTimers();
             _isTestRunning = false;
+            _betweenRounds = false;
+            OnboardingFunnelService.Record(OnboardingFunnelService.BaselineRevealed);
+            OnboardingFunnelService.Record(OnboardingFunnelService.SkillScoreRevealed);
+
+            // T2.1: the headline "aim score" — the climax of the run + the number to beat.
+            int skillScore = _results.Sum(r => r.Score);
 
             // Build + persist the calibration baseline.
             var settings = SettingsService.Load();
@@ -290,7 +474,10 @@ namespace CleanAimTracker.Windows
             settings.DiagnosticHistory.Add(_profile);
             settings.CalibrationComplete = true;
             settings.FirstLaunchComplete = true;
+            settings.BestSkillScore = Math.Max(settings.BestSkillScore, skillScore);  // stored as the thing to beat
             SettingsService.Save(settings);
+
+            SkillScoreText.Text = skillScore.ToString("N0");
 
             // Store the raw results as baseline drills (assessment-flagged —
             // excluded from XP/streak/achievement paths by never firing them).
@@ -416,6 +603,8 @@ namespace CleanAimTracker.Windows
         private void StartFirstDrill()
         {
             if (_profile == null) { Close(); return; }
+            OnboardingFunnelService.Record(OnboardingFunnelService.FirstPostCalibrationDrill);
+            OnboardingFunnelService.Record(OnboardingFunnelService.FirstRealDrillStarted);
 
             var (scenario, _) = DiagnosticAssessmentService.GetRecommendedStartingScenario(_profile);
             var win = new AimTrainerWindow();
@@ -441,12 +630,16 @@ namespace CleanAimTracker.Windows
             LiveHitsText.Text  = hits.ToString();
             LiveAccText.Text   = total > 0 ? $"{hits * 100.0 / total:F0}%" : "--";
             LiveReactText.Text = _scenario.AvgReactionMs > 0 ? $"{_scenario.AvgReactionMs:F0}ms" : "--";
+            ScoreText.Text     = (hits * 100).ToString("N0");   // live score (matches the round Score)
         }
 
         private void StopTimers()
         {
             _gameTimer.Stop();
             _updateTimer.Stop();
+            _countdownTimer.Stop();
+            _isCountingDown = false;
+            RoundCountdownText.Visibility = Visibility.Collapsed;
         }
 
         private static Brush ScoreColor(double score)

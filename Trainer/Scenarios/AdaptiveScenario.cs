@@ -21,6 +21,20 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs => _inner?.AvgReactionMs ?? 0;
         public int MaxStreak => _inner?.MaxStreak ?? 0;
 
+        // T1: forward the telemetry hooks so the inner scenario's mechanical metrics
+        // (click offsets → MovementOvershoot/PathEfficiency/OvershootPct, or axis-split
+        // frames) actually flow. Without this Adaptive populated NO diagnostics — the
+        // "94% Adaptive, no AREAS" report.
+        public Point LastHitCenter      => _inner?.LastHitCenter      ?? new Point(double.NaN, double.NaN);
+        public Point CurrentTargetCenter => _inner?.CurrentTargetCenter ?? new Point(double.NaN, double.NaN);
+
+        // CAT_AUTO_WEAPONS: forward hold-to-fire so a wrapped Tracking drill still
+        // holds-to-track and doesn't feed the click-point metric.
+        public bool  IsAutoFire         => _inner?.IsAutoFire ?? false;
+        public int   Headshots          => _inner?.Headshots ?? 0;
+        public bool  LastHitWasHeadshot => _inner?.LastHitWasHeadshot ?? false;
+        public bool  LastClickIgnored   => _inner?.LastClickIgnored ?? false;
+
         public void Start(Canvas canvas, double targetSize, double moveSpeed, Random rng)
         {
             // Pick scenario based on weak spot

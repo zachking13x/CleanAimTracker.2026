@@ -19,7 +19,9 @@ namespace CleanAimTracker.Services
         /// <summary>Maps each prescription to the diagnostic dimension it trains.</summary>
         public static string DimensionFor(string prescriptionKey) => prescriptionKey switch
         {
-            "arm_over_wrist"          => "CloseRangeStatic",
+            "movement_overshoot"      => "CloseRangeStatic",
+            "click_point_overshoot"   => "CloseRangeStatic",
+            "click_point_undershoot"  => "CloseRangeStatic",
             "decelerate_into_target"  => "CloseRangeStatic",
             "commit_full_motion"      => "CloseRangeStatic",
             "control_protocol"        => "CloseRangeStatic",

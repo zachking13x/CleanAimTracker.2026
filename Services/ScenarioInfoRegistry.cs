@@ -14,6 +14,33 @@ namespace CleanAimTracker.Services
         private static readonly Dictionary<string, ScenarioInfo> _registry =
             new()
             {
+                // ── Bot drills (CAT_BOT_DRILLS) ──────────────────────────────
+
+                ["HeadshotStrafes|Standard"] = new ScenarioInfo
+                {
+                    Scenario      = "HeadshotStrafes",
+                    Variant       = "Standard",
+                    Pillar        = "Clicking",
+                    TrainingFocus = "Hit heads on strafing bots — SEMI fire, body takes 2",
+                    MentalCue     = "Wait out the juke, then take the head"
+                },
+                ["PeekClick|Standard"] = new ScenarioInfo
+                {
+                    Scenario      = "PeekClick",
+                    Variant       = "Standard",
+                    Pillar        = "Clicking",
+                    TrainingFocus = "One clean shot per peek — TAP fire punishes panic clicks",
+                    MentalCue     = "Breathe. One bullet is enough."
+                },
+                ["HeadTrack|Standard"] = new ScenarioInfo
+                {
+                    Scenario      = "HeadTrack",
+                    Variant       = "Standard",
+                    Pillar        = "Tracking",
+                    TrainingFocus = "Hold your spray on the head — accuracy is spray control",
+                    MentalCue     = "Glue to the head, ride the strafe"
+                },
+
                 // ── Clicking pillar ──────────────────────────────────────────
 
                 // StaticClicking
@@ -255,21 +282,25 @@ namespace CleanAimTracker.Services
                 },
 
                 // SmgAr
+                // CAT_AUTO_WEAPONS: SMG/AR is hold-to-spray (3 shots kill). The old
+                // Spray cue told players to "follow the pattern, pull down and in" —
+                // CAT has no recoil patterns; that was fiction. Cues now describe
+                // the actual skill: staying on a moving target through a burst.
                 ["SmgAr|Standard"] = new ScenarioInfo
                 {
                     Scenario      = "SmgAr",
                     Variant       = "Standard",
                     Pillar        = "Clicking",
-                    TrainingFocus = "Sustained fire control with tight burst accuracy",
-                    MentalCue     = "Control the spray, hit the head"
+                    TrainingFocus = "Hold to spray — stay on the target through the full burst",
+                    MentalCue     = "Glue to the target, ride its movement"
                 },
                 ["SmgAr|Spray"] = new ScenarioInfo
                 {
                     Scenario      = "SmgAr",
                     Variant       = "Spray",
                     Pillar        = "Clicking",
-                    TrainingFocus = "Full-auto spray pattern compensation at close range",
-                    MentalCue     = "Pull down and in, follow the pattern"
+                    TrainingFocus = "Three targets, one spray — transfer without lifting",
+                    MentalCue     = "Finish one, drag straight to the next"
                 },
                 ["SmgAr|Tap"] = new ScenarioInfo
                 {

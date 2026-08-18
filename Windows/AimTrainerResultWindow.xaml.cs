@@ -1,4 +1,4 @@
-using CleanAimTracker.Models;
+﻿using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using System;
 using System.Collections.Generic;
@@ -18,6 +18,13 @@ namespace CleanAimTracker.Windows
         private readonly bool _isReplay;
         private readonly bool _isOnboarding;
         private List<Achievement>? _newlyUnlocked;
+
+        // CAT_TELEMETRY: dwell timing for the coach report. MinValue = the report never
+        // finished rendering (coach errored, or the window closed first), in which case
+        // no dwell is reported — a 0-second reading there would be a lie about the user.
+        private DateTime _reportShownAtUtc = DateTime.MinValue;
+        private bool     _reportWasFull;
+        private bool     _dwellReported;
 
         /// <param name="result">The drill result to display.</param>
         /// <param name="isReplay">True when opened via "Last Report" — hides Play Again, changes title.</param>
@@ -39,7 +46,16 @@ namespace CleanAimTracker.Windows
             {
                 Title             = "Last Coaching Report";
                 PlayAgainBtn.Visibility = Visibility.Collapsed;
+                // T0.3: a replay does not award XP this moment — ShowXpAsync is
+                // skipped below (it's gated on !isReplay), so the XP panel would
+                // otherwise keep its placeholder and read "+0 XP" on an elite past
+                // session ("your best run didn't count"). Hide it on replay.
+                XpPanel.Visibility = Visibility.Collapsed;
             }
+
+            // CAT_COACH_FAILURE: fired here, BEFORE any analysis, so the gap between
+            // opened and shown isolates a failing coach from a window that never opened.
+            try { TelemetryService.TrackCoachReportOpened(isReplay); } catch { }
 
             PopulateStats(result);
             _ = LoadCoachingAsync(result);
@@ -70,7 +86,7 @@ namespace CleanAimTracker.Windows
 
                     Loaded += (_, _) =>
                     {
-                        new UpgradeWindow
+                        new UpgradeWindow("pending_reminder")
                         {
                             Owner = Window.GetWindow(this) ?? Application.Current.MainWindow
                         }.ShowDialog();
@@ -84,19 +100,33 @@ namespace CleanAimTracker.Windows
         /// <summary>Opens the most recent coaching report from storage, or shows a message if none exists.</summary>
         public static void OpenLastReport(Window owner)
         {
-            var last = AimTrainerStorage.LoadLast();
-            if (last == null)
+            // T17 fix: both the "no report" MessageBox and the report window were
+            // unowned/unactivated, so they could open BEHIND the main window and the
+            // click looked like it silently did nothing. Own them and activate.
+            try
             {
-                MessageBox.Show(
-                    "No coaching report yet. Complete an Aim Trainer drill to generate your first report.",
-                    "No Report Found",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-                return;
-            }
+                var last = AimTrainerStorage.LoadLast();
+                if (last == null)
+                {
+                    MessageBox.Show(owner,
+                        "No coaching report yet. Complete an Aim Trainer drill to generate your first report.",
+                        "No Report Found",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
 
-            var win = new AimTrainerResultWindow(last, isReplay: true) { Owner = owner };
-            win.Show();
+                var win = new AimTrainerResultWindow(last, isReplay: true) { Owner = owner };
+                win.Show();
+                win.Activate();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("OpenLastReport failed", ex);
+                MessageBox.Show(owner,
+                    "Couldn't open the last report. Please run a drill and try again.",
+                    "Report Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         // ── Achievement + daily challenge evaluation ──────────────────
@@ -280,6 +310,32 @@ namespace CleanAimTracker.Windows
                 if (isBestAccuracy)
                     _ = CelebratePersonalBests(isBestScore, isBestAccuracy, isBestReaction, isBestStreak);
 
+                // CAT_FIRST_FUN_AND_FUNNEL T1.1: the user's first real (non-calibration)
+                // session reaching its result screen — the end of the onboarding funnel.
+                if (!_isReplay && all.Count(r => !r.IsAssessmentSession) == 1)
+                    OnboardingFunnelService.Record(OnboardingFunnelService.FirstSessionCompleted);
+
+                // CAT_REVIEW_PROMPT T1.1/T1.2: a genuine score OR accuracy PB is the happy
+                // moment to ask for a rating — gated so it never spams (≥3 sessions, 14-day
+                // cooldown, ≤3 lifetime, off once they've rated/opted out). Not on replays.
+                // CAT_REVIEW_RETUNE: a strong session now also qualifies, so the ask isn't
+                // hostage to a PB that a plateaued player may never hit again.
+                bool genuinePb = isBestScore || isBestAccuracy;
+                if (!_isReplay)
+                {
+                    var rs = SettingsService.Load();
+                    int completed = all.Count(r => !r.IsAssessmentSession);
+                    if (ReviewPromptService.ShouldPrompt(genuinePb, completed, rs, DateTime.UtcNow, result.Accuracy))
+                    {
+                        ReviewPromptService.RecordShown(rs, DateTime.UtcNow);
+                        SettingsService.Save(rs);
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (ReviewPromptBox != null) ReviewPromptBox.Visibility = Visibility.Visible;
+                        });
+                    }
+                }
+
                 // ── TASK-17: Top 5 by score for this scenario ─────────────
                 // Calibration sessions are baseline data, not accomplishments —
                 // they don't compete on the leaderboard.
@@ -325,6 +381,14 @@ namespace CleanAimTracker.Windows
         // ── XP system ────────────────────────────────────────────────
         private async Task ShowXpAsync(AimTrainerResult result)
         {
+            // GATE 1: assessment sessions earn no XP — hide the panel entirely
+            // rather than show "+0 XP" (no stale default, per the M1 fix).
+            if (result.IsAssessmentSession)
+            {
+                Dispatcher.Invoke(() => XpPanel.Visibility = Visibility.Collapsed);
+                return;
+            }
+
             // Calculate the earned amount FIRST — pure math, no file I/O.
             int xpEarned = XPService.CalculateSessionXP(result);
 
@@ -552,7 +616,9 @@ namespace CleanAimTracker.Windows
             }
 
             AddStat("ACCURACY",     $"{_result.Accuracy:F0}%",        Color.FromRgb(0x00, 0xE5, 0xA0));
-            AddStat("AVG REACTION", $"{_result.AvgReactionMs:F0}ms",  Color.FromRgb(0xF0, 0xF4, 0xF8));
+            AddStat("AVG REACTION",
+                _result.AvgReactionMs > 0 ? $"{_result.AvgReactionMs:F0}ms" : "—",
+                Color.FromRgb(0xF0, 0xF4, 0xF8));
             AddStat("BEST STREAK",  _result.MaxStreak.ToString(),     Color.FromRgb(0xF5, 0xC8, 0x42));
 
             Grid.SetRow(statsPanel, 1);
@@ -582,11 +648,169 @@ namespace CleanAimTracker.Windows
             return rtb;
         }
 
+        // ── CAT_ACTIVE_FIX ────────────────────────────────────────────
+        // Renders the open prescription as a PLAN: what you're fixing, how far through
+        // the verification window you are, and the metric moving. Populated from the
+        // memory captured BEFORE follow-up evaluation, so a loop that closes this
+        // session shows its win in the report rather than silently vanishing.
+        private void PopulateActiveFix(CoachMemory memory, AimTrainerResult r)
+        {
+            try
+            {
+                var state = memory.ActivePrescription;
+                if (state == null || string.IsNullOrEmpty(state.PrescriptionKey))
+                {
+                    ActiveFixCard.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                var prescription = TechniquePrescriptionLibrary.All
+                    .FirstOrDefault(p => p.PrescriptionKey == state.PrescriptionKey);
+                if (prescription == null) { ActiveFixCard.Visibility = Visibility.Collapsed; return; }
+
+                int target = PrescriptionFollowUpService.FlatSessionsBeforeEscalation;   // 3
+                int done   = Math.Min(target, Math.Max(0, state.SessionsSince));
+
+                ActiveFixTitleText.Text    = char.ToUpperInvariant(prescription.InstructionShort[0])
+                                           + prescription.InstructionShort.Substring(1);
+                ActiveFixProgressText.Text = $"Session {Math.Min(target, done + 1)} of {target}";
+
+                ActiveFixCard.UpdateLayout();
+                double w = Math.Max(0, ActiveFixCard.ActualWidth - 32);
+                if (w > 0) ActiveFixBar.Width = w * (done / (double)target);
+
+                // Show the metric actually moving — baseline vs this session.
+                double now  = TechniquePrescriptionLibrary.ReadVerifyMetric(state.VerifyMetric, r);
+                double base_ = state.BaselineValue;
+                string label = PrescriptionFollowUpService.MetricLabel(state.VerifyMetric);
+                ActiveFixMetricText.Text = now > 0 && base_ > 0
+                    ? $"{label}: {base_:F0} → {now:F0} — the coach is watching this until it moves."
+                    : $"The coach is tracking {label.ToLowerInvariant()} until it moves.";
+
+                ActiveFixCard.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                ActiveFixCard.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        // ── CAT_BENCHMARK_DESTINATION ─────────────────────────────────
+        // Free, always-on standing + the exact gap to the next rung. Prefers whichever
+        // metric has a benchmark table; accuracy wins ties because it's the number the
+        // player already reads at the top of this screen.
+        private void PopulateBenchmarkStanding(AimTrainerResult r)
+        {
+            try
+            {
+                var standing = PercentileBenchmarks.AccuracyStanding(r.Scenario, r.Difficulty, r.Accuracy)
+                            ?? PercentileBenchmarks.PaceStanding(r.Scenario, r.Difficulty, r.AvgReactionMs);
+
+                // CAT_BENCHMARK_COVERAGE: no published standard applies to this drill
+                // (Shotgun's pellet spread, Sniper's placement scoring, the bot drills'
+                // two-shot bodies). Rather than show nothing — which is what the card did
+                // on the most-played scenarios — fall back to the player's OWN best,
+                // labelled unmistakably as personal. A destination you set yourself is
+                // still a destination; borrowing another drill's table would not be.
+                if (standing == null) { PopulatePersonalDestination(r); return; }
+
+                BenchmarkTierText.Text = standing.TierIndex >= 0
+                    ? standing.TierLabel.ToUpperInvariant()
+                    : "UNRANKED";
+
+                // Ladder fill: 4 rungs, index 3 (entry) = 25% … index 0 (advanced) = 100%.
+                double pct = standing.TierIndex >= 0 ? (4 - standing.TierIndex) / 4.0 : 0.06;
+                BenchmarkCard.UpdateLayout();
+                double w = Math.Max(0, BenchmarkCard.ActualWidth - 32);
+                if (w > 0) BenchmarkBar.Width = w * pct;
+
+                if (standing.NextTierLabel == null)
+                {
+                    BenchmarkNextText.Text = $"You've cleared the top {standing.MetricLabel.ToLowerInvariant()} " +
+                                             $"threshold for {GetDisplayScenario(r.Scenario)} at {r.Difficulty}. " +
+                                             "Step the difficulty up for a harder standard.";
+                }
+                else
+                {
+                    // The gap IS the destination — state it in the metric's own units.
+                    string unit  = standing.LowerIsBetter ? "ms" : "%";
+                    string verb  = standing.LowerIsBetter ? "faster" : "more";
+                    string gapTxt = standing.LowerIsBetter
+                        ? $"{standing.Gap:F0}{unit} {verb}"
+                        : $"{standing.Gap:F0} {unit.TrimStart()} {verb}".Replace("  ", " ");
+
+                    BenchmarkNextText.Text =
+                        $"{standing.MetricLabel} {standing.Value:F0}{unit} — next rung is " +
+                        $"{standing.NextTierLabel} at {standing.NextThreshold:F0}{unit}. " +
+                        $"You need {gapTxt}.";
+                }
+
+                BenchmarkCard.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                BenchmarkCard.Visibility = Visibility.Collapsed;   // never break the report
+            }
+        }
+
+        /// <summary>
+        /// CAT_BENCHMARK_COVERAGE: the fallback destination for drills with no published
+        /// standard. Measured against the player's own best on this scenario+difficulty,
+        /// and SAID so — the header reads "YOUR BEST", never a tier name, so it can't be
+        /// mistaken for a benchmark claim. Needs at least two prior sessions to compare
+        /// against; below that there is genuinely nothing to say and the card hides.
+        /// </summary>
+        private void PopulatePersonalDestination(AimTrainerResult r)
+        {
+            try
+            {
+                var prior = AimTrainerStorage.LoadAll()
+                    .Where(h => h.Scenario == r.Scenario
+                             && h.Difficulty == r.Difficulty
+                             && h.Timestamp != r.Timestamp
+                             && !h.IsAssessmentSession
+                             && h.Hits + h.Misses > 0)
+                    .ToList();
+
+                if (prior.Count < 2) { BenchmarkCard.Visibility = Visibility.Collapsed; return; }
+
+                double best = prior.Max(h => h.Accuracy);
+                double avg  = prior.Average(h => h.Accuracy);
+
+                BenchmarkTierText.Text = "YOUR BEST";
+
+                double pct = best > 0 ? Math.Clamp(r.Accuracy / best, 0, 1) : 0;
+                BenchmarkCard.UpdateLayout();
+                double w = Math.Max(0, BenchmarkCard.ActualWidth - 32);
+                if (w > 0) BenchmarkBar.Width = w * pct;
+
+                string scen = GetDisplayScenario(r.Scenario);
+                BenchmarkNextText.Text = r.Accuracy >= best
+                    ? $"Accuracy {r.Accuracy:F0}% — a new best for {scen} at {r.Difficulty}. " +
+                      $"Your previous best was {best:F0}%, your average {avg:F0}%."
+                    : $"Accuracy {r.Accuracy:F0}% — your best on {scen} at {r.Difficulty} is {best:F0}% " +
+                      $"(average {avg:F0}%). You need {best - r.Accuracy:F0} more to beat it.";
+
+                BenchmarkFootnote.Text =
+                    $"No published standard covers {scen}, so this compares you to your own {prior.Count} " +
+                    "previous sessions on this drill — not to other players.";
+
+                BenchmarkCard.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                BenchmarkCard.Visibility = Visibility.Collapsed;
+            }
+        }
+
         // ── Scenario display-name mapping ─────────────────────────────
         private static string GetDisplayScenario(string scenario) => scenario switch
         {
-            "SmgAr" => "SMG / AR",
-            _       => scenario,
+            "SmgAr"           => "SMG / AR",
+            "HeadshotStrafes" => "Headshot Strafes",
+            "PeekClick"       => "Peek & Click",
+            "HeadTrack"       => "Track the Head",
+            _                 => scenario,
         };
 
         // ── Variant display-name mapping ──────────────────────────────
@@ -608,12 +832,16 @@ namespace CleanAimTracker.Windows
             // stimulus-to-hit; hit-anchored scenarios measure time per target.
             AvgReactionLabel.Text  = ReactionMetric.CardLabel(r.Scenario);
             BestReactionLabel.Text = ReactionMetric.BestCardLabel(r.Scenario);
-            AvgReactionText.Text = $"{r.AvgReactionMs:F0}ms";
-            BestReactionText.Text = $"{r.BestReactionMs:F0}ms";
+            // CAT_BOT_DRILLS honesty: AUTO-spray drills have no per-shot timing —
+            // 0 means "not measured", never "0 milliseconds".
+            AvgReactionText.Text  = r.AvgReactionMs  > 0 ? $"{r.AvgReactionMs:F0}ms"  : "—";
+            BestReactionText.Text = r.BestReactionMs > 0 ? $"{r.BestReactionMs:F0}ms" : "—";
             StreakText.Text      = r.MaxStreak.ToString();
 
             HitsText.Text   = r.Hits.ToString();
             MissesText.Text = r.Misses.ToString();
+
+            PopulateBenchmarkStanding(r);
 
             Loaded += (_, _) =>
             {
@@ -651,14 +879,36 @@ namespace CleanAimTracker.Windows
                 if (freeSessionPending)
                 {
                     _isFullSession = true;
+                    // CAT_REVERSE_TRIAL: name the remaining window out loud. A silent
+                    // freebie gets taken for granted — a visible countdown is what turns
+                    // the eventual lock into a felt loss instead of a surprise.
+                    int left = FreeCoachSessionService.FreeCoachedDrillsRemaining(memory);
                     Dispatcher.Invoke(() =>
                     {
-                        if (FreeSessionBanner != null)
-                            FreeSessionBanner.Visibility = Visibility.Visible;
+                        if (FreeSessionBanner == null) return;
+                        if (FreeSessionBannerTitle != null)
+                            FreeSessionBannerTitle.Text = left <= 0
+                                ? "Your last fully-coached drill — everything unlocked."
+                                : "Full coaching report — everything unlocked.";
+                        if (FreeSessionBannerBody != null)
+                            FreeSessionBannerBody.Text = left <= 0
+                                ? "That was the last one included. Unlock Pro to keep the coach on every session from here."
+                                : $"{left} more fully-coached drill{(left == 1 ? "" : "s")} included — see exactly what the coach does before deciding.";
+                        FreeSessionBanner.Visibility = Visibility.Visible;
                     });
                 }
 
+                // CAT_ACTIVE_FIX: capture the open loop BEFORE Analyze resolves it, so a
+                // prescription that closes this session still renders its plan + win.
+                var openLoopBefore = memory.ActivePrescription;
+
                 var report = await Task.Run(() => AiCoachService.Analyze(result, memory));
+
+                Dispatcher.Invoke(() =>
+                {
+                    var snapshot = new CoachMemory { ActivePrescription = openLoopBefore };
+                    PopulateActiveFix(snapshot, result);
+                });
 
                 // Save tip rotation keys + technique prescription loop state so
                 // the next session's coach can verify or escalate (TASK-2.1/2.2).
@@ -693,6 +943,25 @@ namespace CleanAimTracker.Windows
                 }
 
                 PopulateCoaching(report, showFull);
+                PopulateAimProfile(memory);
+
+                // CAT_TELEMETRY: the aha moment reached the screen. Paired with the dwell
+                // event on close, this is the only way to tell "we showed them the coach"
+                // apart from "the coach actually landed" — and the whole reverse-trial bet
+                // rests on the second one.
+                _reportShownAtUtc = DateTime.UtcNow;
+                _reportWasFull    = showFull;
+                TelemetryService.TrackCoachReportShown(memory.TotalDrillCount, freeSessionPending, showFull);
+
+                // The exact drill on which the reverse trial runs out — the conversion
+                // moment. Gated on the boundary drill so it fires ONCE, not on every
+                // locked report from here on.
+                if (!freeSessionPending
+                    && !TrialService.IsFullVersion()
+                    && memory.RealDrillCount == FreeCoachSessionService.FreeCoachedDrills + 1)
+                {
+                    TelemetryService.TrackFreeTrialExhausted(memory.RealDrillCount);
+                }
 
                 // TASK-0.3: consume the one-time preview only now that a report
                 // with an actual coach body has rendered.
@@ -713,6 +982,65 @@ namespace CleanAimTracker.Windows
                 LogService.Error("Failed to load AI coaching", ex);
                 CoachingLoading.Visibility = Visibility.Collapsed;
                 CoachingError.Visibility   = Visibility.Visible;
+
+                // CAT_COACH_FAILURE: this used to be locally logged and otherwise silent.
+                // A coach that fails for real users is the single worst thing that can go
+                // wrong in this product, and it was indistinguishable from a user who just
+                // didn't open the report. Type only — never the message.
+                try { TelemetryService.TrackCoachReportFailed(ex.GetType().Name); } catch { }
+            }
+        }
+
+        // CAT_TELEMETRY: report dwell. Fires once, on close, and only when the report
+        // actually rendered. Reported as a coarse bucket — the exact second count adds
+        // nothing to the question ("did they read it?") and narrows the anonymity set.
+        protected override void OnClosed(EventArgs e)
+        {
+            try
+            {
+                if (!_dwellReported && _reportShownAtUtc != DateTime.MinValue)
+                {
+                    _dwellReported = true;
+                    int seconds = (int)Math.Round((DateTime.UtcNow - _reportShownAtUtc).TotalSeconds);
+                    TelemetryService.TrackCoachReportDwell(Math.Max(0, seconds), _reportWasFull);
+                }
+            }
+            catch { }
+            base.OnClosed(e);
+        }
+
+        // ── COACH_AIM_PROFILE: the cross-session "YOUR AIM" read ──────────────
+        // Distinct from the per-session coach above — this characterizes the player
+        // across their history. RECOMPUTED on every open ("on-demand when the user
+        // opens it") so no claim can go stale-false; the rolling 20-session window is
+        // what keeps it from churning, not a frozen text cache. The rotation seed
+        // advances per session so the wording varies (never canned) while the claims
+        // — all templated, all data-backed — stay honest.
+        private void PopulateAimProfile(CoachMemory memory)
+        {
+            try
+            {
+                if (AimProfileSection == null) return;
+
+                var profile = AimProfileBuilder.Build(memory);
+                AimProfilePhrasing.Render(profile, rotationSeed: memory.TotalDrillCount);
+
+                AimProfileSection.Visibility = Visibility.Visible;
+                AimProfileCondensed.Text     = profile.Condensed;
+
+                bool full = profile.HasEnoughData && profile.FullLines.Count > 1;
+                AimProfileExpander.Visibility = full ? Visibility.Visible : Visibility.Collapsed;
+                if (full)
+                {
+                    AimProfileFullList.ItemsSource  = profile.FullLines;
+                    AimProfileRecomputeCaption.Text = string.Format(
+                        AimProfilePhrasing.RecomputeCaption, profile.SessionsAnalyzed);
+                    AimProfileGameDisclaimer.Text   = AimProfilePhrasing.PerGameDisclaimer;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Failed to build aim profile", ex);
             }
         }
 
@@ -786,13 +1114,27 @@ namespace CleanAimTracker.Windows
             }
             else
             {
-                // Build a teaser hint for the locked overlay (free users before session 5)
-                string weakHint = report.Weaknesses.Count > 0
-                    ? $"What to work on next, plus {report.Advice.Count} coaching tips for {_result.Scenario}."
-                    : $"{report.Advice.Count} coaching tips and your next drill prescription.";
+                // CAT_COACH_FREEMIUM_FIX T3.1: by now the user has seen TWO full reports,
+                // so the teaser reads as desire ("you know how good this is"), not a wall.
+                if (CoachingLockedTitle != null)
+                    CoachingLockedTitle.Text = "Your coach spotted something this session";
 
+                string body = report.Weaknesses.Count > 0
+                    ? $"You've seen the full read — there's a specific habit to fix here, plus {report.Advice.Count} tips for {_result.Scenario}."
+                    : $"You've seen the full read — your coach has {report.Advice.Count} tips and your next drill ready.";
                 if (CoachingLockedHint != null)
-                    CoachingLockedHint.Text = weakHint;
+                    CoachingLockedHint.Text = body;
+
+                // Late-trial gentle urgency (loss-aversion, honest — no dark patterns).
+                if (CoachingTrialProgress != null)
+                {
+                    int remaining = TrialService.SessionsRemaining();
+                    bool show = !TrialService.IsFullVersion() && remaining > 0 && remaining <= 6;
+                    CoachingTrialProgress.Text = show
+                        ? $"{remaining} session{(remaining == 1 ? "" : "s")} left in your free trial."
+                        : "";
+                    CoachingTrialProgress.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+                }
 
                 MotivationalText.Text = "";
             }
@@ -801,7 +1143,7 @@ namespace CleanAimTracker.Windows
         // ── Coaching upgrade button ──────────────────────────────────
         private void CoachingUpgrade_Click(object sender, RoutedEventArgs e)
         {
-            new UpgradeWindow { Owner = Window.GetWindow(this) ?? Application.Current.MainWindow }
+            new UpgradeWindow("locked_coach_report") { Owner = Window.GetWindow(this) ?? Application.Current.MainWindow }
                 .ShowDialog();
 
             if (TrialService.IsFullVersion())
@@ -843,13 +1185,71 @@ namespace CleanAimTracker.Windows
             }
         }
 
+        // ── CAT_REVIEW_PROMPT T1.3: "Rate it" deep-links to the Store review surface ──
+        private void RateIt_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var s = SettingsService.Load();
+                ReviewPromptService.RecordRatedOrOptedOut(s);   // asked + engaged → never ask again
+                SettingsService.Save(s);
+                // Opens the Microsoft Store review page for CAT directly (not just the listing).
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                    "ms-windows-store://review/?ProductId=9MVBDZBQ01DM") { UseShellExecute = true });
+            }
+            catch (Exception ex) { LogService.Error("Open Store review failed", ex); }
+            if (ReviewPromptBox != null) ReviewPromptBox.Visibility = Visibility.Collapsed;
+        }
+
+        private void MaybeLater_Click(object sender, RoutedEventArgs e)
+        {
+            // Cooldown was already recorded when the box showed; just close. It may fire
+            // again on a future PB (this is NOT a permanent opt-out).
+            if (ReviewPromptBox != null) ReviewPromptBox.Visibility = Visibility.Collapsed;
+        }
+
+        private void DontAskAgain_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var s = SettingsService.Load();
+                ReviewPromptService.RecordRatedOrOptedOut(s);
+                SettingsService.Save(s);
+            }
+            catch (Exception ex) { LogService.Error("Review opt-out failed", ex); }
+            if (ReviewPromptBox != null) ReviewPromptBox.Visibility = Visibility.Collapsed;
+        }
+
         private void Close_Click(object sender, RoutedEventArgs e)
         {
             // Skip prompt when opened as a replay from Last Report
             if (_isReplay) { Close(); return; }
 
-            // Only show the tomorrow prompt once per calendar day
             var settings = SettingsService.Load();
+
+            // CAT_RETENTION_NOTIFICATIONS T1.3: one-time, gentle ask that explains WHY
+            // before the win-back channel goes to work. (Windows packaged apps are
+            // notification-enabled by default, so "enabling" records consent; the OS
+            // toggle is detected separately by ToastService.OsAllowsToasts.) Shown once;
+            // it stands in for the tomorrow prompt that session so we don't stack dialogs.
+            if (!settings.NotificationPermissionAsked)
+            {
+                settings.NotificationPermissionAsked = true;
+                var ask = new ReminderPromptWindow(
+                    "Want your coach to nudge you?",
+                    "Let Clean Aim Tracker remind you when your daily challenge is ready and when " +
+                    "you're about to lose a streak — one short nudge a day, never spam. " +
+                    "Turn it off anytime in Settings.")
+                    { Owner = this };
+                settings.NotificationsEnabled   = ask.ShowDialog() == true;
+                settings.LastTomorrowPromptDate = DateTime.Today;   // suppress the tomorrow prompt today
+                SettingsService.Save(settings);
+                ToastService.RescheduleNudges();
+                Close();
+                return;
+            }
+
+            // Only show the tomorrow prompt once per calendar day
             LogService.Info("TomorrowPrompt: last=" + settings.LastTomorrowPromptDate.Date + " today=" + DateTime.Today);
             if (settings.LastTomorrowPromptDate.Date < DateTime.Today)
             {
@@ -867,9 +1267,13 @@ namespace CleanAimTracker.Windows
                         : "Come back tomorrow — consistency beats perfection. Want a reminder?";
 
                 var prompt = new ReminderPromptWindow(promptTitle, promptMsg) { Owner = this };
-                if (prompt.ShowDialog() == true)
-                    ToastService.ScheduleTomorrowReminder();
+                prompt.ShowDialog();
             }
+
+            // CAT_RETENTION_NOTIFICATIONS: rebuild the scheduled win-back/streak queue from
+            // this session's fresh state (governed by the global NotificationsEnabled
+            // setting, not this per-session prompt). OnExit reschedules again as a backstop.
+            ToastService.RescheduleNudges();
 
             Close();
         }

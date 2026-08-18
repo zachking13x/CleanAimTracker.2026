@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -44,5 +45,33 @@ namespace CleanAimTracker.Trainer
         /// Returns <c>new Point(double.NaN, double.NaN)</c> by default.
         /// </summary>
         Point CurrentTargetCenter => new Point(double.NaN, double.NaN);
+
+        /// <summary>
+        /// T3.1: Stopwatch-tick timestamps of target direction-change / spawn events,
+        /// for AvgDirectionChangeLagMs. Scenarios with genuine heading changes
+        /// (Reactive spawn, Tracking-Evasive randomize, etc.) override this. Default
+        /// empty → scenarios without the concept are simply skipped, never forced.
+        /// </summary>
+        IReadOnlyList<long> DirectionChangeTimestamps => Array.Empty<long>();
+
+        // ── CAT_BOT_DRILLS: bot-target scenarios (head/body hit zones) ────────
+
+        /// <summary>Total headshot kills this round. 0 for non-bot scenarios.</summary>
+        int Headshots => 0;
+
+        /// <summary>True when the hit registered by the last HandleClick was a headshot.</summary>
+        bool LastHitWasHeadshot => false;
+
+        /// <summary>
+        /// True when the last HandleClick was swallowed by a weapon fire-rate lockout
+        /// (TAP/SEMI archetypes). The caller should play NEITHER hit nor miss feedback.
+        /// </summary>
+        bool LastClickIgnored => false;
+
+        /// <summary>
+        /// AUTO weapon archetype: while the left button is held, the host window
+        /// synthesizes shots at a fixed cadence via HandleClick. Default off.
+        /// </summary>
+        bool IsAutoFire => false;
     }
 }

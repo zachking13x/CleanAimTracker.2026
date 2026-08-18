@@ -57,7 +57,10 @@ namespace CleanAimTracker.Trainer.Scenarios
         /// Each spawn forces a new movement direction, making these "direction change" events
         /// for AvgDirectionChangeLagMs telemetry.
         /// </summary>
-        public System.Collections.Generic.List<long> DirectionChangeTimestamps { get; } = new();
+        // T3.1: private accumulator, exposed read-only to implement the interface
+        // contract exactly (IReadOnlyList<long>) so it dispatches via IAimScenario.
+        private readonly System.Collections.Generic.List<long> _directionChangeTimestamps = new();
+        public System.Collections.Generic.IReadOnlyList<long> DirectionChangeTimestamps => _directionChangeTimestamps;
 
         public ReactiveScenario(string variant = "Standard")
         {
@@ -200,7 +203,7 @@ namespace CleanAimTracker.Trainer.Scenarios
             // Every spawn after the first forces a new movement direction.
             // Record it as a direction-change event for AvgDirectionChangeLagMs telemetry.
             if (Hits + Misses > 0)
-                DirectionChangeTimestamps.Add(_targetSpawnTick);
+                _directionChangeTimestamps.Add(_targetSpawnTick);
 
             if (_variant == "Blink")
                 _target.Opacity = 0.3;

@@ -23,6 +23,21 @@ namespace CleanAimTracker.Services
         // TASK-1.3: the single neutral line shown for low-activity sessions.
         public const string LowActivityHeadline = CoachReportComposer.LowActivityHeadline;
 
+        /// <summary>
+        /// T4: maps a prescription VerifyMetric to its real SessionSummary field for
+        /// the verify-loop baseline. Returns null for an unmapped metric — the caller
+        /// then skips the loop rather than open it at a phantom 0 baseline. Tracker
+        /// metrics only (drill metrics like MovementOvershoot have no SessionSummary
+        /// field and correctly map to null here).
+        /// </summary>
+        public static double? TrackerVerifyBaseline(string verifyMetric, SessionSummary s) => verifyMetric switch
+        {
+            "SmoothnessScore"     => s.SmoothnessScore,
+            "MovementConsistency" => s.MovementConsistency,
+            "CorrectionSharpness" => s.CorrectionSharpness,
+            _                     => null
+        };
+
         public static TrackerCoachReport Analyze(
             SessionSummary session,
             List<SessionSummary> history,
@@ -79,35 +94,40 @@ namespace CleanAimTracker.Services
                     candidates.Add(transfer);
             }
 
-            // ASPECT "correction_commitment" — one aspect, two possible verdicts;
-            // the composer guarantees only one can ever render.
-            if (session.CorrectionSharpness > 0 && !KeyRecent("correction_commitment"))
+            // ASPECT "movement_steadiness" — one aspect, two possible verdicts; the
+            // composer guarantees only one can ever render.
+            // T3: re-framed off the overshoot claim. CorrectionSharpness is per-event
+            // speed variability (post-C2) — on the tracker (no targets) it measures how
+            // steady vs jerky the movement speed is, NOT overshoot-and-correct (which
+            // the tracker cannot see). Prose now matches the measurement; the metric
+            // itself is valid, only the old interpretation was fiction.
+            if (session.CorrectionSharpness > 0 && !KeyRecent("movement_steadiness"))
             {
                 if (session.CorrectionSharpness < 30)
                 {
                     candidates.Add(new CoachObservation
                     {
-                        FactKey = "correction_commitment",
+                        FactKey = "movement_steadiness",
                         SourceEngine = nameof(TrackerCoachService),
                         Section = CoachSection.Strength,
                         Polarity = ObservationPolarity.Strength,
                         Severity = 2,
                         RequiredMetrics = { "CorrectionSharpness" },
-                        Message = $"Very low correction sharpness ({session.CorrectionSharpness:F0}) — you were committing to first motions cleanly. That is good mechanics."
+                        Message = $"Very low speed variability ({session.CorrectionSharpness:F0}) — your movement speed stayed smooth and even. That steadiness is good mechanics."
                     });
                 }
                 else if (session.CorrectionSharpness > 65)
                 {
                     candidates.Add(new CoachObservation
                     {
-                        FactKey = "correction_commitment",
+                        FactKey = "movement_steadiness",
                         SourceEngine = nameof(TrackerCoachService),
                         Section = CoachSection.Area,
                         Polarity = ObservationPolarity.Concern,
                         Severity = 3,
                         RequiresBehaviorChange = true,
                         RequiredMetrics = { "CorrectionSharpness" },
-                        Message = $"Correction sharpness was high at {session.CorrectionSharpness:F0} — you were overshooting and yanking back to correct. Commit to the first motion: land on the target in one movement instead of correcting after."
+                        Message = $"Speed variability was high at {session.CorrectionSharpness:F0} — your in-game movement was jerky, with big speed swings between motions. Smoother, more even movement keeps your crosshair steadier under pressure."
                     });
                 }
             }
@@ -161,20 +181,16 @@ namespace CleanAimTracker.Services
             }
 
             // PRESCRIPTIONS — typed so TASK-2.3 can match severity to verdict.
-            if (session.CorrectionSharpness > 65)
-            {
-                candidates.Add(new CoachObservation
-                {
-                    FactKey = "rx_correction",
-                    SourceEngine = nameof(TrackerCoachService),
-                    Section = CoachSection.Prescription,
-                    Polarity = ObservationPolarity.Concern,
-                    Severity = 3,
-                    PrescriptionType = PrescriptionType.Remedial,
-                    RequiredMetrics = { "CorrectionSharpness" },
-                    Message = "Flicking Single Target — Medium — focus on clean first motion, no corrections"
-                });
-            }
+            // T3 (was M2): rx_correction DISABLED. It prescribed an overshoot remedy
+            // ("clean first motion, no corrections") off CorrectionSharpness > 65 —
+            // but post-C2 that metric is per-event speed variability, NOT overshoot,
+            // and the tracker has no targets, so it cannot measure overshoot at all.
+            // Firing an overshoot prescription off a non-overshoot signal is exactly
+            // the dishonesty the audit kills. Overshoot is now prescribed correctly
+            // drill-side via MovementOvershoot (A1/A2). The tracker keeps its valid
+            // prescriptions (rx_flick_initiation, rx_maintain). Do not re-enable on
+            // CorrectionSharpness — there is no honest tracker overshoot signal.
+            // if (session.CorrectionSharpness > 65) { ...rx_correction... }
             if (session.LargeFlickCount > session.SmallFlickCount && session.FlickCount > 5)
             {
                 candidates.Add(new CoachObservation
@@ -300,14 +316,26 @@ namespace CleanAimTracker.Services
                     IsLowActivity: session.IsLowActivitySession));
 
             // VOICE TASK-2.3: open the loop only if the prescription rendered.
+            // T4 (was M3): the verify baseline maps each VerifyMetric to its real
+            // SessionSummary field. The old `: 0` fallback made any non-smoothness
+            // metric open the loop at baseline 0 → next session "improved 0 → N"
+            // always read as success (phantom loop-closure). An UNMAPPED metric now
+            // skips the loop rather than open a phantom 0 baseline.
             if (selectedRx != null && memory != null
                 && composed.SurvivingFactKeys.Contains(selectedRx.Prescription.PrescriptionKey))
             {
-                double baseline = selectedRx.Prescription.VerifyMetric == "SmoothnessScore"
-                    ? session.SmoothnessScore
-                    : 0;
-                TechniquePrescriptionSelector.RecordPrescribed(memory, selectedRx, baseline);
-                memory.ActivePrescription!.ScenarioContext = "Tracker";
+                double? baseline = TrackerVerifyBaseline(selectedRx.Prescription.VerifyMetric, session);
+                if (baseline.HasValue)
+                {
+                    TechniquePrescriptionSelector.RecordPrescribed(memory, selectedRx, baseline.Value);
+                    memory.ActivePrescription!.ScenarioContext = "Tracker";
+                }
+                else
+                {
+                    LogService.Error(
+                        $"Tracker prescription '{selectedRx.Prescription.PrescriptionKey}' has VerifyMetric " +
+                        $"'{selectedRx.Prescription.VerifyMetric}' with no SessionSummary mapping — loop not opened.");
+                }
             }
 
             // ── TASK-06: persist rotation keys for what actually rendered ──────

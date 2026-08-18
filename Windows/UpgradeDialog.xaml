@@ -34,15 +34,15 @@
                        Margin="0,0,0,6"
                        TextWrapping="Wrap"/>
 
-            <TextBlock Text="You've hit the free limit. Upgrade to keep improving."
-                       Foreground="#666666"
+            <TextBlock Text="Unlock the coach that tells you exactly what to fix."
+                       Foreground="#888888"
                        FontSize="13"
                        HorizontalAlignment="Center"
                        TextAlignment="Center"
                        TextWrapping="Wrap"
                        Margin="0,0,0,20"/>
 
-            <!-- Pro plan card -->
+            <!-- Lifetime card — the HERO (one-time, Founder's Price) -->
             <Border Background="#1A1A1A"
                     CornerRadius="10"
                     Padding="16,14"
@@ -55,21 +55,28 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <TextBlock Text="Pro Monthly" Foreground="White"
-                                   FontSize="16" FontWeight="Bold"/>
-                        <TextBlock Text="Full history  •  AI coaching  •  Export"
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Unlock forever" Foreground="White"
+                                       FontSize="16" FontWeight="Bold"/>
+                            <Border Background="#7B2FFF" CornerRadius="4"
+                                    Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="LifetimeBadge" Text="FOUNDER'S PRICE" Foreground="White"
+                                           FontSize="9" FontWeight="Bold"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="One-time · yours forever · never billed again"
                                    Foreground="#888888" FontSize="11" Margin="0,3,0,0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="$4.99" Foreground="#7B2FFF"
-                                   FontSize="20" FontWeight="Black" HorizontalAlignment="Right"/>
-                        <TextBlock Text="/month" Foreground="#555555"
+                        <TextBlock x:Name="LifetimePrice" Text="$9.99" Foreground="White"
+                                   FontSize="22" FontWeight="Black" HorizontalAlignment="Right"/>
+                        <TextBlock Text="one-time" Foreground="#555555"
                                    FontSize="11" HorizontalAlignment="Right"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- Lifetime card -->
+            <!-- Monthly card — secondary low-commitment on-ramp -->
             <Border Background="#1A1A1A"
                     CornerRadius="10"
                     Padding="16,14"
@@ -82,22 +89,15 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="Lifetime" Foreground="White"
-                                       FontSize="16" FontWeight="Bold"/>
-                            <Border Background="#7B2FFF" CornerRadius="4"
-                                    Padding="5,1" Margin="8,0,0,0" VerticalAlignment="Center">
-                                <TextBlock Text="BEST VALUE" Foreground="White"
-                                           FontSize="9" FontWeight="Bold"/>
-                            </Border>
-                        </StackPanel>
-                        <TextBlock Text="Everything forever  •  Pays off in 5 months"
+                        <TextBlock Text="Or try monthly" Foreground="White"
+                                   FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="Same coach  ·  cancel anytime"
                                    Foreground="#888888" FontSize="11" Margin="0,3,0,0"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="$24.99" Foreground="White"
+                        <TextBlock x:Name="MonthlyPrice" Text="$3.99" Foreground="#7B2FFF"
                                    FontSize="20" FontWeight="Black" HorizontalAlignment="Right"/>
-                        <TextBlock Text="one-time" Foreground="#555555"
+                        <TextBlock Text="/month" Foreground="#555555"
                                    FontSize="11" HorizontalAlignment="Right"/>
                     </StackPanel>
                 </Grid>

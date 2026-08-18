@@ -1,4 +1,4 @@
-<Window x:Class="CleanAimTracker.Windows.MainWindow"
+﻿<Window x:Class="CleanAimTracker.Windows.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Clean Aim Tracker"
@@ -334,9 +334,14 @@
                 <!-- BOTTOM: Theme toggle + Trial banner -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="10,0,10,12">
 
-                    <!-- Trial Banner -->
+                    <!-- Trial Banner.
+                         CAT_SESSION_REPORT: was near-invisible — BannerBackground (#0D2233)
+                         sits a shade off the sidebar, and MutedText on top of it made the
+                         call to action unreadable. "Quiet" was supposed to mean calm, not
+                         camouflaged. Now: readable border, primary-text CTA. -->
                     <Border x:Name="TrialBannerContainer"
-                            Background="{DynamicResource BannerBackground}"
+                            Background="#141A22"
+                            BorderBrush="#44FFD24A" BorderThickness="1"
                             CornerRadius="8" Padding="12,10"
                             Margin="0,0,0,8"
                             Cursor="Hand"
@@ -345,12 +350,13 @@
                         <StackPanel>
                             <TextBlock x:Name="TrialBannerText"
                                        Text="Free Trial"
-                                       Foreground="{DynamicResource AccentBrush}"
+                                       Foreground="#FFD24A"
                                        FontSize="11" FontWeight="SemiBold"
                                        TextWrapping="Wrap"/>
                             <TextBlock Text="Tap to upgrade →"
-                                       Foreground="{DynamicResource MutedText}"
-                                       FontSize="10" Margin="0,2,0,0"/>
+                                       Foreground="{DynamicResource PrimaryText}"
+                                       FontSize="11" FontWeight="SemiBold"
+                                       Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
 
@@ -364,6 +370,15 @@
 
                 <!-- NAV BUTTONS -->
                 <StackPanel DockPanel.Dock="Top">
+                    <!-- CAT_REVERSE_TRIAL: a permanent, discoverable answer to "what do I
+                         actually get if I pay?" — previously that only existed inside the
+                         upgrade dialog, which a free user had to go looking for. Hidden
+                         entirely for Pro users (see UpdateProNavVisibility). -->
+                    <Button x:Name="NavGoProBtn"
+                            Content="⭐  What you get with Pro" Click="NavGoPro_Click"
+                            Style="{StaticResource NavButtonStyle}"
+                            Foreground="#F5C842"
+                            Visibility="Collapsed"/>
                     <Button Content="🏠  Home" Click="NavHome_Click" Style="{StaticResource NavButtonStyle}" Tag="Active"/>
                     <Button x:Name="NavHistoryBtn"
                             Content="📊  History" Click="NavHistory_Click" Style="{StaticResource NavButtonStyle}"/>
@@ -871,8 +886,8 @@
                             </Grid.ColumnDefinitions>
 
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Correction Sharpness" Style="{StaticResource LabelTextStyle}"
-                                           ToolTip="How aggressively you correct your aim. Very high (80+) may mean you're overshooting targets; very low (&lt;20) may mean slow, hesitant adjustments."/>
+                                <TextBlock Text="Speed Variability" Style="{StaticResource LabelTextStyle}"
+                                           ToolTip="How much your mouse speed swings between movements (averaged over the session). Lower is steadier; higher means jerkier acceleration. It measures speed change, not aim correction."/>
                                 <TextBlock x:Name="CorrectionSharpnessText" Text="--" Style="{StaticResource ValueTextStyle}"
                                            Foreground="{StaticResource AccentGreen}"/>
                             </StackPanel>
@@ -971,9 +986,43 @@
 
                         <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="0,0,0,10"/>
 
+                        <!-- CAT_ROUTINE: two ways in, presented as EQUALS. Same width,
+                             same weight, neither styled as the recommended one. A player
+                             who already knows what they want to train is not served by
+                             being funnelled into a plan. -->
+                        <Border x:Name="RoutineCard"
+                                Visibility="Collapsed"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="#00D4FF" BorderThickness="1"
+                                CornerRadius="10" Padding="14,12"
+                                Margin="0,0,0,8"
+                                Cursor="Hand"
+                                MouseLeftButtonUp="StartRoutine_Click">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBlock x:Name="RoutineTitleText" Text="Today's session"
+                                               FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryText}"/>
+                                    <TextBlock x:Name="RoutineMetaText" Text=""
+                                               HorizontalAlignment="Right"
+                                               FontSize="10"
+                                               Foreground="#00D4FF"/>
+                                </Grid>
+                                <TextBlock x:Name="RoutineWhyText" Text=""
+                                           FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryText}"
+                                           Margin="0,3,0,4"/>
+                                <StackPanel x:Name="RoutineStepList"/>
+                                <TextBlock Text="Start session  →"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="#00D4FF"
+                                           Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Quick Launch button — 5E: gentle breathing pulse -->
                         <Button x:Name="StartTrainingBtn"
-                                Content="🎯  Start Training"
+                                Content="🎯  Pick your own drill"
                                 Click="OpenAimTrainer_Click"
                                 Background="{DynamicResource AccentBrush}"
                                 Foreground="White"
@@ -1302,57 +1351,57 @@
                     </Border>
 
                     <!-- ── Free Limit Card (TASK-05) ──────────────────── -->
+                    <!-- CAT_SESSION_REPORT: the paywall's permanent home.
+                         Deliberately QUIET — no trophy, no centred hero, no accent fill,
+                         no dismiss. It earns its place by being calm and always there,
+                         not by shouting once. The old design lived on the locked coach
+                         report, which real users closed in 0-4 seconds. -->
                     <Border x:Name="FreeLimitCard"
-                            Background="#0D1020"
-                            BorderBrush="{StaticResource AccentPrimary}"
+                            Background="{DynamicResource CardBackground}"
+                            BorderBrush="#33FFD24A"
                             BorderThickness="1"
                             CornerRadius="10"
-                            Padding="16,14"
+                            Padding="14,12"
                             Margin="0,0,0,8"
                             Visibility="Collapsed">
                         <StackPanel>
-                            <TextBlock Text="🏆"
-                                       FontSize="28"
-                                       HorizontalAlignment="Center"
-                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="30 sessions — you actually showed up."
-                                       FontSize="13" FontWeight="Bold"
-                                       Foreground="White"
-                                       HorizontalAlignment="Center"
-                                       TextAlignment="Center"
-                                       TextWrapping="Wrap"
-                                       Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,6">
+                                <TextBlock Text="YOUR COACH IS LOCKED"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="#FFD24A"/>
+                                <TextBlock x:Name="FreeLimitPriceText"
+                                           Text=""
+                                           HorizontalAlignment="Right"
+                                           FontSize="9"
+                                           Foreground="{DynamicResource SecondaryText}"/>
+                            </Grid>
                             <TextBlock x:Name="FreeLimitStatsText"
                                        Text=""
-                                       FontSize="11"
-                                       Foreground="{StaticResource AccentPrimary}"
-                                       HorizontalAlignment="Center"
-                                       TextAlignment="Center"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource PrimaryText}"
                                        TextWrapping="Wrap"
-                                       Margin="0,0,0,8"/>
-                            <TextBlock Text="Pro keeps your full history, coaching, and reports going. Nothing you've built gets lost."
+                                       Margin="0,0,0,6"/>
+                            <TextBlock x:Name="FreeLimitBodyText"
+                                       Text=""
                                        FontSize="11"
                                        Foreground="{DynamicResource SecondaryText}"
-                                       HorizontalAlignment="Center"
-                                       TextAlignment="Center"
                                        TextWrapping="Wrap"
-                                       Margin="0,0,0,12"/>
-                            <Button Content="Continue with Pro →"
+                                       Margin="0,0,0,10"/>
+                            <Button Content="Unlock the coach"
                                     Click="FreeLimitUpgrade_Click"
-                                    Background="{DynamicResource AccentBrush}"
-                                    Foreground="Black"
-                                    BorderThickness="0"
-                                    FontSize="12" FontWeight="Bold"
-                                    Padding="14,8"
+                                    Background="Transparent"
+                                    Foreground="#FFD24A"
+                                    BorderBrush="#55FFD24A"
+                                    BorderThickness="1"
+                                    FontSize="11" FontWeight="SemiBold"
+                                    Padding="12,7"
                                     Cursor="Hand"
                                     HorizontalAlignment="Stretch"/>
-                            <TextBlock Text="You can still browse your history and stats while you decide."
+                            <TextBlock Text="Training stays free. This only unlocks the coach."
                                        FontSize="10"
                                        Foreground="{DynamicResource MutedText}"
-                                       HorizontalAlignment="Center"
-                                       TextAlignment="Center"
                                        TextWrapping="Wrap"
-                                       Margin="0,8,0,0"/>
+                                       Margin="0,7,0,0"/>
                         </StackPanel>
                     </Border>
 
@@ -1385,6 +1434,52 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- ── CAT_AIM_RADAR: six-axis skill shape ────────── -->
+                    <Border x:Name="AimRadarCard" Style="{StaticResource StatCardStyle}"
+                            Margin="0,0,0,8" Visibility="Collapsed"
+                            Cursor="Hand"
+                            ToolTip="Open the full breakdown"
+                            MouseLeftButtonUp="AimRadarCard_Click">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,2">
+                                <TextBlock Text="YOUR AIM PROFILE"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="{DynamicResource SecondaryText}"/>
+                                <TextBlock x:Name="AimRadarOverallText" Text=""
+                                           HorizontalAlignment="Right"
+                                           FontSize="9" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentBrush}"/>
+                            </Grid>
+
+                            <!-- CAT_RANK: the one number with a name on it. -->
+                            <StackPanel x:Name="RankPanel" Visibility="Collapsed" Margin="0,0,0,6">
+                                <TextBlock x:Name="RankNameText" Text=""
+                                           FontSize="17" FontWeight="Black"/>
+                                <TextBlock x:Name="RankNextText" Text=""
+                                           FontSize="9" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryText}"/>
+                            </StackPanel>
+
+                            <Canvas x:Name="AimRadarCanvas" Height="210"
+                                    HorizontalAlignment="Stretch"
+                                    Background="Transparent"
+                                    SizeChanged="AimRadarCanvas_SizeChanged"/>
+
+                            <TextBlock x:Name="AimRadarSummaryText" Text=""
+                                       FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Margin="0,4,0,0"/>
+                            <TextBlock x:Name="AimRadarFootnote" Text=""
+                                       FontSize="9" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryText}"
+                                       Opacity="0.7" Margin="0,4,0,0"/>
+                            <TextBlock Text="See the full breakdown →"
+                                       FontSize="10" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </Border>
+
                     <!-- ── TASK-09: Streak Card ────────────────────────── -->
                     <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,8">
                         <StackPanel>
@@ -1407,6 +1502,35 @@
                                        Text="Best: 0 days"
                                        FontSize="11" Foreground="{DynamicResource SecondaryText}"
                                        Margin="0,4,0,0"/>
+
+                            <!-- CAT_STREAK_GOAL: a goal the user CHOSE, with visible
+                                 progress toward it. Loss aversion needs something at
+                                 stake — a passive readout has nothing to lose. -->
+                            <StackPanel x:Name="StreakGoalPanel" Visibility="Collapsed" Margin="0,8,0,0">
+                                <Grid Margin="0,0,0,4">
+                                    <Border Height="6" CornerRadius="3"
+                                            Background="{DynamicResource SeparatorBrush}"/>
+                                    <Border x:Name="StreakGoalFill" Height="6" CornerRadius="3"
+                                            HorizontalAlignment="Left" Width="0"
+                                            Background="{DynamicResource AccentBrush}"/>
+                                </Grid>
+                                <TextBlock x:Name="StreakGoalText"
+                                           Text=""
+                                           FontSize="10" Foreground="{DynamicResource SecondaryText}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+
+                            <Button x:Name="SetStreakGoalBtn"
+                                    Content="Set a streak goal →"
+                                    Click="SetStreakGoal_Click"
+                                    Visibility="Collapsed"
+                                    Background="Transparent"
+                                    Foreground="{DynamicResource AccentBrush}"
+                                    BorderThickness="0"
+                                    HorizontalAlignment="Left"
+                                    Padding="0,6,0,0"
+                                    FontSize="11" FontWeight="SemiBold"
+                                    Cursor="Hand"/>
                         </StackPanel>
                     </Border>
 

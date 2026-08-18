@@ -30,7 +30,9 @@ namespace CleanAimTracker.Services
                 "Adaptive"  => 80,
                 "Sniper"    => 90,
                 "Shotgun"   => 80,
-                "SmgAr"     => 82,
+                // CAT_AUTO_WEAPONS: spray accuracy runs lower than click accuracy —
+                // travel shots between kills are misses. Provisional; recalibrate.
+                "SmgAr"     => 75,
                 _           => 82,
             };
 
@@ -43,7 +45,7 @@ namespace CleanAimTracker.Services
                 "Adaptive"  => 65,
                 "Sniper"    => 75,
                 "Shotgun"   => 65,
-                "SmgAr"     => 68,
+                "SmgAr"     => 58,   // CAT_AUTO_WEAPONS: spray-control scale, provisional
                 _           => 68,
             };
 
@@ -56,7 +58,7 @@ namespace CleanAimTracker.Services
                 "Adaptive"  => 50,
                 "Sniper"    => 55,
                 "Shotgun"   => 45,
-                "SmgAr"     => 50,
+                "SmgAr"     => 42,   // CAT_AUTO_WEAPONS: spray-control scale, provisional
                 _           => 52,
             };
 
@@ -77,7 +79,7 @@ namespace CleanAimTracker.Services
                 "Precision"       => 350,
                 "Adaptive"        => 250,
                 "Shotgun"         => 180,  // true reaction (spawn-anchored)
-                "SmgAr"           => 220,
+                "SmgAr"           => 0,    // CAT_AUTO_WEAPONS: hold-to-spray — no per-shot timing
                 "Sniper"          => 0,    // reaction coaching suppressed for Sniper
                 // Time-per-target scenarios (includes built-in spawn delay):
                 // StaticClicking observed intermediate ≈ 1100 avg / 880 best.
@@ -88,6 +90,13 @@ namespace CleanAimTracker.Services
                 // True-reaction scenarios (stimulus-anchored):
                 "Reactive"        => 300,
                 "PeekTraining"    => 230,
+                // CAT_BOT_DRILLS (provisional — recalibrate from real captures):
+                // HeadshotStrafes is hit-anchored time/target on strafing bots;
+                // PeekClick is spawn-anchored true reaction incl. travel;
+                // HeadTrack has NO per-shot timing (AUTO cadence) → suppressed like Sniper.
+                "HeadshotStrafes" => 700,
+                "PeekClick"       => 420,
+                "HeadTrack"       => 0,
                 _                 => 220,
             };
 
@@ -99,7 +108,7 @@ namespace CleanAimTracker.Services
                 "Precision"       => 500,
                 "Adaptive"        => 380,
                 "Shotgun"         => 280,
-                "SmgAr"           => 320,
+                "SmgAr"           => 0,    // CAT_AUTO_WEAPONS: hold-to-spray — no per-shot timing
                 "Sniper"          => 0,    // reaction coaching suppressed for Sniper
                 "StaticClicking"  => 850,
                 "DynamicClicking" => 950,
@@ -107,6 +116,10 @@ namespace CleanAimTracker.Services
                 "Evasive"         => 560,
                 "Reactive"        => 430,
                 "PeekTraining"    => 340,
+                // CAT_BOT_DRILLS (provisional — recalibrate from real captures):
+                "HeadshotStrafes" => 900,
+                "PeekClick"       => 560,
+                "HeadTrack"       => 0,    // no per-shot timing on AUTO — suppressed
                 _                 => 350,
             };
 
@@ -154,11 +167,22 @@ namespace CleanAimTracker.Services
 
             var context = BuildContext(result, memory);
             var report  = GenerateReport(result, context, memory);
-            var recentTracker = memory.RecentTrackerSessions.Count > 0
-                ? memory.RecentTrackerSessions[0]
-                : null;
-            var prescriptions = DrillPrescriptionEngine.Prescribe(result, context, memory, recentTracker);
-            report.Prescription = prescriptions.Count > 0 ? prescriptions[0] : null;
+
+            // Gate 1 / T1.1: GenerateReport already set report.Prescription to the
+            // lead technique's paired drill when a habit led the report. Only fall
+            // back to the progression / weakest-scenario engine when NO habit led —
+            // and then say so honestly, rather than implying the drill fixes a fault.
+            if (report.Prescription == null)
+            {
+                var recentTracker = memory.RecentTrackerSessions.Count > 0
+                    ? memory.RecentTrackerSessions[0]
+                    : null;
+                var prescriptions = DrillPrescriptionEngine.Prescribe(result, context, memory, recentTracker);
+                var chosen = prescriptions.Count > 0 ? prescriptions[0] : null;
+                if (chosen != null && report.Weaknesses.Count == 0)
+                    chosen.FocusCue = "No single habit to drill — pushing your weakest area instead. " + chosen.FocusCue;
+                report.Prescription = chosen;
+            }
             return report;
         }
 
@@ -220,7 +244,14 @@ namespace CleanAimTracker.Services
                             : r.Accuracy >= Bench.AccuracyAvg(r.Scenario)   ? "average"
                             : "developing";
 
-            string reactGrade = r.AvgReactionMs <= Bench.ReactionElite(r.Scenario)   ? "elite"
+            // CAT_PACE_SENTINEL: "unmeasured" is its own grade, NOT "average".
+            // Grading an absent reading as "average" is still a claim about the player,
+            // and every downstream consumer compares against "slow"/"good"/"elite"/
+            // "average" — so a distinct value makes them all fall through silently,
+            // which is exactly right: say nothing about pace when pace wasn't measured.
+            bool paceMeasured = ReactionMetric.IsPaceMeasured(r.Scenario, r.AvgReactionMs);
+            string reactGrade = !paceMeasured                                        ? "unmeasured"
+                              : r.AvgReactionMs <= Bench.ReactionElite(r.Scenario)   ? "elite"
                               : r.AvgReactionMs <= Bench.ReactionGood(r.Scenario)    ? "good"
                               : r.AvgReactionMs <= Bench.ReactionAverage(r.Scenario) ? "average"
                               : "slow";
@@ -232,10 +263,19 @@ namespace CleanAimTracker.Services
 
             double accDelta   = isFirst ? 0 : r.Accuracy      - same[0].Accuracy;
             double scoreDelta = isFirst ? 0 : r.Score         - same[0].Score;
-            double reactDelta = isFirst ? 0 : r.AvgReactionMs - same[0].AvgReactionMs;
 
-            double pbAccuracy = isFirst ? r.Accuracy      : Math.Max(r.Accuracy,      same.Max(h => h.Accuracy));
-            double pbReaction = isFirst ? r.AvgReactionMs : Math.Min(r.AvgReactionMs, same.Min(h => h.AvgReactionMs));
+            // CAT_PACE_SENTINEL: a delta against an unmeasured reading is meaningless —
+            // 0ms vs last session's 800ms would read as a 800ms "improvement".
+            double reactDelta = (isFirst || !paceMeasured || same[0].AvgReactionMs <= 0)
+                              ? 0 : r.AvgReactionMs - same[0].AvgReactionMs;
+
+            double pbAccuracy = isFirst ? r.Accuracy : Math.Max(r.Accuracy, same.Max(h => h.Accuracy));
+
+            // …and Math.Min against 0 would crown "no reading" as the all-time best pace.
+            // Only real readings compete; 0 when nothing valid exists anywhere.
+            var pastPaces = same.Where(h => h.AvgReactionMs > 0).Select(h => h.AvgReactionMs).ToList();
+            if (paceMeasured) pastPaces.Add(r.AvgReactionMs);
+            double pbReaction = pastPaces.Count > 0 ? pastPaces.Min() : 0;
             bool   newAccPB   = same.Count >= 2 && r.Accuracy >= 40.0
                                     && r.Accuracy > same.Max(h => h.Accuracy) + 1.5;
             bool   newReactPB = same.Count >= 2 && r.Accuracy >= 40.0
@@ -251,15 +291,28 @@ namespace CleanAimTracker.Services
                 && same.Take(3).Select(h => h.Accuracy).Max()
                  - same.Take(3).Select(h => h.Accuracy).Min() < 12;
 
+            // CAT_PACE_SENTINEL: an unmeasured axis is OMITTED, not defaulted to 50.
+            // A phantom 50 could win "weakest area" on a strong session and hand the
+            // coach a weakness to lecture about that was never measured at all.
             var areas = new Dictionary<string, double>
             {
                 ["accuracy"]  = r.Accuracy,
-                ["reaction"]  = r.AvgReactionMs > 0 ? 100 - Math.Min(100, r.AvgReactionMs / 6.0) : 50,
                 ["streak"]    = Math.Min(100, r.MaxStreak * 7.0),
                 ["endurance"] = r.Misses == 0 ? 100 : 100.0 * r.Hits / (r.Hits + r.Misses)
             };
+            if (paceMeasured)
+                areas["reaction"] = 100 - Math.Min(100, r.AvgReactionMs / 6.0);
 
-            string weak   = areas.OrderBy(a => a.Value).First().Key;
+            // CAT_NO_MANUFACTURED_WEAKNESS (2026-08-12): OrderBy().First() always
+            // returns SOMETHING, so a session that was strong on every axis still got
+            // handed a "weakest area" — which is how a 96% accuracy run was told
+            // "96% accuracy has room to grow. You are rushing some clicks."
+            // Relative-worst is not the same as bad. An axis only counts as weak when
+            // it is actually low; when nothing clears that bar, there is no weak area
+            // and every consumer below falls through to saying nothing.
+            const double WeakAreaCeiling = 70.0;
+            var lowest = areas.OrderBy(a => a.Value).First();
+            string weak   = lowest.Value < WeakAreaCeiling ? lowest.Key : "";
             string strong = areas.OrderByDescending(a => a.Value).First().Key;
 
             // Cross-scenario context from ALL history (last 10 sessions, excludes current)
@@ -269,7 +322,13 @@ namespace CleanAimTracker.Services
                 .ToList();
 
             double overallAvgAccuracy = allRecent.Count > 0 ? allRecent.Average(h => h.Accuracy) : r.Accuracy;
-            double overallAvgReaction = allRecent.Count > 0 ? allRecent.Average(h => h.AvgReactionMs) : r.AvgReactionMs;
+
+            // CAT_PACE_SENTINEL: averaging zeros in drags the cross-scenario pace toward
+            // 0 for anyone who plays auto-fire drills, making them look faster the more
+            // spray drills they run. Only real readings count.
+            var recentPaces = allRecent.Where(h => h.AvgReactionMs > 0).Select(h => h.AvgReactionMs).ToList();
+            double overallAvgReaction = recentPaces.Count > 0 ? recentPaces.Average()
+                                      : (paceMeasured ? r.AvgReactionMs : 0);
             int    totalSessionsAll   = memory.AllDrills.Count;
 
             return new CoachContext(
@@ -364,9 +423,7 @@ namespace CleanAimTracker.Services
                 // (evidence → cause → instruction → stake) with live numbers.
                 // movement_efficiency shares the path_efficiency aspect with the
                 // legacy telemetry tip — same FactKey so only one can ever render.
-                string areaFactKey = technique.Prescription.PrescriptionKey == "movement_efficiency"
-                    ? "path_efficiency"
-                    : technique.Prescription.PrescriptionKey;
+                string areaFactKey = AreaFactKeyFor(technique.Prescription.PrescriptionKey);
                 candidates.Add(new CoachObservation
                 {
                     FactKey      = areaFactKey,
@@ -397,6 +454,26 @@ namespace CleanAimTracker.Services
             var benchmark = PercentileBenchmarks.BenchmarkObservation(r);
             if (benchmark != null)
                 candidates.Add(benchmark);
+
+            // T7: drill movement quality. Drills carry smoothness now (T6, shared
+            // calculator), so the drill coach is no longer half-blind — it can pair
+            // a mechanical finding (overshoot) with a movement-quality one in the
+            // same report. Validity-gated; -1 sentinel filtered by RequiredMetrics.
+            if (DrillMetricValid(r, "MovementSmoothness") && r.MovementSmoothness < 50)
+            {
+                candidates.Add(new CoachObservation
+                {
+                    FactKey      = "movement_quality",
+                    SourceEngine = nameof(AiCoachService),
+                    Section      = CoachSection.Tip,
+                    Polarity     = ObservationPolarity.Neutral,
+                    Severity     = 30,   // supplementary — never displaces a diagnostic tip
+                    RequiresBehaviorChange = true,
+                    RequiredMetrics = { "MovementSmoothness" },
+                    Message      = $"Your movement was choppy this session — smoothness {r.MovementSmoothness:F0}/100. " +
+                                   "Slower, more deliberate motions between targets keep your aim steadier."
+                });
+            }
 
             // Headline: the drill coach's scenario-aware single template enters as
             // a candidate; the composer's tone floor can still reject praise
@@ -437,10 +514,13 @@ namespace CleanAimTracker.Services
 
             // TASK-2.1: open the verification loop only if the prescription
             // actually rendered (the composer is the arbiter, not the selector).
+            // Gate 1 / T1.1: when the technique led, ITS paired PracticeDrill becomes
+            // the next-drill card so the card and the coached habit always name the
+            // same fix (no more "overshoot tip → Reactive drill" mismatch).
+            DrillPrescription? leadDrill = null;
             if (technique != null
-                && (composed.SurvivingFactKeys.Contains(technique.Prescription.PrescriptionKey)
-                    || (technique.Prescription.PrescriptionKey == "movement_efficiency"
-                        && composed.SurvivingFactKeys.Contains("path_efficiency"))))
+                && composed.SurvivingFactKeys.Contains(
+                       AreaFactKeyFor(technique.Prescription.PrescriptionKey)))
             {
                 // Baseline = the verify metric's value right now. Smoothness is a
                 // tracker metric — read it from the latest valid tracker session.
@@ -452,6 +532,37 @@ namespace CleanAimTracker.Services
 
                 TechniquePrescriptionSelector.RecordPrescribed(memory, technique, baseline);
                 memory.ActivePrescription!.ScenarioContext = r.Scenario;
+
+                var d = technique.Drill;
+                leadDrill = new DrillPrescription
+                {
+                    Scenario    = d.Scenario,
+                    Difficulty  = d.Difficulty,
+                    SubVariant  = d.Variant,
+                    DurationSec = r.DurationSeconds > 0 ? r.DurationSeconds : 60,
+                    Reason      = "This drill targets the habit flagged above — " +
+                                  $"practice {technique.Prescription.InstructionShort}.",
+                    FocusCue    = d.FocusCue
+                };
+            }
+            // Gate 1, follow-up case: when an escalation or nudge leads the report (no
+            // fresh technique this session), the open prescription's practice drill is
+            // the one the follow-up TEXT names — so the card must be that drill, not the
+            // weakest-scenario fallback. A loop-closure strength nulls ActivePrescription
+            // and correctly falls through to the progression fallback in Analyze.
+            else if (memory.ActivePrescription != null
+                     && composed.SurvivingFactKeys.Contains("prescription_followup"))
+            {
+                var ap = memory.ActivePrescription;
+                leadDrill = new DrillPrescription
+                {
+                    Scenario    = ap.PracticeScenario,
+                    Difficulty  = ap.PracticeDifficulty,
+                    SubVariant  = ap.PracticeVariant,
+                    DurationSec = r.DurationSeconds > 0 ? r.DurationSeconds : 60,
+                    Reason      = "This is the drill the coaching above points to — run it next.",
+                    FocusCue    = ap.FocusCue
+                };
             }
 
             // TASK-2.2: rotation keys persisted once, for SURVIVORS only.
@@ -484,6 +595,7 @@ namespace CleanAimTracker.Services
                 Advice              = composed.Tips,
                 NextDrillSuggestion = composed.Prescription ?? "",
                 MotivationalClose   = GetMotivation(r, c),
+                Prescription        = leadDrill,   // Gate 1: technique-led drill card (null → Analyze fills the fallback)
             };
         }
 
@@ -499,18 +611,54 @@ namespace CleanAimTracker.Services
             _ => new List<string>()
         };
 
-        private static bool DrillMetricValid(AimTrainerResult r, string metric) => metric switch
+        // The overshoot family — in-flight (movement_overshoot) plus the two
+        // click-point siblings — shares ONE aspect so the composer's dedup renders at
+        // most one of them per report (they are opposite directions of one fault).
+        private static readonly HashSet<string> OvershootFamilyKeys = new()
+            { "movement_overshoot", "click_point_overshoot", "click_point_undershoot" };
+
+        // The FactKey a technique's AREA dedups under. movement_efficiency shares
+        // path_efficiency with the legacy telemetry tip; the overshoot family shares
+        // "overshoot". Used for BOTH the area FactKey and the loop-open survivor check
+        // so the two never drift apart.
+        private static string AreaFactKeyFor(string prescriptionKey) =>
+            prescriptionKey == "movement_efficiency" ? "path_efficiency"
+            : OvershootFamilyKeys.Contains(prescriptionKey) ? "overshoot"
+            : prescriptionKey;
+
+        // T3: upper bound on a plausible human direction-change reaction. Beyond
+        // this the value is measuring spawn intervals / garbage, not a reaction.
+        public const double MaxPlausibleDirectionLagMs = 600;
+
+        // Public so tests can exercise the real validity gate (not a mirrored copy).
+        public static bool DrillMetricValid(AimTrainerResult r, string metric) => metric switch
         {
             // 0 = never measured; >= 2000ms = degenerate capture (same guard
             // CoachMemoryBuilder applies to baselines).
             "AvgReactionMs"           => r.AvgReactionMs > 0 && r.AvgReactionMs < 2000,
-            // Validity floor: 5% efficiency means the mouse traveled 20× the
-            // straight-line distance — a capture artifact (idle wander counted
-            // into the path), not human movement. Observed live: 5% alongside
-            // 98% accuracy. Below 15% the metric is degenerate, not "low".
+            // PathEfficiency is now per-acquisition (F6). Real play reads ~0.4–0.9;
+            // below 0.15 indicates a degenerate/near-empty capture, not "low".
             "PathEfficiency"          => r.PathEfficiency >= 0.15 && r.PathEfficiency <= 1.0,
-            "OvershootPct"            => r.OvershootPct > 0,
-            "AvgDirectionChangeLagMs" => r.AvgDirectionChangeLagMs > 0,
+            // V2: only the directional metric counts — V1 (radial buckets) read
+            // 57-77% for everyone including a centered auto-clicker. -1 = not computed.
+            "OvershootPct"            => r.ClickMetricVersion >= 2 && r.OvershootPct >= 0,
+            "UndershootPct"           => r.ClickMetricVersion >= 2 && r.UndershootPct >= 0,
+            // A1: -1 sentinel = not computed (too few segments). Valid is >= 0.
+            "MovementOvershoot"       => r.MovementOvershoot >= 0,
+            // T3: lag must land in the human-reaction window. The old `> 0` guard let a
+            // garbage high reading (e.g. 1154ms — the metric latching onto a spawn
+            // interval instead of a reaction) sail through and produce a bogus
+            // "you're chasing the trail" accusation. 600ms is past any real reaction;
+            // beyond it the number is measuring something else and is rejected.
+            "AvgDirectionChangeLagMs" => r.AvgDirectionChangeLagMs > 0
+                                      && r.AvgDirectionChangeLagMs <= MaxPlausibleDirectionLagMs,
+            // T1: axis-split — 0 = the scenario produced no tracking frames (not
+            // "perfect"); only a measured >0 reading is valid.
+            "HorizontalTrackingAcc"   => r.HorizontalTrackingAcc > 0,
+            "VerticalTrackingAcc"     => r.VerticalTrackingAcc > 0,
+            // T6: drill movement quality — -1 sentinel = not computed.
+            "MovementSmoothness"      => r.MovementSmoothness >= 0,
+            "MovementConsistency"     => r.MovementConsistency >= 0,
             _ => true
         };
 
@@ -779,13 +927,19 @@ namespace CleanAimTracker.Services
             // TASK-0.2: percentile suffixes disabled — no population data exists.
             // Voltaic-relative wording returns through the composer in TASK-3.3.
             // TASK-0.3: "reaction" only for stimulus-anchored scenarios.
+            // CAT_PACE_SCALE (2026-08-12): every pace verdict now NAMES the scenario it's
+            // judged against. The thresholds are deliberately per-scenario — 638ms is
+            // elite for StaticClicking (time-per-target, includes travel and spawn delay)
+            // while 553ms is slow for Shotgun (spawn-anchored true reaction) — but a bare
+            // "elite" / "slow" made those two verdicts look like a contradiction to
+            // anyone who plays both. The number was never wrong; the sentence was.
             string paceNoun = ReactionMetric.Noun(r.Scenario);
             if (c.ReactionGrade == "elite")
             {
                 strengthCandidates.Add(("reaction_speed_assessment", Pick(c.SessionCount,
-                    $"Your {r.AvgReactionMs:F0}ms average {paceNoun} is elite level.",
-                    $"{r.AvgReactionMs:F0}ms average {paceNoun} is genuinely fast. You're in the range where raw speed becomes an advantage.",
-                    $"Elite {paceNoun} at {r.AvgReactionMs:F0}ms average. Your reads are translating to clicks — that's the hard part.",
+                    $"Your {r.AvgReactionMs:F0}ms average {paceNoun} is elite for {r.Scenario}.",
+                    $"{r.AvgReactionMs:F0}ms average {paceNoun} is genuinely fast for {r.Scenario}. You're in the range where raw speed becomes an advantage.",
+                    $"Elite {paceNoun} for {r.Scenario} at {r.AvgReactionMs:F0}ms average. Your reads are translating to clicks — that's the hard part.",
                     $"{r.AvgReactionMs:F0}ms average. At this speed, target acquisition is a real strength, not just a stat."
                 )));
             }
@@ -837,7 +991,12 @@ namespace CleanAimTracker.Services
                             $"Path efficiency up {effDelta * 100:F0} points. That kind of improvement doesn't happen by accident — your mouse movement is becoming more intentional.",
                             $"Movement quality trending up: {effDelta * 100:F0}% better path efficiency. What you're doing is working."
                         )));
-                    else if (r.OvershootPct > 0 && ovDelta > 8)
+                    // V2 gate: never compare directional numbers against legacy radial
+                    // ones — the metric change alone would read as a huge fake "win".
+                    else if (r.ClickMetricVersion >= 2
+                             && prevSameScenario.ClickMetricVersion == r.ClickMetricVersion
+                             && r.OvershootPct >= 0 && prevSameScenario.OvershootPct >= 0
+                             && ovDelta > 8)
                         strengthCandidates.Add(("improvement_ack", Pick(c.SessionCount,
                             $"Overshoot rate dropped {ovDelta:F0}% since your last {r.Scenario} session — your stopping mechanics are improving.",
                             $"{ovDelta:F0}% fewer overshoots than last time. The deceleration work is paying off.",
@@ -1258,32 +1417,27 @@ namespace CleanAimTracker.Services
                     {
                         string reactionKey = "reaction_speed_assessment";
                         string reactionMsg;
-                        bool hasGapData = r.BestReactionMs > 0 && r.AvgReactionMs > 0 && r.Hits >= 5;
-                        double reactionGap = hasGapData ? r.AvgReactionMs - r.BestReactionMs : -1;
 
-                        if (hasGapData && reactionGap > 150)
-                        {
-                            // Distinct aspect: the spread between best and average,
-                            // not the speed verdict — may coexist with reaction_trend.
-                            reactionKey = "reaction_gap";
-                            reactionMsg = Pick(c.SessionCount,
-                                $"Your best {wPace} was {r.BestReactionMs:F0}ms but your average was {r.AvgReactionMs:F0}ms — a {reactionGap:F0}ms gap. That gap is the real problem, not your ceiling. Your best shots happen when you pre-aim the spawn zone before the target appears. Your slow shots happen when you react after. Spend the first few seconds of each session mapping where targets spawn and park your crosshair there.",
-                                $"{reactionGap:F0}ms between your best ({r.BestReactionMs:F0}ms) and average ({r.AvgReactionMs:F0}ms) {wPace}. You have the speed — you're just not using it on every click. The fix is crosshair placement before the target appears, not more speed after.",
-                                $"Your best {wPace} is {r.BestReactionMs:F0}ms. Your average is {r.AvgReactionMs:F0}ms. That {reactionGap:F0}ms gap means you're pre-aiming correctly on some clicks and starting from scratch on others. Make pre-aiming the default, not the exception.",
-                                $"Best {wPace} {r.BestReactionMs:F0}ms, average {r.AvgReactionMs:F0}ms. The {reactionGap:F0}ms difference is your consistency gap. Close it by defaulting to anticipation — position your crosshair before the target spawns rather than after you see it."
-                            );
-                        }
-                        else if (hasGapData && reactionGap <= 150 && r.AvgReactionMs > Bench.ReactionGood(r.Scenario))
+                        // AUDIT FIX (2026-07-06): the old "reaction_gap" fact compared the
+                        // session BEST (minimum of N hits) against the AVERAGE and claimed
+                        // "you have the speed — a {gap}ms gap" whenever gap > 150ms. The
+                        // minimum of 30+ hit times is ALWAYS hundreds of ms below the mean
+                        // — an order-statistics artifact, not evidence of unused speed —
+                        // so the fact fired for essentially every player every session.
+                        // The slow/fast verdict now rests only on the authored per-scenario
+                        // benchmarks; pre-aim advice survives because it's good advice,
+                        // not because a fabricated gap "proves" it.
+                        if (r.AvgReactionMs > 0 && r.AvgReactionMs > Bench.ReactionGood(r.Scenario))
                         {
                             reactionMsg = Pick(c.SessionCount,
-                                $"Your {wPace} is consistently around {r.AvgReactionMs:F0}ms — your best and average are only {reactionGap:F0}ms apart. This is a true ceiling, not inconsistency. Reactive Blink sessions specifically target this — the teleporting target removes tracking and isolates pure reaction speed.",
-                                $"Consistent {r.AvgReactionMs:F0}ms {wPace} with only {reactionGap:F0}ms variance. You're not inconsistent — you're at your current ceiling. Short dedicated Reactive Blink sessions (15 seconds, full focus) compress this number faster than longer sessions."
+                                $"Your {r.AvgReactionMs:F0}ms average {wPace} has room to drop for {r.Scenario}. The biggest lever is anticipation, not reflexes — spend the first seconds of a session mapping where targets appear and keep your crosshair parked there instead of reacting from scratch.",
+                                $"Average {wPace} of {r.AvgReactionMs:F0}ms — above the pace this scenario rewards. The fastest fix is crosshair placement before the target appears: pre-aim the spawn zones and the number falls without you getting any 'faster'.",
+                                $"At {r.AvgReactionMs:F0}ms average {wPace}, the gain is in preparation: position your crosshair where the next target is likely to appear rather than chasing each one from wherever the last click left you."
                             );
                         }
                         else
                         {
-                            // TASK-0.2: "(bottom X%)" percentile suffix disabled — no population data exists.
-                            reactionMsg = $"Your {r.AvgReactionMs:F0}ms average {wPace} is on the slower side. Focus less on speed and more on predicting target movement — anticipation is faster than reaction.";
+                            reactionMsg = $"Your {r.AvgReactionMs:F0}ms average {wPace} is solid for {r.Scenario}. Keep the pace steady and spend your focus on placement — speed isn't what's holding this back.";
                         }
 
                         if ((r.Scenario == "Flicking" || r.Scenario == "DynamicClicking") && r.AvgReactionMs > 500)
@@ -1519,8 +1673,13 @@ namespace CleanAimTracker.Services
                     $"High accuracy and a slow {tPace} together mean you're confirming too long before clicking. {r.Accuracy:F0}% proves your aim is ready. Your speed will improve when you start trusting it."
                 )));
             }
-            // Low accuracy + fast reaction → clicking before cursor has settled
+            // Low accuracy + fast reaction → clicking before cursor has settled.
+            // CAT_PACE_SENTINEL: IsPaceMeasured MUST come first. Without it,
+            // `0 <= Bench.ReactionGood("HeadTrack")` is `0 <= 0` — true — and every
+            // auto-fire session got told it was clicking too early on a drill where the
+            // player never clicks at all.
             else if (r.Accuracy < 60
+                     && ReactionMetric.IsPaceMeasured(r.Scenario, r.AvgReactionMs)
                      && r.AvgReactionMs <= Bench.ReactionGood(r.Scenario)
                      && r.Hits >= 5)
             {
@@ -1532,20 +1691,26 @@ namespace CleanAimTracker.Services
             }
 
             // ── Streak ratio diagnosis ────────────────────────────────────────
+            // CAT_STREAK_TIMELINE (2026-08-12): MaxStreak is a SCALAR. It records the
+            // longest run and carries no information about WHEN that run happened, so
+            // "you peaked early and faded" and "you stayed consistent throughout" were
+            // both invented — a 27-hit streak is equally consistent with the last 27
+            // shots of the session. What the ratio genuinely supports is a claim about
+            // CONCENTRATION (one big run vs. spread out), and that is all these now say.
             if (r.Hits >= 10 && r.MaxStreak >= 5)
             {
                 if (streakRatio > 0.50)
                 {
                     candidates.Add(("streak_dominant", PickGlobal(memory, 7,
-                        $"Your {r.MaxStreak}-hit streak was {streakRatio * 100:F0}% of your total hits. That means one great period and scattered performance outside it. Zone sessions feel good but don't build the skill as fast as consistent sessions. Next session aim for a lower max streak with fewer cold periods.",
-                        $"{r.MaxStreak} hits in a row out of {r.Hits} total — you peaked early and faded. One dominant streak with inconsistency elsewhere is a focus pattern, not an aim pattern. The mental reset between misses is what to work on."
+                        $"Your {r.MaxStreak}-hit streak was {streakRatio * 100:F0}% of your total hits. That means one great run and scattered performance around it. Zone sessions feel good but don't build the skill as fast as consistent sessions. Next session aim for a lower max streak with fewer cold periods.",
+                        $"{r.MaxStreak} hits in a row out of {r.Hits} total — most of your session came from one run. One dominant streak with inconsistency around it is a focus pattern, not an aim pattern. The mental reset between misses is what to work on."
                     )));
                 }
                 else if (streakRatio <= 0.35)
                 {
                     candidates.Add(("streak_consistent", PickGlobal(memory, 7,
-                        $"Your {r.MaxStreak}-hit streak against {r.Hits} total hits shows consistent performance rather than one hot period. That consistency is harder to build than peak accuracy and more valuable in a real game.",
-                        $"Distributed hits with a {r.MaxStreak}-streak max — you stayed consistent throughout rather than peaking and fading. That's the pattern that transfers to ranked play."
+                        $"Your {r.MaxStreak}-hit streak against {r.Hits} total hits shows hits spread across the session rather than concentrated in one hot run. That consistency is harder to build than peak accuracy and more valuable in a real game.",
+                        $"Distributed hits with a {r.MaxStreak}-streak max — no single run carried the session. That's the pattern that transfers to ranked play."
                     )));
                 }
             }
@@ -1784,39 +1949,14 @@ namespace CleanAimTracker.Services
                 return obs;
             }
 
-            // ── 2. OVERSHOOT ──────────────────────────────────────────
-            // High overshoot = consistent overreaching (> 35%)
-            if (r.OvershootPct > 35)
-            {
-                obs.Add(("overshoot", Pick(idx,
-                    $"You're overshooting {r.OvershootPct:F0}% of clicks — your hand is committing more force than the target requires. " +
-                    "Reduce your swing amplitude slightly and let the cursor settle rather than correcting after overshoot.",
-                    $"Overshoot rate: {r.OvershootPct:F0}%. That's the most common sign that sensitivity is slightly too high for this scenario. " +
-                    "Try reducing in-game sensitivity by 5% and retest — the overshoot pattern usually disappears.",
-                    $"{r.OvershootPct:F0}% of your clicks go past the target before landing. The fix is deceleration, not speed. " +
-                    "Mentally aim for a point 20% before the target center — your natural momentum will carry you to center.",
-                    $"High overshoot at {r.OvershootPct:F0}% indicates your stopping mechanics need work more than your speed. " +
-                    "Practice stopping exercises: move to a target, stop completely, then move to the next. Train the deceleration phase."
-                )));
-                return obs;
-            }
-
-            // ── 3. UNDERSHOOT ─────────────────────────────────────────
-            // High undershoot = consistently falling short (> 35%)
-            if (r.UndershootPct > 35)
-            {
-                obs.Add(("undershoot", Pick(idx,
-                    $"You're undershooting {r.UndershootPct:F0}% of clicks — you're stopping short of the target rather than committing through it. " +
-                    "Aim for a point slightly past target center; natural deceleration will land you on it.",
-                    $"Undershoot rate: {r.UndershootPct:F0}%. This often means sensitivity is slightly too low or you're hesitating at the end of each movement. " +
-                    "Try committing fully to the motion — don't slow down in the last 20% of the movement.",
-                    $"{r.UndershootPct:F0}% undershoot — you're braking too early. The target center should feel like the midpoint of your swing, not the endpoint. " +
-                    "Extend your follow-through and the accuracy will improve.",
-                    $"High undershoot at {r.UndershootPct:F0}% is a confidence pattern — you're not fully committing to the destination. " +
-                    "In your next session, practice movements that intentionally go 10% past the target, then work backwards to center."
-                )));
-                return obs;
-            }
+            // ── 2 + 3. OVERSHOOT / UNDERSHOOT — REMOVED (COACH_PRECISION_FIXES T2.4) ──
+            // The legacy click-landing tips here blended causes: the overshoot variant
+            // prescribed "reduce swing amplitude" (an in-flight fix) for what is often a
+            // click-TIMING habit, and one variant floated sensitivity — RecommendationEngine's
+            // sole lane. Both directions are now owned by the four-beat click-point
+            // prescriptions (click_point_overshoot / click_point_undershoot), which gate on
+            // MovementOvershoot being clean before blaming the click, and by the in-flight
+            // movement_overshoot prescription. No overshoot/undershoot tip is emitted here.
 
             // ── 4. DIRECTION CHANGE LAG ───────────────────────────────
             // High lag between target direction change and player response (> 120ms)
@@ -1839,9 +1979,13 @@ namespace CleanAimTracker.Services
 
             // ── 5. AXIS SPLIT ─────────────────────────────────────────
             // Significant H/V tracking imbalance (> 20 point gap between axes)
+            // CAT_AXIS_MOTION_GATE: scenario check first. Legacy rows recorded before
+            // the capture-side gate carry axis numbers for drills that only move on one
+            // axis (HeadTrack reads H53/V5 purely because the bots strafe sideways), and
+            // the coach reads from storage — so the guard has to live here as well.
             double horizAcc = r.HorizontalTrackingAcc;
             double vertAcc  = r.VerticalTrackingAcc;
-            if (horizAcc > 0 && vertAcc > 0)
+            if (TelemetryCalculator.HasTwoAxisTracking(r.Scenario) && horizAcc > 0 && vertAcc > 0)
             {
                 double axisDelta = Math.Abs(horizAcc - vertAcc);
                 if (axisDelta > 20)

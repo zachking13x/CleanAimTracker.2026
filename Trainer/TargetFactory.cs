@@ -57,8 +57,100 @@ namespace CleanAimTracker.Trainer
 
             var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(fadeMs));
             el.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            ApplySpawnAndBreathe(el, fadeMs);
             return el;
         }
+
+        /// <summary>
+        /// CAT_GAME_FEEL: targets scale in with a slight overshoot, then breathe
+        /// (±3% scale) so the field never looks frozen. Hit detection uses
+        /// Width/Canvas position, which RenderTransform never touches — zero
+        /// gameplay impact.
+        /// </summary>
+        public static void ApplySpawnAndBreathe(FrameworkElement el, double spawnMs = 150)
+        {
+            el.RenderTransformOrigin = new Point(0.5, 0.5);
+            var scale = new ScaleTransform(0.45, 0.45);
+            el.RenderTransform = scale;
+
+            var pop = new DoubleAnimation(0.45, 1.0, TimeSpan.FromMilliseconds(Math.Max(90, spawnMs)))
+            {
+                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.55 }
+            };
+            pop.Completed += (_, _) =>
+            {
+                var breathe = new DoubleAnimation(1.0, 1.03, TimeSpan.FromMilliseconds(1100))
+                {
+                    AutoReverse    = true,
+                    RepeatBehavior = RepeatBehavior.Forever,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
+                };
+                scale.BeginAnimation(ScaleTransform.ScaleXProperty, breathe);
+                scale.BeginAnimation(ScaleTransform.ScaleYProperty, breathe);
+            };
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+        }
+
+        /// <summary>
+        /// CAT_GAME_FEEL: kill burst — six arc shards flying outward from the kill
+        /// point plus a brief center flash. Gold for headshots, accent otherwise.
+        /// Self-cleaning; safe to call from any scenario or the host window.
+        /// </summary>
+        public static void Burst(Canvas canvas, Point at, Color accent, bool headshot = false)
+        {
+            if (canvas == null) return;
+            try
+            {
+                var c = headshot ? Color.FromRgb(0xF5, 0xC8, 0x42) : accent;
+
+                // Center flash
+                var flash = new Ellipse
+                {
+                    Width = 18, Height = 18, IsHitTestVisible = false,
+                    Fill = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)),
+                    Effect = new DropShadowEffect { Color = c, BlurRadius = 26, ShadowDepth = 0, Opacity = 0.9 }
+                };
+                Canvas.SetLeft(flash, at.X - 9);
+                Canvas.SetTop (flash, at.Y - 9);
+                canvas.Children.Add(flash);
+                var flashFade = new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(180));
+                flashFade.Completed += (_, _) => { try { canvas.Children.Remove(flash); } catch { } };
+                flash.BeginAnimation(UIElement.OpacityProperty, flashFade);
+
+                // Six shards
+                var rng = _burstRng;
+                double baseAngle = rng.NextDouble() * Math.PI / 3;
+                for (int i = 0; i < 6; i++)
+                {
+                    double a  = baseAngle + Math.PI / 3 * i;
+                    double dx = Math.Cos(a), dy = Math.Sin(a);
+
+                    var shard = new System.Windows.Shapes.Line
+                    {
+                        X1 = at.X + dx * 8,  Y1 = at.Y + dy * 8,
+                        X2 = at.X + dx * 16, Y2 = at.Y + dy * 16,
+                        Stroke = new SolidColorBrush(c), StrokeThickness = 3.2,
+                        StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                        IsHitTestVisible = false, Opacity = 0.95,
+                    };
+                    canvas.Children.Add(shard);
+
+                    var dur  = TimeSpan.FromMilliseconds(220);
+                    var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+                    shard.BeginAnimation(System.Windows.Shapes.Line.X1Property, new DoubleAnimation(shard.X1, at.X + dx * 26, dur) { EasingFunction = ease });
+                    shard.BeginAnimation(System.Windows.Shapes.Line.Y1Property, new DoubleAnimation(shard.Y1, at.Y + dy * 26, dur) { EasingFunction = ease });
+                    shard.BeginAnimation(System.Windows.Shapes.Line.X2Property, new DoubleAnimation(shard.X2, at.X + dx * 40, dur) { EasingFunction = ease });
+                    shard.BeginAnimation(System.Windows.Shapes.Line.Y2Property, new DoubleAnimation(shard.Y2, at.Y + dy * 40, dur) { EasingFunction = ease });
+                    var fade = new DoubleAnimation(0.95, 0.0, dur) { EasingFunction = ease };
+                    fade.Completed += (_, _) => { try { canvas.Children.Remove(shard); } catch { } };
+                    shard.BeginAnimation(UIElement.OpacityProperty, fade);
+                }
+            }
+            catch { /* FX are never allowed to break gameplay */ }
+        }
+
+        private static readonly Random _burstRng = new();
 
         // ── Public API — same signatures as before ────────────────────────────────
 

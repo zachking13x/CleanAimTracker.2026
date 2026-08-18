@@ -18,7 +18,7 @@ namespace CleanAimTracker.Windows
                 new { Term="Large Flicks", Definition="Big, fast flicks — often inaccurate." },
                 new { Term="Smoothness", Definition="How stable your movement angles are." },
                 new { Term="Movement Consistency", Definition="How similar your movement distances are." },
-                new { Term="Correction Sharpness", Definition="How aggressively you change speed to correct aim." },
+                new { Term="Speed Variability", Definition="How much your mouse speed swings between movements, averaged over the session. Lower is steadier. It measures speed change, not aim correction." },
                 new { Term="Jitter", Definition="Tiny unintended micro-movements." },
                 new { Term="Idle Percentage", Definition="How much of the session you weren’t moving the mouse." },
                 new { Term="Peak Velocity", Definition="Fastest movement speed recorded." },

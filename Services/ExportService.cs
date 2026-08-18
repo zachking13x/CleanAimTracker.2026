@@ -57,7 +57,7 @@ namespace CleanAimTracker.Services
                 sb.AppendLine($"Large Flicks,{session.LargeFlickCount}");
                 sb.AppendLine($"Idle Bursts,{session.IdleBurstCount}");
                 sb.AppendLine($"Smoothness Score,{session.SmoothnessScore:F0}");
-                sb.AppendLine($"Correction Sharpness,{session.CorrectionSharpness:F0}");
+                sb.AppendLine($"Speed Variability,{session.CorrectionSharpness:F0}");
                 sb.AppendLine($"Movement Consistency,{session.MovementConsistency:F0}");
                 sb.AppendLine($"Overall Quality,{session.OverallQualityScore:F0}");
                 sb.AppendLine($"Idle Percentage,{session.IdlePercentage:F1}");

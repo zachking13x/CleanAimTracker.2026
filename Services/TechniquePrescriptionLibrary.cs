@@ -33,9 +33,12 @@ namespace CleanAimTracker.Services
         public const double MidAccuracyMin         = 50;
         public const double MidAccuracyMax         = 85;
 
-        // crosshair_preplacement: same 150ms best-vs-average gap the reaction_gap
-        // observation uses — the prescription is that observation with a "how".
-        public const double PreplacementGapMs      = 150;
+        // crosshair_preplacement — AUDIT FIX (2026-07-06): previously triggered on a
+        // 150ms best-vs-average gap. The session best is the MINIMUM of dozens of
+        // hits and always sits far below the mean (order statistics), so the gap
+        // exceeded 150ms for essentially every session — the prescription fired on
+        // an artifact, not a habit. It now anchors on the authored per-scenario
+        // pace benchmark: pace genuinely slower than the scenario rewards.
 
         // eyes_lead_hands: direction-change lag. 200ms ≈ a full human visual
         // reaction spent AFTER the target already turned — the hand is chasing.
@@ -68,6 +71,36 @@ namespace CleanAimTracker.Services
         // DrillMetricValid — below that the metric is invalid, not low.)
         public const double PathEfficiencyLowFraction = 0.55;
         public const int    MinHitsForEfficiencyRead  = 5;
+
+        // A1 step 3 — MovementOvershoot trigger band, set from a maximally-separated
+        // real capture pair (StaticClicking · Medium, 2026-06-15):
+        //   surgical/clean session: 0.0618   wild-overshoot session: 0.6212  (10× apart)
+        // 0.20 is the geometric midpoint √(0.0618·0.6212) ≈ 0.196 — a 3.2× margin above
+        // clean play, well below the overshoot cluster so genuine overshoot still fires.
+        public const double MovementOvershootBand = 0.20;
+
+        // Click-point overshoot/undershoot: the CLICK lands off-center while the
+        // MOTION arrived clean (low MovementOvershoot). A click-timing habit, not an
+        // in-flight one — the opposite directions of one family. Gated on
+        // MovementOvershoot being valid AND below the clean ceiling, so the coach
+        // only blames the click after confirming the path was clean.
+        // V2 CALIBRATION (2026-07-06, real captures): OvershootPct/UndershootPct are
+        // DIRECTIONAL (approach-axis projection). Observed values:
+        //   centered auto-clicker (neutral baseline): over 18 / under 26
+        //   real StaticClicking session w/ a genuine short habit: over 27 / under 40
+        //   real AirTracking session (trailing movers):           over 16 / under 62
+        // → neutral noise band tops out ~26; a real habit reads 35+ with clear
+        // dominance. Gates: 35 minimum + 8-point dominance margin, so a 36/34
+        // coin-flip session gets NO directional verdict instead of a guess.
+        // (The old 50/40 gates were calibrated on the inflated radial V1 metric and
+        // sat above real V2 habits — a 39.6% undershoot session read as "nothing".)
+        // < 0.20 to butt against the in-flight floor (MovementOvershootBand) — no dead
+        // zone: ≥0.20 routes to in-flight overshoot, <0.20 to the click-point pair.
+        public const double ClickPointMotionCleanCeiling = 0.20; // MovementOvershoot below this = path arrived clean
+        public const double ClickPointOffsetMinPx        = 6;    // clicks land > this off-center
+        public const double ClickPointOvershootMinPct    = 35;
+        public const double ClickPointUndershootMinPct   = 35;
+        public const double ClickPointDominanceMargin    = 8;    // dominant direction must clear the other by this
 
         // ── The library ──────────────────────────────────────────────────────
 
@@ -109,25 +142,95 @@ namespace CleanAimTracker.Services
                 ExpectedDirection = MetricDirection.Up
             },
 
+            // A2 — repointed from the old click-endpoint `arm_over_wrist` (OvershootPct
+            // >= 25 → a guessed wrist/forearm cause) onto the real in-flight overshoot
+            // signal MovementOvershoot (axial excursion). This is the "flies past and
+            // pulls back, lands accurately" habit. OvershootPct stays a SEPARATE signal
+            // (decelerate_into_target / commit_full_motion) for "final click lands wide"
+            // — a different habit; the two are never merged.
             new()
             {
-                PrescriptionKey = "arm_over_wrist",
-                RequiredMetrics = { "OvershootPct" },
+                PrescriptionKey = "movement_overshoot",
+                RequiredMetrics = { "MovementOvershoot" },
                 Signature = ctx =>
-                    ctx.Result.OvershootPct >= OvershootHighPct
-                    && ctx.Result.Scenario is "Flicking" or "Switching" or "DynamicClicking" or "StaticClicking",
-                Instruction = "Drive big movements from the forearm and anchor lightly at the elbow — the wrist only finishes the last few degrees.",
-                InstructionShort = "driving big movements from the forearm",
-                CauseClause = "you're still throwing big movements from the wrist",
+                    ctx.Result.MovementOvershoot >= MovementOvershootBand,
+                Instruction = "Decelerate into the target: arrive once, click, instead of arrive-past-return.",
+                InstructionShort = "decelerating into the target",
+                CauseClause = "you're still flying past and pulling back",
+                // Amendment voice (verbatim shape): evidence (segment %) → cause → instruction → stake.
                 ComposeMessage = ctx =>
-                    $"Overshoot hit {ctx.Result.OvershootPct:F0}% on large flicks — that's a wrist-flick signature. " +
-                    "You're throwing big movements from the wrist. Drive them from the forearm and anchor lightly at the elbow — " +
-                    "the wrist only finishes the last few degrees. Overshoot drops next session if the change is landing.",
+                    $"You overshot the target on {ctx.Result.OvershootSegmentPct:F0}% of acquisitions — " +
+                    "you're flying past and pulling back to correct. That costs you the time between the pass " +
+                    "and the recovery. Decelerate into the target: arrive once, click, instead of arrive-past-return. " +
+                    "Your overshoot drops next session when it's landing.",
                 GetPracticeDrill = ctx => new PracticeDrill(
-                    "DynamicClicking", "Arc",
+                    "Precision", "Standard",
                     string.IsNullOrEmpty(ctx.Result.Difficulty) ? "Medium" : ctx.Result.Difficulty,
-                    "arm carries, wrist finishes"),
+                    "arrive once — don't fly past"),
+                VerifyMetric = "MovementOvershoot",
+                ExpectedDirection = MetricDirection.Down
+            },
+
+            // Click-point overshoot — clicks land LONG (past center) while the motion
+            // arrived clean (MovementOvershoot below the clean ceiling). A click-TIMING
+            // habit, distinct from in-flight overshoot (movement_overshoot, above). Listed
+            // before decelerate/commit so it wins selection when both fire on clean motion;
+            // shares the "overshoot" aspect (GenerateReport) so only one family member renders.
+            new()
+            {
+                PrescriptionKey = "click_point_overshoot",
+                RequiredMetrics = { "OvershootPct", "MovementOvershoot" },
+                Signature = ctx =>
+                    ctx.Result.OvershootPct >= ClickPointOvershootMinPct
+                    && ctx.Result.MovementOvershoot < ClickPointMotionCleanCeiling
+                    && ctx.Result.AvgClickOffset > ClickPointOffsetMinPx
+                    // Opposite directions of one family — overshoot must clearly dominate;
+                    // a near-tie is off-center noise, not a directional habit (no coin-flips).
+                    && ctx.Result.OvershootPct >= ctx.Result.UndershootPct + ClickPointDominanceMargin,
+                Instruction = "Click the instant the crosshair reaches center, not after. If anything, stop just short and let the target come to you — don't drift onto it.",
+                InstructionShort = "your click timing",
+                CauseClause = "you're still committing the click a hair late",
+                ComposeMessage = ctx =>
+                    $"{ctx.Result.OvershootPct:F0}% of your clicks land past center — about {ctx.Result.AvgClickOffset:F0}px long. " +
+                    "Your aim arrives clean but you're committing the click a hair after the cursor drifts past center — " +
+                    "it's a click-timing habit, not a movement one. Click the instant the crosshair reaches center, not after. " +
+                    "If anything, stop just short and let the target come to you — don't drift onto it. " +
+                    "OvershootPct drops next session when the click and the settle line up.",
+                GetPracticeDrill = ctx => new PracticeDrill(
+                    "Precision", "Standard",
+                    string.IsNullOrEmpty(ctx.Result.Difficulty) ? "Medium" : ctx.Result.Difficulty,
+                    "click on arrival, not after"),
                 VerifyMetric = "OvershootPct",
+                ExpectedDirection = MetricDirection.Down
+            },
+
+            // Click-point undershoot — clicks land SHORT of center while the motion
+            // arrived clean. The symmetric sibling of click_point_overshoot. NO sensitivity
+            // mention (that is RecommendationEngine's lane) and NO hedge.
+            new()
+            {
+                PrescriptionKey = "click_point_undershoot",
+                RequiredMetrics = { "UndershootPct", "MovementOvershoot" },
+                Signature = ctx =>
+                    ctx.Result.UndershootPct >= ClickPointUndershootMinPct
+                    && ctx.Result.MovementOvershoot < ClickPointMotionCleanCeiling
+                    && ctx.Result.AvgClickOffset > ClickPointOffsetMinPx
+                    // Undershoot must clearly dominate — same no-coin-flip rule as the sibling.
+                    && ctx.Result.UndershootPct >= ctx.Result.OvershootPct + ClickPointDominanceMargin,
+                Instruction = "Let the crosshair actually touch center, then click. Trust the arrival — one beat later, not one beat early.",
+                InstructionShort = "your click timing",
+                CauseClause = "you're still pulling the click early",
+                ComposeMessage = ctx =>
+                    $"{ctx.Result.UndershootPct:F0}% of your clicks land short of center. " +
+                    "Your motion arrives fine, but you're pulling the click before the crosshair reaches center — " +
+                    "you're committing early, not hesitating. Let the crosshair actually touch center, then click. " +
+                    "Trust the arrival — one beat later, not one beat early. " +
+                    "UndershootPct drops next session when you let the aim land first.",
+                GetPracticeDrill = ctx => new PracticeDrill(
+                    "Precision", "Standard",
+                    string.IsNullOrEmpty(ctx.Result.Difficulty) ? "Medium" : ctx.Result.Difficulty,
+                    "let it land, then click"),
+                VerifyMetric = "UndershootPct",
                 ExpectedDirection = MetricDirection.Down
             },
 
@@ -173,23 +276,32 @@ namespace CleanAimTracker.Services
             {
                 PrescriptionKey = "crosshair_preplacement",
                 RequiredMetrics = { "AvgReactionMs" },
+                // CAT_PACE_SENTINEL: IsPaceMeasured first — auto-fire drills report 0ms
+                // and would otherwise be prescribed a crosshair fix for a pace that was
+                // never measured.
                 Signature = ctx =>
-                    ctx.Result.BestReactionMs > 0
-                    && ctx.Result.AvgReactionMs > 0
+                    ReactionMetric.IsPaceMeasured(ctx.Result.Scenario, ctx.Result.AvgReactionMs)
                     && ctx.Result.Hits >= 5
-                    && ctx.Result.AvgReactionMs - ctx.Result.BestReactionMs > PreplacementGapMs,
+                    && ctx.Result.AvgReactionMs > AiCoachService.Bench.ReactionGood(ctx.Result.Scenario),
                 Instruction = "Between targets, park your crosshair where the next one is likely to spawn, at target height.",
                 InstructionShort = "pre-placing your crosshair",
-                CauseClause = "your crosshair is still resting where the last target died",
+                // CAT_CAUSAL_HONESTY (2026-08-12): was "your crosshair is still resting
+                // where the last target died" — stated as fact. Nothing in the data
+                // observes where the crosshair rests between targets; the only thing
+                // measured is that the pace is slow. Crosshair placement is the most
+                // COMMON cause, which is worth saying — but it has to be offered as the
+                // likely explanation to check, not reported as a finding.
+                CauseClause = "the usual cause at this pace is that you're leaving the crosshair where the last target died",
                 ComposeMessage = ctx =>
                 {
-                    double best = ctx.Result.BestReactionMs, avg = ctx.Result.AvgReactionMs;
+                    double avg = ctx.Result.AvgReactionMs;
                     string noun = ReactionMetric.Noun(ctx.Result.Scenario);
-                    // Displayed arithmetic: gap = avg − best, shown with both operands.
-                    return $"Your best {noun} is {best:F0}ms but your average is {avg:F0}ms — a {avg - best:F0}ms gap. " +
-                           "You're starting every target from scratch because your crosshair rests where the last target died. " +
-                           "Between targets, park it where the next one is likely to spawn, at target height. " +
-                           "The average closes toward your best when this sticks.";
+                    string good = AiCoachService.Bench.ReactionGood(ctx.Result.Scenario).ToString("F0");
+                    return $"Your average {noun} is {avg:F0}ms — {ctx.Result.Scenario} rewards under {good}ms. " +
+                           "At this pace the usual cause isn't slow hands, it's crosshair position: if you're " +
+                           "leaving it where the last target died, every target starts from scratch. " +
+                           "Park it where the next one is likely to spawn, at target height, and watch whether " +
+                           "the average falls.";
                 },
                 GetPracticeDrill = ctx => new PracticeDrill(
                     ctx.Result.Scenario,
@@ -222,8 +334,13 @@ namespace CleanAimTracker.Services
             {
                 PrescriptionKey = "vertical_axis_training",
                 RequiredMetrics = { "HorizontalTrackingAcc", "VerticalTrackingAcc" },
+                // CAT_AXIS_MOTION_GATE: only drills that actually move on both axes.
+                // Without this, a sideways-strafing bot drill scores ~5 on vertical for
+                // want of vertical motion and gets prescribed arm-tracking practice for
+                // a weakness that was never measured.
                 Signature = ctx =>
-                    ctx.Result.HorizontalTrackingAcc > 0
+                    TelemetryCalculator.HasTwoAxisTracking(ctx.Result.Scenario)
+                    && ctx.Result.HorizontalTrackingAcc > 0
                     && ctx.Result.VerticalTrackingAcc > 0
                     && ctx.Result.HorizontalTrackingAcc - ctx.Result.VerticalTrackingAcc > AxisGapPoints,
                 Instruction = "Track vertical arcs with the arm, not the fingers.",
@@ -413,9 +530,16 @@ namespace CleanAimTracker.Services
             "PeekLateClickPct"        => r.PeekLateClickPct,
             "Accuracy"                => r.Accuracy,
             "PathEfficiency"          => r.PathEfficiency,
+            "MovementOvershoot"       => r.MovementOvershoot,
             // Hand-check: 30 hits, max streak 18 → (30−18)/30 = 0.4 outside the streak.
             "HitsOutsideStreakRatio"  => r.Hits > 0 ? (double)(r.Hits - r.MaxStreak) / r.Hits : 0,
-            _                         => 0
+            // T4: an unmapped VerifyMetric is a programming error (a prescription
+            // declared a verify metric with no reader). It must surface loudly, never
+            // fall through to 0 — a silent 0 baseline makes "improved 0 → N" always
+            // read as success (phantom loop-closure). All 13 prescriptions' metrics
+            // are mapped above; this guards future additions.
+            _                         => throw new System.ArgumentException(
+                                             $"No VerifyMetric reader for '{metric}' — add it to ReadVerifyMetric.", nameof(metric))
         };
 
         private static List<SessionSummary> ValidSmoothnessSessions(PrescriptionContext ctx) =>

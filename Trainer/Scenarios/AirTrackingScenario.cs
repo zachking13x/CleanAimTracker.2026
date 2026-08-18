@@ -8,10 +8,12 @@ namespace CleanAimTracker.Trainer.Scenarios
 {
     /// <summary>
     /// Continuous tracking target that follows air-movement style paths.
-    /// Clicking the target while tracking it is the primary hit gesture.
-    /// Scoring works on a time-on-target model: the player gets a point for
-    /// every 300 ms they keep the mouse within the target hitbox, simulated
-    /// via click-to-confirm hits.
+    /// CAT_AUTO_WEAPONS: tracking is HOLD-TO-FIRE, like a beam weapon in a real
+    /// game — hold the left button and keep the crosshair on the target. The host
+    /// window synthesizes shots at a fixed cadence via IsAutoFire; every shot ON
+    /// the target is a hit, every shot OFF is a miss, so ACCURACY = time-on-target.
+    /// (The old model made you spam-click a moving target, which is nothing like
+    /// how tracking works in-game.)
     ///
     /// Variants:
     ///   Diagonal   — constant diagonal movement, tests X + Y axis balance
@@ -39,16 +41,16 @@ namespace CleanAimTracker.Trainer.Scenarios
         private long   _nextBurstTick;
         private static readonly long BurstIntervalTicks = (long)(1.5 * Stopwatch.Frequency);
 
-        // Reaction timer — started when target spawns / after a hit
-        private readonly Stopwatch _reactionTimer = new();
-        private double _totalReactionMs;
-        private int    _streak;
+        private int _streak;
 
         public int    Hits           { get; private set; }
         public int    Misses         { get; private set; }
         public double BestReactionMs { get; private set; } = double.MaxValue;
-        public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
+        // CAT_AUTO_WEAPONS honesty: shots fire on a synthetic hold cadence — a
+        // per-shot "time per target" would be fabricated. 0 → "—", like HeadTrack.
+        public double AvgReactionMs  => 0;
         public int    MaxStreak      { get; private set; }
+        public bool   IsAutoFire     => true;
 
         /// <summary>Canvas-space centre of the tracking target at this frame.</summary>
         public Point CurrentTargetCenter =>
@@ -81,7 +83,6 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             _target = TargetFactory.CreateTrackingTarget(targetSize, _x, _y);
             canvas.Children.Add(_target);
-            _reactionTimer.Restart();
         }
 
         public void Update(Canvas canvas)
@@ -168,15 +169,12 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             if (dx * dx + dy * dy <= (_targetSize / 2) * (_targetSize / 2))
             {
-                LastHitCenter = new Point(cx, cy);
+                // Tracking hit = a synthesized shot landed on the target this frame.
+                // Do NOT set LastHitCenter — tracking must not feed the click-point
+                // (overshoot/undershoot) metric; that metric is for aimed clicks only.
                 Hits++;
                 _streak++;
                 MaxStreak = Math.Max(MaxStreak, _streak);
-
-                double reaction = _reactionTimer.Elapsed.TotalMilliseconds;
-                _totalReactionMs += reaction;
-                if (reaction < BestReactionMs) BestReactionMs = reaction;
-                _reactionTimer.Restart();
                 return true;
             }
 

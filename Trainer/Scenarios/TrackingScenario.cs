@@ -9,10 +9,14 @@ namespace CleanAimTracker.Trainer.Scenarios
 {
     /// <summary>
     /// Follow a moving target.
+    /// CAT_AUTO_WEAPONS: HOLD-TO-FIRE like a beam weapon — hold the left button and
+    /// keep the crosshair on the target. The host window synthesizes shots at a
+    /// fixed cadence via IsAutoFire; on-target shots are hits, off-target are misses,
+    /// so ACCURACY = time-on-target. (The old model made you spam-click a mover.)
     /// Variants:
     ///   Smooth    — single target, smooth bounce (default)
     ///   Evasive   — single target, sharp random direction changes every ~800 ms
-    ///   Two-Track — two targets moving simultaneously; click either for a hit
+    ///   Two-Track — two targets moving simultaneously; keep your beam on either
     /// </summary>
     public class TrackingScenario : IAimScenario
     {
@@ -27,16 +31,33 @@ namespace CleanAimTracker.Trainer.Scenarios
         private readonly List<Ellipse> _targets = new();
         private readonly TargetMover   _mover   = new();
 
-        private readonly Stopwatch _reactionTimer = new();
         private readonly Stopwatch _evasiveTimer  = new();
-        private double _totalReactionMs;
         private int _streak;
 
         public int    Hits            { get; private set; }
         public int    Misses          { get; private set; }
         public double BestReactionMs  { get; private set; } = double.MaxValue;
-        public double AvgReactionMs   => Hits == 0 ? 0 : _totalReactionMs / Hits;
+        // CAT_AUTO_WEAPONS honesty: hold-to-fire cadence has no per-shot timing.
+        public double AvgReactionMs   => 0;
         public int    MaxStreak       { get; private set; }
+        public bool   IsAutoFire      => true;
+
+        // T1: per-frame center of the primary moving target — feeds axis-split.
+        public Point CurrentTargetCenter
+        {
+            get
+            {
+                if (_targets.Count == 0) return new Point(double.NaN, double.NaN);
+                var t = _targets[0];
+                return new Point(Canvas.GetLeft(t) + t.Width / 2, Canvas.GetTop(t) + t.Height / 2);
+            }
+        }
+
+        // T3.3 (revised): DirectionChangeLag measures FLICK latency after a discrete
+        // stimulus (first mag≥8 movement). Continuous tracking has no such flick — the
+        // response is a gradual heading adjustment — so wiring it here produced 0.
+        // Re-pointed to SwitchingScenario (discrete flick on target switch). Tracking
+        // keeps only its valid telemetry (CurrentTargetCenter → axis-split).
 
         public TrackingScenario(string variant = "Smooth")
         {
@@ -65,7 +86,6 @@ namespace CleanAimTracker.Trainer.Scenarios
             }
 
             if (_variant == "Evasive") _evasiveTimer.Restart();
-            _reactionTimer.Restart();
         }
 
         public void Update(Canvas canvas)
@@ -95,15 +115,12 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 if (dx * dx + dy * dy <= (size / 2) * (size / 2))
                 {
+                    // Hold-to-fire hit = a synthesized shot landed on the target this
+                    // frame. No LastHitCenter — tracking must not feed the click-point
+                    // (overshoot/undershoot) metric; that's for aimed clicks only.
                     Hits++;
                     _streak++;
                     MaxStreak = Math.Max(MaxStreak, _streak);
-
-                    double reaction = _reactionTimer.Elapsed.TotalMilliseconds;
-                    _totalReactionMs += reaction;
-                    if (reaction < BestReactionMs) BestReactionMs = reaction;
-                    _reactionTimer.Restart();
-
                     return true;
                 }
             }

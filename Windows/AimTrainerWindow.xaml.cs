@@ -82,7 +82,29 @@ namespace CleanAimTracker.Windows
             ["SpeedSwitching"] = (0xFF, 0x55, 0x20),   // Brighter orange — speed focus
             ["Evasive"]        = (0xFF, 0x6B, 0x35),   // AccentOrange — chase / switch
             ["PeekTraining"]   = (0xE0, 0x60, 0x50),   // Warm red — peek / timing
+            // ── Bot drills (CAT_BOT_DRILLS) ──────────────────────────
+            ["HeadshotStrafes"]= (0xF5, 0xC8, 0x42),   // Gold — headshot bonus color
+            ["PeekClick"]      = (0x00, 0xE5, 0xA0),   // Green — patience / precision
+            ["HeadTrack"]      = (0x00, 0xD4, 0xFF),   // Cyan — tracking family
         };
+
+        /// <summary>Bot scenarios draw their own kill bursts and expose headshot stats.</summary>
+        private bool IsBotScenario => _scenario is "HeadshotStrafes" or "PeekClick" or "HeadTrack";
+
+        // ── CAT_GAME_FEEL state ───────────────────────────────────────
+        private bool _isCountingDown = false;
+        private readonly DispatcherTimer _countdownTimer = new() { Interval = TimeSpan.FromMilliseconds(600) };
+        private int _countdownValue;
+
+        private bool _isSlamActive = false;
+
+        // AUTO weapon archetype: synthesized shot cadence while LMB held
+        private long _lastAutoShotTicks;
+        private const double AutoFireIntervalMs = 110;
+
+        // Fullscreen drill mode
+        private bool _isFullscreen = false;
+        private WindowState _preFullscreenState = WindowState.Normal;
 
         // Onboarding mode
         private bool _isOnboarding = false;
@@ -149,6 +171,7 @@ namespace CleanAimTracker.Windows
             _updateTimer.Tick += UpdateScenario_Tick;
 
             _instructionTimer.Tick += InstructionTimer_Tick;
+            _countdownTimer.Tick += CountdownTimer_Tick;
 
             TargetCanvas.SizeChanged += (_, _) =>
             {
@@ -224,6 +247,208 @@ namespace CleanAimTracker.Windows
             _preSelectDifficulty = difficulty;
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // CAT_ROUTINE — chained drills
+        // ─────────────────────────────────────────────────────────────
+        // A routine runs its drills back to back inside ONE window: each step ends,
+        // saves its result, and rolls straight into the next without a report in
+        // between. The per-drill report is the thing that breaks a training rhythm —
+        // real users were closing them in 0-4 seconds to get back to the next rep —
+        // so a routine reports ONCE, at the end, over the whole session.
+        //
+        // Deliberately reuses the warm-up chaining shape that already works here rather
+        // than inventing a second mechanism.
+        private System.Collections.Generic.List<RoutineService.RoutineStep>? _routineSteps;
+        private int _routineIndex;
+        private readonly System.Collections.Generic.List<AimTrainerResult> _routineResults = new();
+        private string _routineHeadline = "";
+
+        private bool InRoutine => _routineSteps != null && _routineSteps.Count > 0;
+
+        /// <summary>Start a routine. The window drives every step; the caller just opens it.</summary>
+        public void BeginRoutine(RoutineService.Routine routine)
+        {
+            if (routine == null || routine.Steps.Count == 0) return;
+
+            _routineSteps    = routine.Steps.ToList();
+            _routineIndex    = 0;
+            _routineHeadline = routine.Headline;
+            _routineResults.Clear();
+
+            Loaded += (_, _) => LoadRoutineStep();
+        }
+
+        /// <summary>Apply the current step's scenario/variant/difficulty and count in.</summary>
+        private void LoadRoutineStep()
+        {
+            if (_routineSteps == null || _routineIndex >= _routineSteps.Count) return;
+
+            var step = _routineSteps[_routineIndex];
+            ApplyPreSelection(step.Scenario, step.Difficulty);
+
+            if (!string.IsNullOrWhiteSpace(step.Variant))
+            {
+                _variant = step.Variant;
+                foreach (var item in VariantCombo.Items)
+                    if (item?.ToString() == step.Variant) { VariantCombo.SelectedItem = item; break; }
+            }
+
+            RoutineProgressText.Text =
+                $"{_routineHeadline.ToUpperInvariant()} · DRILL {_routineIndex + 1} OF {_routineSteps.Count}";
+            RoutineReasonText.Text      = step.Reason;
+            RoutinePanel.Visibility     = Visibility.Visible;
+
+            StartDrill();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // CAT_SESSION_REPORT — manual training
+        // ─────────────────────────────────────────────────────────────
+        // Manual drills now behave like a routine does: train as much as you like, get
+        // ONE report when you stop. Between drills you get a single line — enough to
+        // know what the coach saw, cheap enough not to break the rhythm.
+        private readonly System.Collections.Generic.List<AimTrainerResult> _manualResults = new();
+
+        /// <summary>
+        /// Track a manual drill for the end-of-session summary, and mark the session as
+        /// pending so the summary survives the app being killed (see MainWindow).
+        /// </summary>
+        private void RecordManualSessionDrill(AimTrainerResult result)
+        {
+            _manualResults.Add(result);
+            try
+            {
+                var s = SettingsService.Load();
+                if (s.PendingSummarySessionStartUtc == DateTime.MinValue)
+                {
+                    s.PendingSummarySessionStartUtc = result.Timestamp.ToUniversalTime().AddSeconds(-1);
+                    SettingsService.Save(s);
+                }
+            }
+            catch { /* the summary is a nicety; never block training for it */ }
+        }
+
+        /// <summary>The between-drill line. Uses the coach's own headline — no new claims.</summary>
+        private void ShowCoachStrip(AimTrainerResult result)
+        {
+            try
+            {
+                CoachStripAccuracy.Text = $"{result.Accuracy:F0}%";
+                CoachStripText.Text     = "Reading your session…";
+                CoachStrip.Visibility   = Visibility.Visible;
+
+                // Analyze is the same call the full report makes; run it off the UI
+                // thread so the strip can never stall the next drill.
+                _ = Task.Run(() =>
+                {
+                    string line;
+                    try
+                    {
+                        var settings = SettingsService.Load();
+                        var memory   = CoachMemoryBuilder.Build(result, settings);
+                        var report   = AiCoachService.Analyze(result, memory);
+
+                        line = !string.IsNullOrWhiteSpace(report.Headline)
+                            ? report.Headline
+                            : report.Weaknesses.FirstOrDefault()
+                              ?? report.Strengths.FirstOrDefault()
+                              ?? "Session logged.";
+                    }
+                    catch { line = "Session logged."; }
+
+                    Dispatcher.Invoke(() => CoachStripText.Text = line);
+                });
+            }
+            catch (Exception ex) { LogService.Error("Coach strip failed", ex); }
+        }
+
+        private void CoachStripFull_Click(object sender, RoutedEventArgs e)
+        {
+            var last = _manualResults.LastOrDefault();
+            if (last == null) return;
+            new AimTrainerResultWindow(last) { Owner = this }.ShowDialog();
+        }
+
+        /// <summary>Hide the strip whenever a new drill counts in.</summary>
+        private void HideCoachStrip() => CoachStrip.Visibility = Visibility.Collapsed;
+
+        /// <summary>
+        /// One report for the manual session, shown when the player closes the trainer —
+        /// i.e. once they've actually stopped, rather than between reps.
+        /// Called from the window's single OnClosed override.
+        /// </summary>
+        private void ShowManualSessionSummary()
+        {
+            try
+            {
+                // CAT_COACH_FAILURE: a routine abandoned part-way through used to lose
+                // everything. ShowScoreSlam holds the post-drill callback on a ~1.4s
+                // DispatcherTimer, so closing the trainer inside that window drops
+                // AdvanceRoutine — and with it the drills already completed. Fold any
+                // finished routine drills into the summary rather than discarding them.
+                if (_routineResults.Count > 0)
+                {
+                    _manualResults.AddRange(_routineResults);
+                    _routineResults.Clear();
+                    _routineSteps = null;
+                }
+
+                if (_manualResults.Count == 0) return;
+
+                var owner = Application.Current.MainWindow;
+                var done  = _manualResults.ToList();
+                _manualResults.Clear();
+                ClearPendingSummary();
+
+                // Owned by the dashboard, not by this closing window.
+                owner?.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    var w = new RoutineSummaryWindow(done, "Session");
+                    if (owner.IsLoaded) w.Owner = owner;
+                    w.ShowDialog();
+                }));
+            }
+            catch (Exception ex) { LogService.Error("Session summary on close failed", ex); }
+        }
+
+        private static void ClearPendingSummary()
+        {
+            try
+            {
+                var s = SettingsService.Load();
+                if (s.PendingSummarySessionStartUtc == DateTime.MinValue) return;
+                s.PendingSummarySessionStartUtc = DateTime.MinValue;
+                SettingsService.Save(s);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Called after a routine drill's result is saved. Advances or finishes.
+        /// </summary>
+        private void AdvanceRoutine(AimTrainerResult result)
+        {
+            _routineResults.Add(result);
+            _routineIndex++;
+
+            if (_routineSteps != null && _routineIndex < _routineSteps.Count)
+            {
+                // Brief beat so the score slam lands before the next count-in.
+                var pause = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
+                pause.Tick += (s, _) => { pause.Stop(); LoadRoutineStep(); };
+                pause.Start();
+                return;
+            }
+
+            // Done — one report for the whole session.
+            RoutinePanel.Visibility = Visibility.Collapsed;
+            var completed = _routineResults.ToList();
+            _routineSteps = null;
+
+            new RoutineSummaryWindow(completed, _routineHeadline) { Owner = this }.ShowDialog();
+            Close();
+        }
+
         private void ApplyPreSelection(string scenario, string difficulty)
         {
             // ── Scenario buttons ────────────────────────────────────────
@@ -265,6 +490,9 @@ namespace CleanAimTracker.Windows
                 "AirTracking"    => "Air Tracking",
                 "SpeedSwitching" => "Speed Switching",
                 "PeekTraining"   => "Peek Training",
+                "HeadshotStrafes"=> "Headshot Strafes",
+                "PeekClick"      => "Peek & Click",
+                "HeadTrack"      => "Track the Head",
                 _                => _scenario,
             };
 
@@ -279,6 +507,7 @@ namespace CleanAimTracker.Windows
             // Collect all scenario card Borders from every pillar panel + standalone slots
             var allPanels = new StackPanel?[]
             {
+                PillarContent_Bots,
                 PillarContent_Clicking,
                 PillarContent_Tracking,
                 PillarContent_Switching,
@@ -383,6 +612,10 @@ namespace CleanAimTracker.Windows
                 "Sniper"          => new[] { "Standard", "Moving", "Wind" },
                 "Shotgun"         => new[] { "Standard", "Duels", "Peek" },
                 "SmgAr"           => new[] { "Standard", "Spray", "Strafe" },
+                // ── Bot drills ────────────────────────────────────────────────
+                "HeadshotStrafes" => new[] { "Standard" },
+                "PeekClick"       => new[] { "Standard" },
+                "HeadTrack"       => new[] { "Standard" },
                 // ── Clicking pillar ───────────────────────────────────────────
                 "StaticClicking"  => new[] { "Standard", "Micro", "Cluster", "Confirmation" },
                 "DynamicClicking" => new[] { "Standard", "Bounce", "Arc", "Accelerating" },
@@ -428,7 +661,48 @@ namespace CleanAimTracker.Windows
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Space) StartStop_Click(this, new RoutedEventArgs());
-            if (e.Key == Key.Escape && _isRunning) StopDrill(showResults: true);
+            if (e.Key == Key.F11) ToggleFullscreen();
+            if (e.Key == Key.Escape)
+            {
+                if (_isCountingDown)      CancelCountdown();
+                else if (_isRunning)      StopDrill(showResults: true);
+                else if (_isFullscreen)   ToggleFullscreen();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // FULLSCREEN DRILL MODE (CAT_TRAINER_HUD)
+        // ─────────────────────────────────────────────────────────────
+        private void FullscreenBtn_Click(object sender, RoutedEventArgs e) => ToggleFullscreen();
+
+        private void ToggleFullscreen()
+        {
+            if (!_isFullscreen)
+            {
+                _preFullscreenState = WindowState;
+                WindowStyle = WindowStyle.None;
+                ResizeMode  = ResizeMode.NoResize;
+                // Normal→Maximized bounce forces borderless to cover the full screen
+                WindowState = WindowState.Normal;
+                WindowState = WindowState.Maximized;
+                SidebarPanel.Visibility = Visibility.Collapsed;
+                SidebarCol.Width = new GridLength(0);
+                EscHintText.Visibility = Visibility.Visible;
+                FullscreenBtn.Content = "🗗";
+                _isFullscreen = true;
+            }
+            else
+            {
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                ResizeMode  = ResizeMode.CanResize;
+                WindowState = _preFullscreenState == WindowState.Maximized
+                    ? WindowState.Maximized : WindowState.Normal;
+                SidebarPanel.Visibility = Visibility.Visible;
+                SidebarCol.Width = new GridLength(280);
+                EscHintText.Visibility = Visibility.Collapsed;
+                FullscreenBtn.Content = "⛶";
+                _isFullscreen = false;
+            }
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -438,31 +712,96 @@ namespace CleanAimTracker.Windows
 
         private void StartStop_Click(object sender, RoutedEventArgs e)
         {
-            if (_isRunning)
+            if (_isCountingDown)
+                CancelCountdown();
+            else if (_isRunning)
                 StopDrill(showResults: true);
-            else
+            else if (!_isSlamActive)
                 StartDrill();
         }
 
+        // ─────────────────────────────────────────────────────────────
+        // CAT_GAME_FEEL: play-first entry — a fast 3-2-1 count-in before the
+        // targets spawn. The countdown also guarantees the canvas has had a
+        // layout pass before any scenario reads ActualWidth (spawn-stack fix).
+        // ─────────────────────────────────────────────────────────────
         private void StartDrill()
+        {
+            if (_isCountingDown) return;
+
+            _isCountingDown = true;
+            IdleMessage.Visibility = Visibility.Collapsed;
+            HideCoachStrip();   // CAT_SESSION_REPORT: the line clears when the next drill counts in
+            StartStopBtn.Content = "■  Stop Drill";
+            StartStopBtn.Background = new SolidColorBrush(Color.FromRgb(180, 40, 40));
+
+            ClearTargets();
+            ShowHudChips();
+
+            // The coaching card reads well during the count-in wait
+            if (_scenario != "WarmUp") MaybeShowDrillInstruction();
+
+            _countdownValue = 3;
+            CountdownText.Text = "3";
+            CountdownText.Visibility = Visibility.Visible;
+            PulseCountdown();
+            _countdownTimer.Start();
+        }
+
+        private void CountdownTimer_Tick(object? sender, EventArgs e)
+        {
+            _countdownValue--;
+            if (_countdownValue >= 1)
+            {
+                CountdownText.Text = _countdownValue.ToString();
+                PulseCountdown();
+                return;
+            }
+
+            _countdownTimer.Stop();
+            CountdownText.Visibility = Visibility.Collapsed;
+            _isCountingDown = false;
+            BeginDrillCore();
+        }
+
+        private void PulseCountdown()
+        {
+            var pop = new DoubleAnimation(1.5, 1.0, TimeSpan.FromMilliseconds(280))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            CountdownScale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+            CountdownScale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+        }
+
+        private void CancelCountdown()
+        {
+            _countdownTimer.Stop();
+            _isCountingDown = false;
+            CountdownText.Visibility = Visibility.Collapsed;
+            DismissDrillInstruction();
+            HideHudChips();
+            IdleMessage.Visibility = Visibility.Visible;
+            StartStopBtn.Content = "▶  Start Drill";
+            StartStopBtn.Background = (Brush)Application.Current.Resources["AccentBrush"];
+        }
+
+        private void BeginDrillCore()
         {
             _isRunning        = true;
             _score            = 0;
             _consecutiveHits  = 0;
             _isHotStreak      = false;
             _scoreMultiplier  = 1.0;
+            _lastAutoShotTicks = 0;
             HotStreakBanner.Visibility  = Visibility.Collapsed;
             CanvasGlowBorder.Visibility = Visibility.Collapsed;
 
-            IdleMessage.Visibility = Visibility.Collapsed;
-            StartStopBtn.Content = "■  Stop Drill";
-            StartStopBtn.Background = new SolidColorBrush(Color.FromRgb(180, 40, 40));
-
-            // TASK-3D+3F: Reset timer bar colour and show canvas overlay
+            // TASK-3D: Reset timer bar colour
             TimerBarFill.Background = new SolidColorBrush(Color.FromRgb(0x00, 0xD4, 0xFF));
-            LiveStatsOverlay.Visibility = Visibility.Visible;
 
-            ClearTargets();
+            // Belt + suspenders for the spawn-stack bug: never hand a scenario an
+            // un-laid-out canvas even if a future caller skips the countdown.
+            TargetCanvas.UpdateLayout();
+
             UpdateLiveStats();
 
             if (_scenario == "WarmUp")
@@ -487,8 +826,7 @@ namespace CleanAimTracker.Windows
                 _secondsLeft               = _durationSeconds;
                 WarmUpRoundText.Visibility = Visibility.Collapsed;
 
-                // Show coaching card for first 5 plays (TASK-22)
-                MaybeShowDrillInstruction();
+                // Coaching card already shown during the 3-2-1 count-in (TASK-22)
 
                 if (_scenario == "Adaptive")
                 {
@@ -505,6 +843,10 @@ namespace CleanAimTracker.Windows
                         "Sniper"          => new SniperScenario(_variant),
                         "Shotgun"         => new ShotgunScenario(_variant),
                         "SmgAr"           => new SmgArScenario(_variant),
+                        // ── Bot drills (CAT_BOT_DRILLS) ───────────────────────────
+                        "HeadshotStrafes" => new HeadshotStrafesScenario(_variant),
+                        "PeekClick"       => new PeekClickScenario(_variant),
+                        "HeadTrack"       => new HeadTrackScenario(_variant),
                         // ── Clicking pillar ───────────────────────────────────────
                         "StaticClicking"  => new StaticClickingScenario(_variant),
                         "DynamicClicking" => new DynamicClickingScenario(_variant),
@@ -555,8 +897,8 @@ namespace CleanAimTracker.Windows
 
             IdleMessage.Visibility         = Visibility.Visible;
             WarmUpRoundText.Visibility     = Visibility.Collapsed;
-            LiveStatsOverlay.Visibility    = Visibility.Collapsed;
             TimerBarFill.Width             = 0;
+            HideHudChips();
             UpdateTimerDisplay();
 
             if (_isWarmupMode)
@@ -578,7 +920,8 @@ namespace CleanAimTracker.Windows
                 {
                     var result = BuildWarmupResult();
                     SaveResult(result);
-                    new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+                    ShowScoreSlam(result.Score,
+                        () => new AimTrainerResultWindow(result) { Owner = this }.ShowDialog());
                 }
             }
             else
@@ -609,14 +952,39 @@ namespace CleanAimTracker.Windows
                 {
                     var result = BuildResult(statsSource);
 
-                    // ── TASK-28: Wire telemetry metrics ────────────────────────
-                    // PathEfficiency — uses raw delta buffer; startPos/endPos unused by impl
-                    if (_rawInputBuffer.Count >= 20)
+                    // ── TASK-28 / F6: Wire telemetry metrics ───────────────────
+                    // PathEfficiency — per-acquisition segmentation: the raw movement
+                    // buffer is split at click boundaries so each segment is one
+                    // target acquisition. Needs ≥2 hits to form one bounded segment.
+                    if (_rawInputBuffer.Count >= 20 && _clickOffsets.Count >= 2)
                     {
+                        var clickTimes = _clickOffsets.Select(c => c.Timestamp).ToList();
                         result.PathEfficiency = TelemetryCalculator.CalculatePathEfficiency(
-                            _rawInputBuffer,
-                            new System.Windows.Point(0, 0),
-                            new System.Windows.Point(0, 0));
+                            _rawInputBuffer, clickTimes);
+
+                        // A1: in-flight overshoot. Left at the model's -1 sentinel
+                        // (invalid) when too few segments qualify — never a false 0.
+                        var (meanOver, segPct, _) =
+                            TelemetryCalculator.CalculateMovementOvershoot(_rawInputBuffer, clickTimes);
+                        result.MovementOvershoot   = meanOver;
+                        result.OvershootSegmentPct = segPct;
+                    }
+
+                    // T6: movement quality (smoothness + consistency) on the drill
+                    // buffer via the shared calculator — drills were blind to this.
+                    // Needs enough samples to be a real statistic, else stays -1 ("—").
+                    if (_rawInputBuffer.Count >= MetricValidation.MinMovementSamples)
+                    {
+                        var mq = MovementQualityCalculator.FromBuffer(_rawInputBuffer);
+                        result.MovementSmoothness  = mq.Smoothness;
+                        result.MovementConsistency = mq.Consistency;
+                        result.VelocityStability   = mq.VelocityStability;
+                        // GATE 2 / T2.2: log the raw CV so the jerky-vs-clean capture
+                        // pair can calibrate VelocityCvCeiling from real data.
+                        LogService.Info(
+                            $"VELSTAB-CAL scenario={result.Scenario} acc={result.Accuracy:F0} " +
+                            $"cv={mq.VelocityCv:F4} stability={mq.VelocityStability:F1} " +
+                            $"activeSamples={mq.ActiveVelocitySamples}");
                     }
 
                     // PeekTiming — only available for PeekTraining scenario
@@ -627,27 +995,45 @@ namespace CleanAimTracker.Windows
                         result.PeekLateClickPct  = latePct;
                     }
 
-                    // Click offset metrics — Clicking pillar scenarios
-                    if (_clickOffsets.Count >= 3)
+                    // Click offset metrics — AIMED-CLICK scenarios only.
+                    // AUDIT (2026-07-06): the overshoot/undershoot metric is only
+                    // meaningful for discrete aimed clicks. Auto-fire scenarios
+                    // (Tracking, AirTracking, HeadTrack, SmgAr) synthesize shots at a
+                    // hold cadence — feeding those to the click-point coach produced
+                    // garbage (a tracking session read "62% undershoot"). Gate on
+                    // IsAutoFire so no hold-to-spray scenario can ever pollute it.
+                    if (_clickOffsets.Count >= 3 && statsSource != null && !statsSource.IsAutoFire)
                     {
                         var (avgOffset, overshootPct, undershootPct) =
                             TelemetryCalculator.CalculateClickOffsets(_clickOffsets);
                         result.AvgClickOffset = avgOffset;
                         result.OvershootPct   = overshootPct;
                         result.UndershootPct  = undershootPct;
+                        // V2: directional classification (approach-axis). Consumers gate
+                        // comparisons on matching versions — V1 numbers are inflated.
+                        if (overshootPct >= 0)
+                            result.ClickMetricVersion = 2;
                     }
 
-                    // Direction-change lag — Reactive scenario (target spawn = direction change)
-                    if (statsSource is ReactiveScenario reactive
-                        && reactive.DirectionChangeTimestamps.Count >= 3)
+                    // T3.2: Direction-change lag — ANY scenario exposing direction-change
+                    // timestamps (Reactive spawn, Tracking-Evasive heading change, …),
+                    // not just Reactive. Scenarios without the concept return empty →
+                    // skipped. Validity gate (>=3) unchanged → invalid, not 0.
+                    var dirChanges = statsSource.DirectionChangeTimestamps;
+                    if (dirChanges.Count >= 3)
                     {
                         result.AvgDirectionChangeLagMs =
                             TelemetryCalculator.CalculateDirectionChangeLag(
-                                reactive.DirectionChangeTimestamps, _rawInputBuffer);
+                                dirChanges, _rawInputBuffer);
                     }
 
-                    // Axis split — AirTracking only
-                    if (_trackingFrames.Count >= 100)
+                    // Axis split — genuinely two-axis tracking drills ONLY.
+                    // CAT_AXIS_MOTION_GATE: the comment here always said "AirTracking
+                    // only" but the gate was frame count alone, so HeadTrack (bots that
+                    // strafe sideways) got scored on a vertical axis it never exercises.
+                    // The scenario check now matches the stated intent; CalculateAxisSplit
+                    // additionally returns -1 per axis when the target didn't move on it.
+                    if (_trackingFrames.Count >= 100 && TelemetryCalculator.HasTwoAxisTracking(_scenario))
                     {
                         var frames = _trackingFrames
                             .Select(f => (f.CursorPos, f.TargetPos))
@@ -675,7 +1061,24 @@ namespace CleanAimTracker.Windows
                     SaveResult(result);
                     CheckNightmareUnlock(result);
                     RefreshNightmareLock();
-                    new AimTrainerResultWindow(result) { Owner = this }.ShowDialog();
+
+                    // CAT_ROUTINE / CAT_SESSION_REPORT: the score slam always plays — the
+                    // reward beat is the point. What follows it is the thing that changed.
+                    if (InRoutine)
+                    {
+                        ShowScoreSlam(result.Score, () => AdvanceRoutine(result));
+                    }
+                    else if (SettingsService.Load().ReportAfterEveryDrill)
+                    {
+                        // Opt-in legacy behaviour for players who preferred it.
+                        ShowScoreSlam(result.Score,
+                            () => new AimTrainerResultWindow(result) { Owner = this }.ShowDialog());
+                    }
+                    else
+                    {
+                        RecordManualSessionDrill(result);
+                        ShowScoreSlam(result.Score, () => ShowCoachStrip(result));
+                    }
                 }
             }
         }
@@ -704,14 +1107,37 @@ namespace CleanAimTracker.Windows
 
             _scenarioInstance.Update(TargetCanvas);
 
-            // TASK-05: collect per-frame axis-split data for AirTracking
-            if (_isDrillActive && _scenario == "AirTracking")
+            // T1: collect per-frame axis-split data for ANY scenario that exposes a
+            // moving target (was hardcoded to AirTracking — that blinded Tracking,
+            // SmgAr, and Adaptive-tracking to axis-split). The CurrentTargetCenter
+            // NaN-default means non-tracking scenarios contribute no frames, so the
+            // axis-split metric simply stays "not computed" for them.
+            if (_isDrillActive && _scenarioInstance != null)
             {
                 var targetCenter = _scenarioInstance.CurrentTargetCenter;
                 if (!double.IsNaN(targetCenter.X))
                 {
                     var cursorPos = System.Windows.Input.Mouse.GetPosition(TargetCanvas);
                     _trackingFrames.Add(new TrackingFrame(cursorPos, targetCenter));
+                }
+
+                // CAT_BOT_DRILLS: AUTO archetype — hold LMB to spray. Shots are
+                // synthesized at a fixed cadence at the current cursor position.
+                if (_scenarioInstance.IsAutoFire &&
+                    Mouse.LeftButton == MouseButtonState.Pressed)
+                {
+                    long now = System.Diagnostics.Stopwatch.GetTimestamp();
+                    double sinceMs = (now - _lastAutoShotTicks) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+                    if (_lastAutoShotTicks != 0 && sinceMs >= AutoFireIntervalMs)
+                    {
+                        var pos = Mouse.GetPosition(TargetCanvas);
+                        if (pos.X >= 0 && pos.Y >= 0 &&
+                            pos.X <= TargetCanvas.ActualWidth && pos.Y <= TargetCanvas.ActualHeight)
+                        {
+                            _lastAutoShotTicks = now;
+                            HandleShot(pos);
+                        }
+                    }
                 }
             }
         }
@@ -725,28 +1151,70 @@ namespace CleanAimTracker.Windows
                 return;
 
             var pos = e.GetPosition(TargetCanvas);
+            if (_scenarioInstance.IsAutoFire)
+                _lastAutoShotTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+            HandleShot(pos);
+        }
+
+        /// <summary>
+        /// One shot — from a real click or the AUTO-archetype synthesized cadence.
+        /// Weapon fire-rate lockouts (LastClickIgnored) get NO feedback of any kind:
+        /// the gun simply didn't fire.
+        /// </summary>
+        private void HandleShot(Point pos)
+        {
+            if (_scenarioInstance == null) return;
+
             bool hit = _scenarioInstance.HandleClick(pos);
+            if (_scenarioInstance.LastClickIgnored)
+                return;
 
             if (hit)
             {
                 // TASK-05: record click offset for post-session telemetry
+                // F6: stamp with the raw-input clock so PathEfficiency can segment
+                // the movement buffer per target acquisition.
                 var center = _scenarioInstance.LastHitCenter;
                 if (!double.IsNaN(center.X))
-                    _clickOffsets.Add(new ClickOffsetSample(pos, center));
+                    _clickOffsets.Add(new ClickOffsetSample(pos, center, System.Diagnostics.Stopwatch.GetTimestamp()));
 
                 _consecutiveHits++;
                 if (!_isHotStreak && _consecutiveHits >= 5)
                     ActivateHotStreak();
+                UpdateStreakHeat();
 
-                _score += (int)(_scenarioInstance.ScorePerHit * _scoreMultiplier);
+                // CAT_BOT_DRILLS: headshots pay 1.5× — the drill rewards precision,
+                // not just speed. Gold floating score marks the moment.
+                bool headshot = _scenarioInstance.LastHitWasHeadshot;
+                int gained = (int)(_scenarioInstance.ScorePerHit * _scoreMultiplier * (headshot ? 1.5 : 1.0));
+                _score += gained;
+                PopHudScore();
+
                 PlayHitEffect(pos);
+                // CAT_VISUAL_JUICE: sound-off-friendly hitmarker + floating score.
+                HitFeedback.Hitmarker(TargetCanvas, pos);
+                var floatBrush = headshot
+                    ? new SolidColorBrush(Color.FromRgb(0xF5, 0xC8, 0x42))
+                    : TryFindResource("AccentBrush") as Brush ?? Brushes.Cyan;
+                HitFeedback.FloatScore(TargetCanvas, pos, floatBrush, gained);
+
+                // CAT_GAME_FEEL: orb targets shatter on death. Bot scenarios draw
+                // their own kill bursts (they know kill vs body-damage).
+                if (!IsBotScenario && !double.IsNaN(center.X))
+                {
+                    if (!ScenarioColors.TryGetValue(_scenario, out var sc))
+                        sc = ((byte)0x00, (byte)0xD4, (byte)0xFF);
+                    TargetFactory.Burst(TargetCanvas, center, Color.FromRgb(sc.R, sc.G, sc.B));
+                }
             }
             else
             {
                 _consecutiveHits = 0;
                 if (_isHotStreak)
                     DeactivateHotStreak();
+                UpdateStreakHeat();
                 PlayMissEffect(pos);
+                HitFeedback.Miss(TargetCanvas, pos);
             }
 
             UpdateLiveStats();
@@ -755,6 +1223,7 @@ namespace CleanAimTracker.Windows
         // TASK-3C: Hit feedback — 3 expanding rings at the click point
         private void PlayHitEffect(Point pos)
         {
+            SoundService.PlayHit();   // T2.2: satisfying pop, instant (pre-loaded), honors mute
             if (!ScenarioColors.TryGetValue(_scenario, out var sc))
                 sc = ((byte)0x00, (byte)0xD4, (byte)0xFF);
             var ringColor = Color.FromArgb(180, sc.R, sc.G, sc.B);
@@ -805,6 +1274,7 @@ namespace CleanAimTracker.Windows
         // TASK-3C: Miss feedback — small red ring at click point
         private void PlayMissEffect(Point pos)
         {
+            SoundService.PlayMiss();   // T2.2: soft, distinct-from-hit, honors mute
             var ring = new Ellipse
             {
                 Width            = 20,
@@ -874,11 +1344,10 @@ namespace CleanAimTracker.Windows
                 SelectDifficultyButton("Hard");
         }
 
+        // CAT_ROUTINE: the rule now lives in ScenarioDifficultyService so the routine
+        // builder and this gate can never disagree about what the player can start.
         private static bool IsNightmareUnlocked()
-        {
-            var all = AimTrainerStorage.LoadAll();
-            return all.Any(r => r.Difficulty == "Hard" && r.Accuracy >= 80.0);
-        }
+            => ScenarioDifficultyService.IsSelectableInTrainer("Nightmare", AimTrainerStorage.LoadAll());
 
         /// <summary>
         /// Checks whether the just-completed result is the first time the user
@@ -960,9 +1429,9 @@ namespace CleanAimTracker.Windows
                 LiveAccuracyText.Text = "--";
                 LiveReactionText.Text = "--";
                 StreakText.Text       = "0";
-                // Canvas overlay reset
-                CanvasAccText.Text  = "—";
-                CanvasHitsText.Text = "—";
+                HudScoreText.Text     = _score.ToString("N0");
+                HudAccText.Text       = "—";
+                HudHsText.Text        = "—";
                 return;
             }
 
@@ -986,11 +1455,37 @@ namespace CleanAimTracker.Windows
                 ? $"{_scenarioInstance.AvgReactionMs:F0}ms"
                 : "--";
 
-            StreakText.Text = _scenarioInstance.MaxStreak.ToString();
+            // CAT_TRAINER_HUD: streak = CURRENT combo (the number you're protecting),
+            // not the session max — max lives in the result report.
+            StreakText.Text   = $"x{_consecutiveHits}";
+            HudScoreText.Text = _score.ToString("N0");
+            HudAccText.Text   = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "—";
 
-            // TASK-3F: Canvas overlay (ACC + HIT only — streak shown in top bar)
-            CanvasAccText.Text  = total > 0 ? $"{(hits * 100.0 / total):F0}%" : "—";
-            CanvasHitsText.Text = hits.ToString();
+            if (IsBotScenario)
+                HudHsText.Text = hits > 0
+                    ? $"{(_scenarioInstance.Headshots * 100.0 / hits):F0}%"
+                    : "—";
+        }
+
+        /// <summary>Quick scale pop on the HUD score when points land.</summary>
+        private void PopHudScore()
+        {
+            var pop = new DoubleAnimation(1.18, 1.0, TimeSpan.FromMilliseconds(160))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            HudScoreScale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+            HudScoreScale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+        }
+
+        /// <summary>
+        /// CAT_GAME_FEEL: streak heat — the hot-streak glow starts orange at 5 and
+        /// turns gold at 10+. Performance-driven escalation, no cosmetics.
+        /// </summary>
+        private void UpdateStreakHeat()
+        {
+            if (!_isHotStreak) return;
+            CanvasGlowBorder.BorderBrush = _consecutiveHits >= 10
+                ? new SolidColorBrush(Color.FromArgb(0x77, 0xF5, 0xC8, 0x42))
+                : new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0x6B, 0x35));
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -1014,8 +1509,10 @@ namespace CleanAimTracker.Windows
             {
                 "StaticClicking" or "DynamicClicking" or "Reactive"
                     or "Flicking" or "Precision" or "Sniper"
-                    or "Shotgun" or "SmgAr"               => "Clicking",
-                "Tracking" or "AirTracking"               => "Tracking",
+                    or "Shotgun" or "SmgAr"
+                    or "HeadshotStrafes" or "PeekClick"   => "Clicking",
+                "Tracking" or "AirTracking"
+                    or "HeadTrack"                        => "Tracking",
                 "Switching" or "SpeedSwitching"
                     or "Evasive" or "PeekTraining"        => "Switching",
                 _                                         => _scenario,  // Adaptive, WarmUp
@@ -1035,6 +1532,7 @@ namespace CleanAimTracker.Windows
                 AvgReactionMs   = stats.AvgReactionMs,
                 BestReactionMs  = bestReaction,
                 MaxStreak       = stats.MaxStreak,
+                Headshots       = stats.Headshots,
                 Pillar          = pillar,
             };
         }
@@ -1149,6 +1647,14 @@ namespace CleanAimTracker.Windows
             try
             {
                 AimTrainerStorage.Save(result);
+
+                // CAT_TELEMETRY: what is actually PLAYED, as opposed to what was built.
+                // Scenario + difficulty + a coarse duration bucket — no score, no
+                // accuracy, no reaction time. This is the event that decides whether the
+                // bot drills earn more investment or quietly get retired.
+                TelemetryService.TrackDrillCompleted(
+                    result.Scenario, result.Difficulty, result.DurationSeconds, result.IsAssessmentSession);
+
                 // Reset re-engagement flag so it can fire again after the next absence gap
                 var settings = SettingsService.Load();
                 if (settings.ReEngagementNotificationSent)
@@ -1224,7 +1730,104 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         private void ClearTargets()
         {
-            TargetCanvas.Children.Clear();
+            // Preserve IdleMessage — it is a Canvas child, so a blanket Clear()
+            // detaches it permanently and the idle prompt never renders again.
+            for (int i = TargetCanvas.Children.Count - 1; i >= 0; i--)
+                if (!ReferenceEquals(TargetCanvas.Children[i], IdleMessage))
+                    TargetCanvas.Children.RemoveAt(i);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TRUST CHIPS + SCORE SLAM (CAT_TRAINER_HUD / CAT_GAME_FEEL)
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Sens-trust + weapon-archetype chips shown while a drill is live.</summary>
+        private void ShowHudChips()
+        {
+            try
+            {
+                var settings    = SettingsService.Load();
+                var allProfiles = GameProfile.GetAllProfiles(ProfileStorage.LoadProfiles());
+                var profile     = allProfiles.FirstOrDefault(p => p.Name == settings.SelectedProfile)
+                               ?? allProfiles.First();
+
+                double yaw  = profile.YawPerCount <= 0 ? 0.022 : profile.YawPerCount;
+                double dpi  = settings.DPI > 0 ? settings.DPI : 800;
+                double sens = settings.Sensitivity > 0 ? settings.Sensitivity : 1.0;
+                double cm360 = (360.0 / (sens * dpi * yaw)) * 2.54;
+
+                SensChipText.Text = $"{profile.Name.ToUpperInvariant()}  ·  {dpi:F0} DPI  ·  {cm360:F1} cm/360";
+                SensChip.Visibility = Visibility.Visible;
+            }
+            catch { SensChip.Visibility = Visibility.Collapsed; }
+
+            string weapon = _scenario switch
+            {
+                "HeadshotStrafes" => "SEMI  ·  1-SHOT HEAD / 2 BODY",
+                "PeekClick"       => "TAP  ·  SLOW FIRE  ·  HEAD = BONUS",
+                "HeadTrack"       => "AUTO  ·  HOLD TO SPRAY",
+                "SmgAr"           => "AUTO  ·  HOLD TO SPRAY  ·  3-SHOT KILL",
+                "Tracking"        => "AUTO  ·  HOLD TO TRACK",
+                "AirTracking"     => "AUTO  ·  HOLD TO TRACK",
+                _                 => "",
+            };
+            WeaponChipText.Text  = weapon;
+            WeaponChip.Visibility = weapon.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            HudHsPanel.Visibility = IsBotScenario ? Visibility.Visible : Visibility.Collapsed;
+            HudHsText.Text = "—";
+        }
+
+        private void HideHudChips()
+        {
+            SensChip.Visibility   = Visibility.Collapsed;
+            WeaponChip.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Round-end payoff: the final score slams onto the play area and counts up,
+        /// THEN the coach report opens. ~1.5 s total; Space/Start is ignored while
+        /// active (guarded via _isSlamActive in StartStop_Click).
+        /// </summary>
+        private void ShowScoreSlam(int finalScore, Action then)
+        {
+            if (_isSlamActive) { then(); return; }
+            _isSlamActive = true;
+
+            ScoreSlamText.Text = "0";
+            ScoreSlamPanel.Visibility = Visibility.Visible;
+
+            var pop = new DoubleAnimation(1.35, 1.0, TimeSpan.FromMilliseconds(240))
+            { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+            ScoreSlamScale.BeginAnimation(ScaleTransform.ScaleXProperty, pop);
+            ScoreSlamScale.BeginAnimation(ScaleTransform.ScaleYProperty, pop);
+
+            const int countMs = 850, holdMs = 550, stepMs = 30;
+            int elapsed = 0;
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(stepMs) };
+            timer.Tick += (s, _) =>
+            {
+                elapsed += stepMs;
+                if (elapsed < countMs)
+                {
+                    double t = elapsed / (double)countMs;
+                    double eased = 1 - Math.Pow(1 - t, 3);   // cubic ease-out tally
+                    ScoreSlamText.Text = ((int)(finalScore * eased)).ToString("N0");
+                }
+                else if (elapsed < countMs + holdMs)
+                {
+                    ScoreSlamText.Text = finalScore.ToString("N0");
+                }
+                else
+                {
+                    ((DispatcherTimer)s!).Stop();
+                    ScoreSlamPanel.Visibility = Visibility.Collapsed;
+                    _isSlamActive = false;
+                    try { then(); }
+                    catch (Exception ex) { LogService.Error("Post-slam result dialog failed", ex); }
+                }
+            };
+            timer.Start();
         }
 
         // TASK-3E: Position crosshair elements (in the separate crosshair overlay Canvas)
@@ -1303,7 +1906,12 @@ namespace CleanAimTracker.Windows
             StackPanel? content = null;
             System.Windows.Controls.TextBlock? arrow = null;
 
-            if (header.Name == "PillarHeader_Clicking")
+            if (header.Name == "PillarHeader_Bots")
+            {
+                content = PillarContent_Bots;
+                arrow   = PillarArrow_Bots;
+            }
+            else if (header.Name == "PillarHeader_Clicking")
             {
                 content = PillarContent_Clicking;
                 arrow   = PillarArrow_Clicking;
@@ -1331,7 +1939,13 @@ namespace CleanAimTracker.Windows
         {
             _gameTimer.Stop();
             _updateTimer.Stop();
+            _countdownTimer.Stop();
             _rawInput.Stop();
+
+            // CAT_SESSION_REPORT: they've stopped training — this is the moment the
+            // coach gets to speak, rather than between every rep.
+            ShowManualSessionSummary();
+
             base.OnClosed(e);
         }
     }

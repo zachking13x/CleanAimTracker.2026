@@ -1,4 +1,4 @@
-using CleanAimTracker.Helpers;
+﻿using CleanAimTracker.Helpers;
 using CleanAimTracker.Models;
 using CleanAimTracker.Services;
 using CleanAimTracker.Windows;
@@ -44,9 +44,25 @@ namespace CleanAimTracker.Windows
         // than whatever the final two mouse events happened to be.
         private double _smoothnessSum = 0;
         private int    _smoothnessSamples = 0;
-        private double _correctionSharpness = 0;
+        // T0.2: _correctionSharpness was MISNAMED and last-write-wins. It measures
+        // |Δspeed| between consecutive events (speed variability), NOT overshoot —
+        // the tracker has no targets, so it cannot see overcorrection. Now a session
+        // aggregate (mean), and the display is renamed honestly to "Speed Variability".
+        private double _correctionSharpness = 0;   // session-mean speed variability (0=steady, 100=jerky)
+        private double _speedVarSum = 0;
+        private int    _speedVarSamples = 0;
         private double _movementConsistency = 0;
         private double _overallQualityScore = 0;
+
+        // GATE 0: session-scoped raw buffer so the SAVED/coached smoothness +
+        // consistency come from the shared MovementQualityCalculator — the same
+        // implementation the drill path uses (no divergent inline copy feeding
+        // coached values). The live on-screen readout stays incremental (display
+        // only). BOUNDED: tracker sessions can run for hours; cap the buffer and
+        // stop adding past the ceiling — ~100k ACTIVE-movement events (idle/jitter
+        // never reach here) is a representative smoothness sample.
+        private readonly List<RawInputSample> _trackerBuffer = new();
+        private const int TrackerBufferCap = 100_000;
 
         // FLICKS + JITTER + DENSITY
         private int _flickCount = 0;
@@ -73,6 +89,11 @@ namespace CleanAimTracker.Windows
         private double _distancePerEventTotal = 0;
         private double _averageDistancePerEvent = 0;
         private double _peakDistancePerEvent = 0;
+
+        // T0.1: consistency session aggregate (running mean of per-event consistency).
+        // Was last-write-wins against a once-per-second-stale average — see fix below.
+        private double _consistencySum = 0;
+        private int    _consistencySamples = 0;
 
         // SESSION + TIMER
         private bool _isTracking = false;
@@ -172,7 +193,49 @@ namespace CleanAimTracker.Windows
                 SettingsService.Save(settings);
 
                 LaunchOnboardingSession();
+                return;   // don't stack a privacy dialog on top of the first drill
             }
+
+            // CAT_TELEMETRY: the one-time disclosure. Deliberately AFTER onboarding —
+            // a privacy modal in front of a brand-new user's first session is the worst
+            // possible first impression, and nothing is sent until this has been seen.
+            TelemetryNoticeWindow.ShowIfNeeded(this);
+
+            // CAT_SESSION_REPORT: a session whose summary never rendered — they killed
+            // the app, or it crashed — is shown here instead of being lost. This is what
+            // closes the "they close the whole app and never see it" hole, and it lands
+            // at a strictly better moment: arriving rather than leaving.
+            ShowDeferredSessionSummary();
+        }
+
+        /// <summary>
+        /// CAT_SESSION_REPORT: replay a session summary that never got shown.
+        /// The pending marker is a timestamp, not a copy of the results, so the drills
+        /// are re-read from storage — there's no second source of truth to drift.
+        /// </summary>
+        private void ShowDeferredSessionSummary()
+        {
+            try
+            {
+                var settings = SettingsService.Load();
+                var pending  = settings.PendingSummarySessionStartUtc;
+                if (pending == DateTime.MinValue) return;
+
+                // Clear first: a summary that somehow fails to render must not become a
+                // popup that greets them on every launch forever.
+                settings.PendingSummarySessionStartUtc = DateTime.MinValue;
+                SettingsService.Save(settings);
+
+                var drills = AimTrainerStorage.LoadAll()
+                    .Where(r => !r.IsAssessmentSession && r.Timestamp.ToUniversalTime() >= pending)
+                    .OrderBy(r => r.Timestamp)
+                    .ToList();
+
+                if (drills.Count == 0) return;
+
+                new RoutineSummaryWindow(drills, "Last session") { Owner = this }.ShowDialog();
+            }
+            catch (Exception ex) { LogService.Error("Deferred session summary failed", ex); }
         }
 
         private void LaunchOnboardingSession()
@@ -224,6 +287,8 @@ namespace CleanAimTracker.Windows
             bool showBanner = !string.IsNullOrEmpty(banner);
             TrialBannerContainer.Visibility = showBanner ? Visibility.Visible : Visibility.Collapsed;
             TrialBannerText.Visibility      = showBanner ? Visibility.Visible : Visibility.Collapsed;
+
+            UpdateProNavVisibility();
         }
 
         /// <summary>
@@ -258,13 +323,37 @@ namespace CleanAimTracker.Windows
                 if (!_isTracking) return;
 
                 _movementEvents++;
+                // GATE 0: buffer the (clamped, jitter-filtered) event for the
+                // batch movement-quality computation at session end. Bounded.
+                if (_trackerBuffer.Count < TrackerBufferCap)
+                    _trackerBuffer.Add(new RawInputSample(dx, dy, timestamp));
                 DxDyText.Text = $"dX: {dx}  dY: {dy}";
 
                 double eventDistance = Math.Sqrt(dx * dx + dy * dy);
                 _distancePerEventTotal += eventDistance;
 
+                // T0.1 FIX — two stacked bugs, same class as the smoothness fix above:
+                //  (1) STALE AVERAGE: deviation was measured against _averageDistancePerEvent,
+                //      which only updated once per second in Timer_Tick. For the whole first
+                //      second the average was 0, so deviation == eventDistance and consistency
+                //      floored to 0 on every event. After that a per-event value raced an
+                //      average lagging hundreds of events behind.
+                //  (2) LAST-WRITE-WINS: _movementConsistency was overwritten each event, so the
+                //      SAVED value was just the final event's deviation, not a session statistic.
+                // Fix: _distancePerEventTotal already includes this event (line above) and
+                // _movementEvents already counts it, so total/count IS the current running mean —
+                // no stale lag. Then aggregate per-event consistency into a session mean.
+                // Worked example, event distances [5, 15, 10]:
+                //   n=1: mean=5,  dev=0,  inst=100
+                //   n=2: mean=10, dev=5,  inst=clamp(100-50)=50
+                //   n=3: mean=10, dev=0,  inst=100   → session mean (100+50+100)/3 = 83.3
+                // Constant-velocity buffer [10,10,10] → every dev=0 → session mean = 100.
+                _averageDistancePerEvent = _distancePerEventTotal / _movementEvents; // running mean, current
                 double deviation = Math.Abs(eventDistance - _averageDistancePerEvent);
-                _movementConsistency = Math.Clamp(100 - deviation * 10, 0, 100);
+                double instantConsistency = Math.Clamp(100 - deviation * 10, 0, 100);
+                _consistencySum += instantConsistency;
+                _consistencySamples++;
+                _movementConsistency = _consistencySum / _consistencySamples; // _consistencySamples >= 1 here
 
                 _overallQualityScore = Math.Clamp(
                     (_smoothnessScore * 0.50) +
@@ -366,8 +455,14 @@ namespace CleanAimTracker.Windows
                         }
                     }
 
+                    // T0.2: speed variability = |Δspeed| between events, ×2, capped.
+                    // Re-scoped from last-write-wins to a session mean so the value is
+                    // a real statistic. (Was: the final event's spike, ≈ noise.)
                     double velocityChange = Math.Abs(_currentVelocity - _previousVelocity);
-                    _correctionSharpness = Math.Min(velocityChange * 2, 100);
+                    double instantSpeedVar = Math.Min(velocityChange * 2, 100);
+                    _speedVarSum += instantSpeedVar;
+                    _speedVarSamples++;
+                    _correctionSharpness = _speedVarSum / _speedVarSamples; // session mean; _speedVarSamples >= 1
                     if (_sessionSeconds >= 3)
                         CorrectionSharpnessText.Text = $"{_correctionSharpness:F0}";
 
@@ -405,8 +500,9 @@ namespace CleanAimTracker.Windows
             _rollingDensity = _movementCountThisSecond;
             RollingDensityText.Text = $"{_rollingDensity:F2}";
 
-            if (_movementEvents > 0)
-                _averageDistancePerEvent = _distancePerEventTotal / _movementEvents;
+            // T0.1: _averageDistancePerEvent is now maintained per-event as a running mean
+            // in the raw-input handler — the once-per-second update here was the stale source
+            // that floored consistency, and has been removed.
 
             if (_movementEvents == _lastMovementEvents) _idleTime++;
             else _idleTime = 0;
@@ -716,10 +812,18 @@ namespace CleanAimTracker.Windows
             _angleChangeTotal = 0;
 
             _movementConsistency = 0;
+            _consistencySum      = 0;   // T0.1
+            _consistencySamples  = 0;   // T0.1
+            _trackerBuffer.Clear();     // GATE 0
+            _distancePerEventTotal   = 0;
+            _averageDistancePerEvent = 0;
+            _peakDistancePerEvent    = 0;
             _smoothnessScore     = 0;
             _smoothnessSum       = 0;
             _smoothnessSamples   = 0;
             _correctionSharpness = 0;
+            _speedVarSum         = 0;   // T0.2
+            _speedVarSamples     = 0;   // T0.2
             _overallQualityScore = 0;
         }
 
@@ -937,6 +1041,21 @@ namespace CleanAimTracker.Windows
         {
             if (TrialService.IsFullVersion()) return;
 
+            // CAT_SESSION_REPORT: the reverse trial running out is what locks the coach,
+            // so that — not the dead 30-session counter — is what puts the card up. Once
+            // it appears it stays: it's the permanent home of the upgrade ask now that
+            // the locked report no longer carries it.
+            try
+            {
+                var memory = CoachMemoryBuilder.Build(null, SettingsService.Load());
+                if (memory.RealDrillCount > FreeCoachSessionService.FreeCoachedDrills)
+                {
+                    ShowFreeLimitCard();
+                    return;
+                }
+            }
+            catch { /* fall through to the legacy gate */ }
+
             if (TrialService.IsAtFreeLimit()) { ShowFreeLimitCard(); return; }
 
             int count = TrialService.SessionsCompleted();
@@ -951,14 +1070,37 @@ namespace CleanAimTracker.Windows
         {
             try
             {
-                var drills   = AimTrainerStorage.LoadAll();
-                int count    = drills.Count;
-                double best  = count > 0 ? drills.Max(r => r.Accuracy) : 0;
-                int streak   = SettingsService.Load().CurrentStreak;
+                // Personal conversion moment: show the REAL improvement the coach helped
+                // produce (first sessions → recent sessions), not a generic stat. This is
+                // the "here's how much you improved — keep the coach" moment.
+                var drills = AimTrainerStorage.LoadAll()
+                                              .Where(r => !r.IsAssessmentSession)
+                                              .OrderBy(r => r.Timestamp)
+                                              .ToList();
+                int count = drills.Count;
 
-                FreeLimitStatsText.Text = count > 0
-                    ? $"Best accuracy: {best:F0}%  ·  {streak} day streak"
-                    : "";
+                string line = "";
+                if (count >= 6)
+                {
+                    int take = Math.Max(3, count / 5);   // first-fifth vs last-fifth, min 3
+                    double early = drills.Take(take).Average(r => r.Accuracy);
+                    double late  = drills.Skip(count - take).Average(r => r.Accuracy);
+                    double delta = late - early;
+                    if (delta >= 3)
+                        line = $"Your accuracy climbed {early:F0}% → {late:F0}% across these sessions.";
+                    else
+                        line = $"Best accuracy: {drills.Max(r => r.Accuracy):F0}%  ·  {SettingsService.Load().CurrentStreak} day streak";
+                }
+                else if (count > 0)
+                {
+                    line = $"Best accuracy: {drills.Max(r => r.Accuracy):F0}%  ·  {SettingsService.Load().CurrentStreak} day streak";
+                }
+                FreeLimitStatsText.Text = line;
+
+                FreeLimitBodyText.Text =
+                    $"Your first {FreeCoachSessionService.FreeCoachedDrills} drills came fully coached. " +
+                    "Unlock it and the coach reads every session from here — what to fix, and whether the fix worked.";
+                FreeLimitPriceText.Text = $"{Pricing.Lifetime} once";
             }
             catch
             {
@@ -966,13 +1108,48 @@ namespace CleanAimTracker.Windows
             }
 
             FreeLimitCard.Visibility = Visibility.Visible;
-            FreeLimitCard.BringIntoView();
+
+            // CAT_SESSION_REPORT: deliberately NO BringIntoView. Scrolling the dashboard
+            // to the paywall is the shouty behaviour we're moving away from — the card
+            // works by being permanently present, not by grabbing the viewport.
+            TrackPaywallImpressionOnce();
+        }
+
+        // One impression per app launch, not per dashboard refresh — otherwise a card
+        // that sits there forever would out-count every other surface and make the
+        // Sep 9 comparison meaningless.
+        private static bool _paywallImpressionSent;
+        private static void TrackPaywallImpressionOnce()
+        {
+            if (_paywallImpressionSent) return;
+            _paywallImpressionSent = true;
+            try { TelemetryService.TrackPaywallShown("dashboard_locked_card"); } catch { }
+        }
+
+        // CAT_REVERSE_TRIAL: permanent "what do I get?" entry point. Only free users see
+        // it — a paying customer being sold to is a bug, not a nudge.
+        private void UpdateProNavVisibility()
+        {
+            try
+            {
+                NavGoProBtn.Visibility = TrialService.IsFullVersion()
+                    ? Visibility.Collapsed
+                    : Visibility.Visible;
+            }
+            catch { /* never block the shell */ }
+        }
+
+        private void NavGoPro_Click(object sender, RoutedEventArgs e)
+        {
+            new UpgradeWindow("nav_go_pro") { Owner = this }.ShowDialog();
+            UpdateTrialBanner();
+            UpdateProNavVisibility();
         }
 
         private void ValueMomentUpgrade_Click(object sender, RoutedEventArgs e)
         {
             ValueMomentCard.Visibility = Visibility.Collapsed;
-            new UpgradeWindow { Owner = this }.ShowDialog();
+            new UpgradeWindow("value_moment_card") { Owner = this }.ShowDialog();
             UpdateTrialBanner();
         }
 
@@ -981,9 +1158,13 @@ namespace CleanAimTracker.Windows
 
         private void FreeLimitUpgrade_Click(object sender, RoutedEventArgs e)
         {
-            FreeLimitCard.Visibility = Visibility.Collapsed;
-            new UpgradeWindow { Owner = this }.ShowDialog();
+            // CAT_SESSION_REPORT: no dismiss. This used to collapse the card on click,
+            // so opening the upgrade window and NOT buying hid the ask until the next
+            // dashboard refresh — a dismiss button by accident. If they do buy,
+            // MaybeShowValueMoment's IsFullVersion check retires it on the next load.
+            new UpgradeWindow("free_limit_card") { Owner = this }.ShowDialog();
             UpdateTrialBanner();
+            LoadTodayStats();
         }
 
         public void OpenRecommendation_Click(object sender, RoutedEventArgs e)
@@ -1047,6 +1228,66 @@ namespace CleanAimTracker.Windows
                 NavAimTrainerReportBtn.Content = "🤖  Aim Coach Report · just now";
             });
             trainer.Show();
+        }
+
+        // ── CAT_ROUTINE ──────────────────────────────────────────────────────
+        // Deliberately a PEER of "pick your own", not a replacement for it. Players who
+        // already know what they want to train are not served by being funnelled into a
+        // plan, and taking that choice away would be a regression for existing users.
+        // The dashboard presents both at equal weight; this just launches one of them.
+        private void StartRoutine_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var routine = RoutineService.Build(AimTrainerStorage.LoadAll(), SettingsService.Load());
+                if (routine.Steps.Count == 0) { OpenAimTrainer_Click(sender, e); return; }
+
+                var trainer = new AimTrainerWindow { Owner = this };
+                trainer.Closed += (s, args) => Dispatcher.Invoke(() =>
+                {
+                    LoadTodayStats(animatePanel: true);
+                    NavAimTrainerReportBtn.Content = "🤖  Aim Coach Report · just now";
+                });
+                trainer.BeginRoutine(routine);
+                trainer.Show();
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("Start routine failed", ex);
+                OpenAimTrainer_Click(sender, e);   // never strand the user
+            }
+        }
+
+        /// <summary>Refresh the routine card — recomputed on every dashboard load.</summary>
+        private void LoadRoutineCard()
+        {
+            try
+            {
+                var routine = RoutineService.Build(AimTrainerStorage.LoadAll(), SettingsService.Load());
+
+                RoutineTitleText.Text = routine.Headline;
+                RoutineMetaText.Text  = $"{routine.Steps.Count} drills · about {Math.Max(1, routine.EstimatedSeconds / 60)} min";
+                RoutineWhyText.Text   = routine.Subtitle;
+
+                RoutineStepList.Children.Clear();
+                foreach (var step in routine.Steps)
+                {
+                    RoutineStepList.Children.Add(new TextBlock
+                    {
+                        Text = $"·  {step.Scenario} — {step.Difficulty}",
+                        FontSize = 11,
+                        Foreground = (System.Windows.Media.Brush)FindResource("SecondaryText"),
+                        Margin = new Thickness(0, 2, 0, 0),
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                    });
+                }
+
+                RoutineCard.Visibility = Visibility.Visible;
+            }
+            catch
+            {
+                RoutineCard.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void ViewLastAimCoachReport_Click(object sender, RoutedEventArgs e)
@@ -1243,10 +1484,24 @@ namespace CleanAimTracker.Windows
             // (e.g. 11.1 for Fortnite) — store it directly, no conversion needed.
             double gameSens = _sensitivity;
 
-            // TASK-1.2: per-metric validity. Smoothness uses its own sample counter;
-            // consistency/correction are per-event statistics over the same raw stream.
+            // GATE 0: SAVED smoothness + consistency come from the shared
+            // MovementQualityCalculator (one implementation across both coaches).
+            // The inline incremental values still drive the live on-screen readout.
+            var mq = MovementQualityCalculator.FromBuffer(_trackerBuffer);
+            double savedSmoothness  = mq.Smoothness;
+            double savedConsistency = mq.Consistency;
+            // Regression record: batch (saved) vs inline (display). They differ only
+            // by the inline's one spurious first-event-vs-0 sample — see calculator
+            // comment — so they agree within ~100/N. Logged for the acceptance check.
+            LogService.Info(
+                $"MQ-REGRESSION smoothness inline={(_smoothnessSamples > 0 ? _smoothnessSum / _smoothnessSamples : 0):F4} " +
+                $"batch={savedSmoothness:F4} | consistency inline={_movementConsistency:F4} batch={savedConsistency:F4} " +
+                $"| bufferSamples={_trackerBuffer.Count}");
+
+            // TASK-1.2: per-metric validity. Sample count is the same source the
+            // batch calculator saw (every active event is buffered).
             var smoothValidity     = MetricValidation.ForSmoothness(_smoothnessSamples, _smoothnessSum);
-            var consistencyValidity = MetricValidation.ForMovementMetric(_movementEvents, _movementConsistency);
+            var consistencyValidity = MetricValidation.ForMovementMetric(_movementEvents, savedConsistency);
             var correctionValidity  = MetricValidation.ForMovementMetric(_movementEvents, _correctionSharpness);
             var qualityValidity     = MetricValidation.ForOverallQuality(
                 smoothValidity, consistencyValidity, correctionValidity);
@@ -1272,10 +1527,11 @@ namespace CleanAimTracker.Windows
                 LargeFlickCount = _largeFlicks,
                 JitterAmount    = _jitterAmount,
                 IdleBurstCount  = _idleBurstCount,
-                // TASK-1.1: debug instrumentation — sample count, intermediate sum, pre-rounding result
-                SmoothnessScore = LogSmoothnessDiagnostics(),
+                // GATE 0: saved values from the shared calculator (not the inline copy).
+                SmoothnessScore = savedSmoothness,
                 CorrectionSharpness = _correctionSharpness,
-                MovementConsistency = _movementConsistency,
+                MovementConsistency = savedConsistency,
+                VelocityStability   = mq.VelocityStability,   // GATE 2 (-1 if too few active samples)
                 OverallQualityScore = _overallQualityScore,
                 SessionSeconds  = _sessionSeconds,
                 Timestamp       = DateTime.Now,
@@ -1329,6 +1585,57 @@ namespace CleanAimTracker.Windows
 
         private static string GetWhatsNewText(string version) => version switch
         {
+            "1.0.93" => "The coach report no longer interrupts you after every single drill · " +
+                        "Between drills you now get one line — what the coach saw — and the next drill starts whenever you're ready · " +
+                        "When you finish training you get one report covering the whole session, and if you close the app first it's waiting next time you open it · " +
+                        "Prefer the old way? Settings → Coaching → \"Coach report after every drill\"",
+
+
+            "1.0.92" => "NEW — Today's session: a short routine built from your own profile — a warm-up on your strongest area, real work on your weakest, and the drill your coach is verifying · " +
+                        "It runs the drills back to back and reports ONCE at the end instead of interrupting you after every single one · " +
+                        "Picking your own drill works exactly as before — both options sit side by side, neither is the default · " +
+                        "NEW — Your standing: a named rank on the dashboard, anchored to the same benchmark thresholds the coach uses. It tells you which standard you clear, never what percentile you're in",
+
+
+            "1.0.91" => "Your Aim Profile is now clickable — open it for a full breakdown of all six axes · " +
+                        "Each axis shows what it's scored against, how many sessions back it, and which drills feed it, " +
+                        "so a low spoke comes with a route to fix it · " +
+                        "Axes you haven't played tell you what to run to unlock them · " +
+                        "Copy your profile to the clipboard to share it",
+
+
+            // CAT_COACH_AUDIT: an honesty release. Nothing new was added — several things
+            // the coach used to claim were removed because the data never supported them.
+            "1.0.90" => "Coach honesty pass — the coach no longer comments on shot timing in hold-to-fire drills, where there is no per-shot timing to measure · " +
+                        "It no longer reads a horizontal/vertical tracking split on drills whose targets only move sideways · " +
+                        "Streak feedback no longer claims when in the session your streak happened — that was never recorded · " +
+                        "A strong session is no longer given a \"weakest area\" just because something had to rank last · " +
+                        "Likely causes are now offered as things to check rather than stated as findings · " +
+                        "Your standing now shows on every drill: benchmark thresholds where a real standard exists, and your own personal best where none does",
+
+
+            // CAT_TELEMETRY: the only user-visible change in this build is the privacy
+            // disclosure itself, so that is what the note says. Announcing analytics
+            // plainly is the point — a user who finds out later feels tracked, a user
+            // who is told feels informed.
+            "1.0.89" => "Clean Aim Tracker now collects anonymous usage data — which drills get played and whether features get opened — so I can tell what's actually working and fix what isn't · " +
+                        "Your results never leave your device: no scores, no accuracy, no reaction times, no sensitivity, nothing that identifies you · " +
+                        "You'll see a one-time note explaining it, and you can turn it off any time in Settings → Privacy",
+
+            "1.0.88" => "NEW — Your Aim Profile: a six-axis shape on the dashboard showing where you actually stand — Flick, Tracking, Switching, Precision, Speed and Consistency, scored against benchmark thresholds. Axes you haven't played show as empty, not as a bad score · " +
+                        "Every result now tells you where you rank and exactly what it takes to reach the next rung — no more \"good session\" with nothing to aim at · " +
+                        "Your active fix now has a visible plan: what the coach is fixing, which session you're on, and whether the number is actually moving",
+
+            "1.0.87" => "NEW — Bot drills: strafing targets with real heads. Land headshots for bonus points in Headshot Strafes, Peek & Click, and Track the Head · " +
+                        "Hold to fire — Tracking, Air Tracking and SMG/AR now work like your actual weapon: hold the button and stay on target instead of clicking · " +
+                        "Fullscreen mode (F11) with a redesigned HUD — live score, streak, accuracy, headshot %, and your exact sensitivity · " +
+                        "Your first 5 drills now come fully coached, so you can see the coach find a habit, prescribe a fix, and confirm it worked · " +
+                        "Set a streak goal — pick 7, 14 or 30 days and hold it · " +
+                        "Smarter, more honest coach: it now reads the true direction of your misses (landing short vs long) instead of guessing · " +
+                        "Founder's pricing — unlock the coach forever for a one-time price, no subscription required",
+
+            "1.0.86" => "Retention and reliability pass — smarter reminders, streak goals, and a clearer picture of what Pro includes",
+
             "1.0.32" => "Player Panel with tier, streak, and daily challenges · " +
                         "29 achievements with unlock popups · " +
                         "Personal Bests tab in history · " +
@@ -1343,6 +1650,15 @@ namespace CleanAimTracker.Windows
                         "Smarter notifications reference your streak and last accuracy · " +
                         "Daily challenge card shows countdown timer · " +
                         "Sensitivity window no longer auto-opens after drills",
+
+            "1.0.66" => "NEW — Your Aim Profile: a cross-session read of who you are as a player. " +
+                        "The coach now connects your last 20 sessions into one story — names what's working, " +
+                        "finds the ONE thing to fix, and tells it straight (no fluff, no guesswork). " +
+                        "Open any result and check the \"YOUR AIM\" card · " +
+                        "Smarter overshoot/undershoot coaching — tells \"clicks land long\" from \"flies past mid-motion\" " +
+                        "and gives the right fix for each · " +
+                        "Reaction-timing analysis is far more accurate · " +
+                        "Coming soon: per-game analysis that factors in your real matches.",
 
             _        => "Bug fixes and performance improvements.",
         };
@@ -1528,6 +1844,21 @@ namespace CleanAimTracker.Windows
                 StreakValueText.Foreground = currentStreak >= 7
                     ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Orange)
                     : (System.Windows.Media.Brush)FindResource("PrimaryText");
+
+                UpdateStreakGoalUi(currentStreak);
+
+                // ── CAT_AIM_RADAR ─────────────────────────────────────────
+                LoadAimRadar(aimDrills);
+
+                // ── CAT_ROUTINE ───────────────────────────────────────────
+                LoadRoutineCard();
+
+                // ── CAT_SESSION_REPORT ────────────────────────────────────
+                // The locked-coach card has to be evaluated on every dashboard load.
+                // It used to be reachable ONLY from the tracker session-end path, so a
+                // card meant to be permanently present was in practice almost never
+                // shown — which defeats the entire point of moving the ask here.
+                MaybeShowValueMoment();
 
                 // ── TASK-10: Daily Challenge Card ─────────────────────────
                 var settings  = SettingsService.Load();
@@ -1770,6 +2101,161 @@ namespace CleanAimTracker.Windows
             }
 
             ChallengeCountdownText.Visibility = Visibility.Visible;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // CAT_STREAK_GOAL: a self-chosen streak target + visible progress.
+        // A passive streak readout has nothing at stake; a goal the user PICKED
+        // creates the loss aversion that drives week-2 return (strongest ~day 7).
+        // ─────────────────────────────────────────────────────────────
+        // ── CAT_AIM_RADAR: six-axis skill shape ───────────────────────────────
+        // The identity artifact. One glance answers "what kind of aimer am I?", which
+        // the coach's per-session diagnosis never could. Deliberately free: it's the
+        // thing worth screenshotting, and a visibly dented spoke is the most honest
+        // reason to care about the fix the coach is selling.
+        private AimRadarService.AimRadar? _radar;
+
+        private void LoadAimRadar(System.Collections.Generic.List<AimTrainerResult> aimDrills)
+        {
+            try
+            {
+                _radar = AimRadarService.Build(aimDrills);
+
+                if (!_radar.HasEnoughData)
+                {
+                    AimRadarCard.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                AimRadarCard.Visibility    = Visibility.Visible;
+                AimRadarOverallText.Text   = $"{_radar.AverageScore:F0} / 100";
+                AimRadarSummaryText.Text   = AimRadarService.Summarize(_radar);
+
+                // CAT_RANK: the named standing, anchored to the same benchmark thresholds
+                // the radar uses — so the rank and the spokes can never disagree.
+                var standing = RankService.FromRadar(_radar);
+                if (standing.IsRanked)
+                {
+                    RankNameText.Text = standing.TierName.ToUpperInvariant();
+                    RankNameText.Foreground = new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter
+                            .ConvertFromString(RankService.ColorFor(standing.TierIndex)));
+
+                    RankNextText.Text = standing.NextTierName == null
+                        ? standing.Explanation
+                        : $"{standing.PointsToNext:F0} points to {standing.NextTierName}";
+
+                    RankPanel.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    RankPanel.Visibility = Visibility.Collapsed;
+                }
+
+                var missing = _radar.Axes.Where(a => !a.HasData).Select(a => a.Name).ToList();
+                var thin    = _radar.Axes.Where(a => a.HasData && a.IsProvisional).Select(a => a.Name).ToList();
+
+                var notes = new System.Collections.Generic.List<string>();
+                if (missing.Count > 0)
+                    notes.Add($"No data yet: {string.Join(", ", missing)} — play one to fill {(missing.Count == 1 ? "it" : "them")} in.");
+                if (thin.Count > 0)
+                    notes.Add($"Still settling: {string.Join(", ", thin)}.");
+                notes.Add("Scored against Voltaic benchmark thresholds at each session's own difficulty. Consistency is measured against your own sessions.");
+                AimRadarFootnote.Text = string.Join(" ", notes);
+
+                DrawAimRadar();
+
+                // CAT_TELEMETRY: does the identity artifact do anything? Sending the
+                // COUNT of populated axes (not the scores) tells us whether people are
+                // filling the shape in — which is the behaviour the radar is meant to
+                // provoke — without shipping anyone's skill numbers off the machine.
+                TelemetryService.TrackAimRadarSeen(_radar.Axes.Count(a => a.HasData));
+            }
+            catch
+            {
+                // A cosmetic card must never take the dashboard down with it.
+                AimRadarCard.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void AimRadarCanvas_SizeChanged(object sender, SizeChangedEventArgs e) => DrawAimRadar();
+
+        // The card is a doorway, not just a readout — the shape provokes the question
+        // ("why is Speed low?") and this is where it gets answered.
+        private void AimRadarCard_Click(object sender, MouseButtonEventArgs e)
+            => AimProfileWindow.Open(this);
+
+        // Delegates to the shared renderer so this card and the full breakdown window
+        // can never draw different shapes from the same data.
+        private void DrawAimRadar()
+        {
+            if (_radar == null || AimRadarCanvas == null) return;
+            AimRadarRenderer.Draw(AimRadarCanvas, _radar, this);
+        }
+
+        private void UpdateStreakGoalUi(int currentStreak)
+        {
+            try
+            {
+                var s = SettingsService.Load();
+
+                // No goal yet — offer the ask, but only once they've actually trained
+                // (a goal means nothing before the first session) and only once.
+                if (s.StreakGoalDays <= 0)
+                {
+                    StreakGoalPanel.Visibility = Visibility.Collapsed;
+                    SetStreakGoalBtn.Visibility = AimTrainerStorage.LoadAll().Count > 0
+                        ? Visibility.Visible : Visibility.Collapsed;
+                    return;
+                }
+
+                SetStreakGoalBtn.Visibility = Visibility.Collapsed;
+                StreakGoalPanel.Visibility  = Visibility.Visible;
+
+                int goal = s.StreakGoalDays;
+                int done = Math.Min(currentStreak, goal);
+                double frac = goal > 0 ? (double)done / goal : 0;
+
+                // Bar width is measured from the card, so it stays correct at any size.
+                double maxW = StreakGoalPanel.ActualWidth > 20 ? StreakGoalPanel.ActualWidth : 200;
+                StreakGoalFill.Width = Math.Max(0, maxW * Math.Clamp(frac, 0, 1));
+
+                int left = Math.Max(0, goal - currentStreak);
+                StreakGoalText.Text = currentStreak >= goal
+                    ? $"🏆 {goal}-day goal complete — set a bigger one?"
+                    : left == 1
+                        ? $"1 day from your {goal}-day goal — don't drop it now."
+                        : $"{done} of {goal} days · {left} to go";
+            }
+            catch { /* the streak card must never break the dashboard */ }
+        }
+
+        private void SetStreakGoal_Click(object sender, RoutedEventArgs e)
+        {
+            var choice = MessageBox.Show(
+                "Pick a streak goal — a target you commit to.\n\n" +
+                "YES  →  7 days   (build the habit)\n" +
+                "NO   →  14 days  (lock it in)\n" +
+                "CANCEL → 30 days (serious)\n\n" +
+                "Training any day keeps the streak alive.",
+                "Set your streak goal",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            int goal = choice switch
+            {
+                MessageBoxResult.Yes => 7,
+                MessageBoxResult.No  => 14,
+                _                    => 30,
+            };
+
+            var s = SettingsService.Load();
+            s.StreakGoalDays       = goal;
+            s.StreakGoalPromptedAt = DateTime.Now;
+            SettingsService.Save(s);
+
+            var (cur, _) = StreakService.GetStreakInfo();
+            UpdateStreakGoalUi(cur);
         }
 
         // ─────────────────────────────────────────────────────────────

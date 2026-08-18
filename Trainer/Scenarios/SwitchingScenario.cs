@@ -39,6 +39,15 @@ namespace CleanAimTracker.Trainer.Scenarios
         public double AvgReactionMs  => Hits == 0 ? 0 : _totalReactionMs / Hits;
         public int    MaxStreak      { get; private set; }
 
+        // T1: click-offset / acquisition-segmentation telemetry.
+        public Point LastHitCenter { get; private set; } = new Point(double.NaN, double.NaN);
+
+        // T3.3: each active-target switch is a discrete flick stimulus — the player
+        // must flick to the new target. These feed DirectionChangeLag (flick latency)
+        // on a non-Reactive scenario, where the metric actually applies.
+        private readonly System.Collections.Generic.List<long> _directionChangeTimestamps = new();
+        public System.Collections.Generic.IReadOnlyList<long> DirectionChangeTimestamps => _directionChangeTimestamps;
+
         public SwitchingScenario(string variant = "4-Target")
         {
             _variant = variant;
@@ -87,6 +96,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
             if (hit)
             {
+                LastHitCenter = new Point(cx, cy);   // T1
                 Hits++;
                 _streak++;
                 MaxStreak = Math.Max(MaxStreak, _streak);
@@ -142,6 +152,11 @@ namespace CleanAimTracker.Trainer.Scenarios
                 _canvas.Children.Add(_targets[i]);
             }
             _activeIndex = index;
+
+            // T3.3: record the switch as a direction-change stimulus (skip the very
+            // first setup call, like Reactive — no reaction precedes the first target).
+            if (Hits + Misses > 0)
+                _directionChangeTimestamps.Add(System.Diagnostics.Stopwatch.GetTimestamp());
         }
 
         private void PickNewActiveTarget()

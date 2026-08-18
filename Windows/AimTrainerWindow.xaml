@@ -110,12 +110,12 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
+            <ColumnDefinition x:Name="SidebarCol" Width="280"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- ═══════════════════════════════════════════ LEFT PANEL -->
-        <Border Grid.Column="0"
+        <Border Grid.Column="0" x:Name="SidebarPanel"
                 Background="{DynamicResource CardBackground}"
                 BorderBrush="#1AFFFFFF"
                 BorderThickness="0 0 1 0">
@@ -133,6 +133,73 @@
                                Margin="0 0 0 20"/>
 
                     <!-- ══════════════════════════════════════════ SCENARIOS -->
+                    <!-- Pillar: BOT DRILLS (CAT_BOT_DRILLS) -->
+                    <Border x:Name="PillarHeader_Bots"
+                            CornerRadius="6" Padding="8 5" Margin="0 0 0 4"
+                            Background="#0DF5C842" Cursor="Hand"
+                            MouseDown="PillarHeader_Click">
+                        <Grid>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="● BOT DRILLS" FontSize="9" FontWeight="Bold"
+                                           Foreground="#F5C842" VerticalAlignment="Center"/>
+                                <Border Background="#33F5C842" CornerRadius="3" Padding="4 1" Margin="6 0 0 0">
+                                    <TextBlock Text="NEW" FontSize="8" FontWeight="Bold" Foreground="#F5C842"/>
+                                </Border>
+                            </StackPanel>
+                            <TextBlock x:Name="PillarArrow_Bots"
+                                       Text="▲" FontSize="9" Foreground="#F5C842"
+                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel x:Name="PillarContent_Bots">
+
+                    <!-- HeadshotStrafes — compact card -->
+                    <Border x:Name="ScenarioBtn_HeadshotStrafes"
+                            Tag="HeadshotStrafes" CornerRadius="8" Margin="0 0 0 3"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#F5C842" BorderThickness="3 0 0 0">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#110E05" Offset="0"/>
+                            <GradientStop Color="#0D1117" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                        <StackPanel Margin="12 8">
+                            <TextBlock Text="Headshot Strafes" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Strafing bots · heads pay bonus · SEMI" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- PeekClick — compact card -->
+                    <Border x:Name="ScenarioBtn_PeekClick"
+                            Tag="PeekClick" CornerRadius="8" Margin="0 0 0 3"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#00E5A0" BorderThickness="3 0 0 0">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#071410" Offset="0"/>
+                            <GradientStop Color="#0D1117" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                        <StackPanel Margin="12 8">
+                            <TextBlock Text="Peek &amp; Click" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Bots peek at range · one clean shot · TAP" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- HeadTrack — compact card -->
+                    <Border x:Name="ScenarioBtn_HeadTrack"
+                            Tag="HeadTrack" CornerRadius="8" Margin="0 0 0 3"
+                            Cursor="Hand" MouseDown="ScenarioBtn_Click"
+                            BorderBrush="#00D4FF" BorderThickness="3 0 0 0">
+                        <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Color="#070F14" Offset="0"/>
+                            <GradientStop Color="#0D1117" Offset="1"/>
+                        </LinearGradientBrush></Border.Background>
+                        <StackPanel Margin="12 8">
+                            <TextBlock Text="Track the Head" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
+                            <TextBlock Text="Hold your spray on a strafing head · AUTO" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                        </StackPanel>
+                    </Border>
+
+                    </StackPanel><!-- /PillarContent_Bots -->
+
                     <!-- Pillar: CLICKING -->
                     <Border x:Name="PillarHeader_Clicking"
                             CornerRadius="6" Padding="8 5" Margin="0 0 0 4"
@@ -313,7 +380,7 @@
                             <TextBlock Text="🎮" FontSize="16" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4 0 0 0">
                                 <TextBlock Text="SMG / AR" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
-                                <TextBlock Text="Spray control and sustained movement" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                                <TextBlock Text="Hold to spray · 3-shot kills · AUTO" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -352,7 +419,7 @@
                             <TextBlock Text="👁️" FontSize="16" VerticalAlignment="Center"/>
                             <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="4 0 0 0">
                                 <TextBlock Text="Tracking" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
-                                <TextBlock Text="Follow moving targets — fluid mouse control" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                                <TextBlock Text="Hold to track — keep your beam on it · AUTO" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
                             </StackPanel>
                         </Grid>
                     </Border>
@@ -368,7 +435,7 @@
                         </LinearGradientBrush></Border.Background>
                         <StackPanel Margin="12 8">
                             <TextBlock Text="Air Tracking" Foreground="#F0F4F8" FontSize="12" FontWeight="Bold"/>
-                            <TextBlock Text="Diagonal, arc, jetpack paths · axis balance" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
+                            <TextBlock Text="Hold to track air paths · axis balance · AUTO" Foreground="#8A9BAE" FontSize="9" Margin="0 1 0 0"/>
                         </StackPanel>
                     </Border>
 
@@ -679,50 +746,114 @@
         <!-- ═══════════════════════════════════════════ RIGHT PANEL: CANVAS -->
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
-                <RowDefinition Height="44"/>
+                <RowDefinition Height="62"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Top HUD bar -->
+            <!-- Top HUD bar — CAT_TRAINER_HUD: score is the headline, always visible while playing -->
             <Border Grid.Row="0"
                     Background="#0D000000"
                     BorderBrush="#1AFFFFFF"
                     BorderThickness="0 0 0 1">
                 <Grid Margin="20 0">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="ScenarioLabel"
-                                   Text="Tracking"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   FontSize="13" FontWeight="SemiBold" Margin="0 0 16 0"/>
+                    <!-- CAT_ROUTINE: which drill of the session you're on, and why it's
+                         here. Centred so it reads as the session's spine, not a chip. -->
+                    <StackPanel x:Name="RoutinePanel"
+                                VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Visibility="Collapsed">
+                        <TextBlock x:Name="RoutineProgressText" Text=""
+                                   Foreground="#00D4FF"
+                                   FontSize="11" FontWeight="Bold"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="RoutineReasonText" Text=""
+                                   Foreground="{DynamicResource MutedText}"
+                                   FontSize="11" TextWrapping="Wrap"
+                                   MaxWidth="520" TextAlignment="Center"
+                                   HorizontalAlignment="Center" Margin="0 2 0 0"/>
+                    </StackPanel>
+
+                    <!-- Left: scenario + difficulty -->
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ScenarioLabel"
+                                       Text="Tracking"
+                                       Foreground="{DynamicResource AccentBrush}"
+                                       FontSize="14" FontWeight="Bold"/>
+                            <TextBlock x:Name="WarmUpRoundText"
+                                       Text=""
+                                       Foreground="LightGreen"
+                                       FontSize="12" FontWeight="Bold"
+                                       Margin="12 0 0 0"
+                                       Visibility="Collapsed"/>
+                        </StackPanel>
                         <TextBlock x:Name="DifficultyLabel"
                                    Text="Medium"
                                    Foreground="{DynamicResource MutedText}"
-                                   FontSize="12"/>
-                        <TextBlock x:Name="WarmUpRoundText"
-                                   Text=""
-                                   Foreground="LightGreen"
-                                   FontSize="12" FontWeight="Bold"
-                                   Margin="16 0 0 0"
-                                   Visibility="Collapsed"/>
+                                   FontSize="11" Margin="0 1 0 0"/>
                     </StackPanel>
 
-                    <!-- Timer -->
-                    <TextBlock x:Name="TimerText"
-                               Text="0:30"
-                               FontSize="22" FontWeight="Black"
-                               Foreground="White"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
+                    <!-- Center: BIG score -->
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="SCORE" FontSize="9" FontWeight="Bold"
+                                   Foreground="{DynamicResource MutedText}"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock x:Name="HudScoreText"
+                                   Text="0"
+                                   FontSize="30" FontWeight="Black"
+                                   Foreground="#F5C842"
+                                   HorizontalAlignment="Center"
+                                   RenderTransformOrigin="0.5,0.5"
+                                   Margin="0 -2 0 0">
+                            <TextBlock.RenderTransform>
+                                <ScaleTransform x:Name="HudScoreScale" ScaleX="1" ScaleY="1"/>
+                            </TextBlock.RenderTransform>
+                        </TextBlock>
+                    </StackPanel>
 
-                    <!-- Streak -->
+                    <!-- Right: timer · headshots · streak · acc · fullscreen -->
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Right"
                                 VerticalAlignment="Center">
-                        <TextBlock Text="STREAK " Foreground="{DynamicResource MutedText}" FontSize="11" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="StreakText"
-                                   Text="0"
-                                   Foreground="Gold"
-                                   FontSize="18" FontWeight="Bold"/>
+                        <TextBlock x:Name="TimerText"
+                                   Text="0:30"
+                                   FontSize="24" FontWeight="Black"
+                                   Foreground="White"
+                                   VerticalAlignment="Center"
+                                   Margin="0 0 22 0"/>
+                        <StackPanel x:Name="HudHsPanel" VerticalAlignment="Center"
+                                    Margin="0 0 18 0" Visibility="Collapsed">
+                            <TextBlock Text="HEADSHOTS" FontSize="9" FontWeight="Bold"
+                                       Foreground="{DynamicResource MutedText}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="HudHsText" Text="—"
+                                       FontSize="17" FontWeight="Bold"
+                                       Foreground="#F5C842" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel VerticalAlignment="Center" Margin="0 0 18 0">
+                            <TextBlock Text="STREAK" FontSize="9" FontWeight="Bold"
+                                       Foreground="{DynamicResource MutedText}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="StreakText" Text="0"
+                                       FontSize="17" FontWeight="Bold"
+                                       Foreground="Gold" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel VerticalAlignment="Center" Margin="0 0 16 0">
+                            <TextBlock Text="ACC" FontSize="9" FontWeight="Bold"
+                                       Foreground="{DynamicResource MutedText}" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="HudAccText" Text="—"
+                                       FontSize="17" FontWeight="Bold"
+                                       Foreground="#00E5A0" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <Button x:Name="FullscreenBtn"
+                                Content="⛶"
+                                Click="FullscreenBtn_Click"
+                                ToolTip="Fullscreen (F11)"
+                                FontSize="16"
+                                Width="32" Height="32"
+                                Background="Transparent"
+                                Foreground="{DynamicResource MutedText}"
+                                BorderThickness="1"
+                                BorderBrush="#22FFFFFF"
+                                Cursor="Hand"
+                                VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -797,6 +928,48 @@
                     </StackPanel>
                 </Canvas>
 
+                <!-- CAT_SESSION_REPORT: the between-drill coach line.
+                     Replaces the report window that used to open after every drill.
+                     Sits at the BOTTOM of the play area on purpose — the top bar is
+                     already the HUD (score, timer, streak, accuracy) and putting it
+                     there collided with all four. -->
+                <Border x:Name="CoachStrip"
+                        Visibility="Collapsed"
+                        Panel.ZIndex="20"
+                        Background="#EE0D1117"
+                        BorderBrush="#33FFFFFF" BorderThickness="1"
+                        CornerRadius="10" Padding="16,11"
+                        MaxWidth="640"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                        Margin="0,0,0,26">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="CoachStripAccuracy" Text=""
+                                   FontSize="26" FontWeight="Black"
+                                   Foreground="#00D4FF"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,14,0"/>
+                        <StackPanel VerticalAlignment="Center" MaxWidth="400">
+                            <TextBlock x:Name="CoachStripText" Text=""
+                                       FontSize="13" TextWrapping="Wrap"
+                                       Foreground="#F0F4F8"/>
+                            <TextBlock x:Name="CoachStripHint"
+                                       Text="next drill starts when you are"
+                                       FontSize="11"
+                                       Foreground="#6B7683"
+                                       Margin="0,3,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="CoachStripFullBtn"
+                                Content="Full report"
+                                Click="CoachStripFull_Click"
+                                Margin="16,0,0,0" Padding="12,7"
+                                VerticalAlignment="Center"
+                                Background="Transparent"
+                                Foreground="#CFD8E3"
+                                BorderBrush="#44FFFFFF" BorderThickness="1"
+                                FontSize="11" Cursor="Hand"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- HOT STREAK — orange glow border over whole canvas area -->
                 <Border x:Name="CanvasGlowBorder"
                         BorderBrush="#66FF6B35"
@@ -835,32 +1008,90 @@
                                IsHitTestVisible="False"/>
                 </Canvas>
 
-                <!-- TASK-3F: Live stats overlay — top-right corner during drill -->
-                <StackPanel x:Name="LiveStatsOverlay"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Top"
-                            Margin="0,16,16,0"
-                            Panel.ZIndex="10"
-                            IsHitTestVisible="False"
+                <!-- CAT_TRAINER_HUD: trust chips — real sens + weapon archetype, bottom-left -->
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Bottom"
+                            Margin="14,0,0,12"
+                            Panel.ZIndex="12"
+                            IsHitTestVisible="False">
+                    <Border x:Name="SensChip"
+                            CornerRadius="8" Padding="12,6"
+                            Background="#C80A0E12"
+                            BorderBrush="#3C00D4FF" BorderThickness="1"
                             Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <TextBlock Text="ACC  "
-                                   FontSize="10" FontWeight="SemiBold"
-                                   Foreground="#608A9BAE"/>
-                        <TextBlock x:Name="CanvasAccText"
-                                   Text="—"
-                                   FontSize="12" FontWeight="Black"
-                                   Foreground="#CC00E5A0"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="HIT  "
-                                   FontSize="10" FontWeight="SemiBold"
-                                   Foreground="#608A9BAE"/>
-                        <TextBlock x:Name="CanvasHitsText"
-                                   Text="—"
-                                   FontSize="12" FontWeight="Black"
-                                   Foreground="#CCF0F4F8"/>
-                    </StackPanel>
+                        <TextBlock x:Name="SensChipText"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="#9FB3BD"/>
+                    </Border>
+                    <Border x:Name="WeaponChip"
+                            CornerRadius="8" Padding="12,6" Margin="8,0,0,0"
+                            Background="#C80A0E12"
+                            BorderBrush="#3CF5C842" BorderThickness="1"
+                            Visibility="Collapsed">
+                        <TextBlock x:Name="WeaponChipText"
+                                   Text=""
+                                   FontSize="11"
+                                   Foreground="#D9C58A"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Fullscreen ESC hint — bottom-right, fullscreen only -->
+                <TextBlock x:Name="EscHintText"
+                           Text="ESC  exit fullscreen"
+                           FontSize="11"
+                           Foreground="{DynamicResource MutedText}"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Bottom"
+                           Margin="0,0,16,14"
+                           Panel.ZIndex="12"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"/>
+
+                <!-- CAT_GAME_FEEL: 3-2-1 countdown before targets spawn -->
+                <TextBlock x:Name="CountdownText"
+                           Text="3"
+                           FontSize="110" FontWeight="Black"
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           Panel.ZIndex="30"
+                           IsHitTestVisible="False"
+                           Visibility="Collapsed"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <ScaleTransform x:Name="CountdownScale" ScaleX="1" ScaleY="1"/>
+                    </TextBlock.RenderTransform>
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="#00D4FF" BlurRadius="40" ShadowDepth="0" Opacity="0.6"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+
+                <!-- CAT_GAME_FEEL: round-end score slam — counts up, then the report opens -->
+                <StackPanel x:Name="ScoreSlamPanel"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Panel.ZIndex="30"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed"
+                            RenderTransformOrigin="0.5,0.5">
+                    <StackPanel.RenderTransform>
+                        <ScaleTransform x:Name="ScoreSlamScale" ScaleX="1" ScaleY="1"/>
+                    </StackPanel.RenderTransform>
+                    <TextBlock Text="FINAL SCORE"
+                               FontSize="14" FontWeight="Bold"
+                               Foreground="{DynamicResource MutedText}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="ScoreSlamText"
+                               Text="0"
+                               FontSize="72" FontWeight="Black"
+                               Foreground="#F5C842"
+                               HorizontalAlignment="Center">
+                        <TextBlock.Effect>
+                            <DropShadowEffect Color="#F5C842" BlurRadius="34" ShadowDepth="0" Opacity="0.55"/>
+                        </TextBlock.Effect>
+                    </TextBlock>
                 </StackPanel>
 
                 <!-- Onboarding hint — shown only during the first session -->
@@ -877,11 +1108,13 @@
                 <!-- ── Drill Instruction Card (TASK-22) ─────────────────────── -->
                 <!-- Shows TrainingFocus + MentalCue for the first 5 plays of    -->
                 <!-- each scenario+variant, then auto-dismisses after 4 seconds. -->
+                <!-- CAT_UIUX: top-center so it never overlaps the onboarding hint,
+                     countdown, or bottom chips (DRILL FOCUS overlap fix). -->
                 <Border x:Name="DrillInstructionCard"
                         Panel.ZIndex="20"
                         HorizontalAlignment="Center"
-                        VerticalAlignment="Bottom"
-                        Margin="0,0,0,20"
+                        VerticalAlignment="Top"
+                        Margin="0,18,0,0"
                         Visibility="Collapsed"
                         IsHitTestVisible="True"
                         CornerRadius="14"

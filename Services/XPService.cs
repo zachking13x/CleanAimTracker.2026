@@ -31,6 +31,11 @@ namespace CleanAimTracker.Services
         /// </summary>
         public static int CalculateSessionXP(AimTrainerResult result)
         {
+            // GATE 1: an assessment/calibration session is a measurement, not a
+            // scored session — it earns no XP (same principle that excludes it
+            // from achievements).
+            if (result.IsAssessmentSession) return 0;
+
             int baseXP = Math.Max(50, result.DurationSeconds / 30 * 50);
 
             // 50% maps to accMult = 1.0 — "average" accuracy for most scenarios is ~50-55%.
@@ -68,6 +73,11 @@ namespace CleanAimTracker.Services
         {
             // Read the current XP / level baseline.
             var baseline = SettingsService.Load();
+
+            // GATE 1: assessment sessions award nothing and write nothing.
+            if (result.IsAssessmentSession)
+                return (0, baseline.CurrentLevel, baseline.CurrentLevel);
+
             int earned   = CalculateSessionXP(result);
             int oldLevel = baseline.CurrentLevel;
 

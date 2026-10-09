@@ -52,8 +52,8 @@ namespace CleanAimTracker.Trainer
                 var (dx, dy) = kvp.Value;
 
                 double size = target.Width;
-                double x = Canvas.GetLeft(target) + dx;
-                double y = Canvas.GetTop(target) + dy;
+                double x = Canvas.GetLeft(target) + dx * FrameClock.Scale;
+                double y = Canvas.GetTop(target) + dy * FrameClock.Scale;
 
                 bool bounced = false;
 

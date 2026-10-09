@@ -248,8 +248,8 @@ namespace CleanAimTracker.Trainer.Scenarios
             double h    = canvas.ActualHeight;
             double half = _targetSize / 2;
 
-            _cx += _moveDx;
-            _cy += _moveDy;
+            _cx += _moveDx * FrameClock.Scale;
+            _cy += _moveDy * FrameClock.Scale;
 
             if (_cx - half <= 0 || _cx + half >= w)
             {

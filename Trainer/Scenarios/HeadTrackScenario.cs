@@ -77,7 +77,7 @@ namespace CleanAimTracker.Trainer.Scenarios
             double w = Math.Max(1, canvas.ActualWidth);
 
             // Speed breathes (sine swing) so the strafe never has one learnable pace
-            _speedPhase += 0.02;
+            _speedPhase += 0.02 * FrameClock.Scale;
             double speed = _moveSpeed * (0.65 + 0.5 * (Math.Sin(_speedPhase) + 1) / 2);
 
             if (now >= _nextTurnAt)
@@ -86,7 +86,7 @@ namespace CleanAimTracker.Trainer.Scenarios
                 _nextTurnAt = now + MsToTicks(700 + _rng.NextDouble() * 900);
             }
 
-            left += _vx * speed;
+            left += _vx * speed * FrameClock.Scale;
             if (left <= 0)                        { left = 0;                                    _vx = 1;  }
             if (left >= w - _bot.TotalWidth)      { left = Math.Max(0, w - _bot.TotalWidth);     _vx = -1; }
             Canvas.SetLeft(_bot, left);

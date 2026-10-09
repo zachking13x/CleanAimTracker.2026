@@ -1578,6 +1578,11 @@ namespace CleanAimTracker.Windows
 
         private static string GetWhatsNewText(string version) => version switch
         {
+            "1.0.104" => "NEW — Custom crosshairs: pick a style, colour, size, thickness, gap, opacity and outline in Settings → Crosshair, with a live preview · " +
+                        "Your crosshair is the real cursor, so it moves with zero added lag and sits exactly where your shots land · " +
+                        "Smoother targets: movement now runs in step with your display instead of a timer that stuttered, at the same speed you're used to · " +
+                        "Drills now last exactly their stated length",
+
             "1.0.103" => "Fixed a message that told people who own the app to \"Unlock Pro\" on their first few drills · " +
                         "Clean Aim Tracker is a one-time purchase with everything included, and nothing in the app will ask you to pay again",
 

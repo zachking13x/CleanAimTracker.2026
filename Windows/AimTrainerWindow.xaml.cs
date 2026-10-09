@@ -39,8 +39,11 @@ namespace CleanAimTracker.Windows
         private string? _preSelectScenario;
         private string? _preSelectDifficulty;
 
-        private readonly DispatcherTimer _gameTimer = new();
-        private readonly DispatcherTimer _updateTimer = new();
+        // CAT_FRAME_LOCK: scenario motion AND the drill clock run off the display frame
+        // (CompositionTarget.Rendering), not DispatcherTimers. See FrameClock for why.
+        private bool     _frameLoopRunning;
+        private TimeSpan _lastRenderTime;
+        private long     _nextSecondAt;
 
         private int _secondsLeft;
         private int _durationSeconds = 30;
@@ -159,25 +162,17 @@ namespace CleanAimTracker.Windows
             Loaded += (_, _) =>
             {
                 _uiReady = true;
+                ApplyCrosshairCursor();
                 RefreshNightmareLock();
                 if (_preSelectScenario != null)
                     ApplyPreSelection(_preSelectScenario, _preSelectDifficulty ?? "Medium");
             };
 
-            _gameTimer.Interval = TimeSpan.FromSeconds(1);
-            _gameTimer.Tick += GameTimer_Tick;
-
-            _updateTimer.Interval = TimeSpan.FromMilliseconds(16);
-            _updateTimer.Tick += UpdateScenario_Tick;
-
             _instructionTimer.Tick += InstructionTimer_Tick;
             _countdownTimer.Tick += CountdownTimer_Tick;
 
-            TargetCanvas.SizeChanged += (_, _) =>
-            {
-                PositionCrosshair();
-                UpdateTimerBar();
-            };
+            TargetCanvas.SizeChanged += (_, _) => UpdateTimerBar();
+            DpiChanged += (_, _) => ApplyCrosshairCursor();
 
             LoadAdaptiveWeakSpot();
         }
@@ -882,8 +877,7 @@ namespace CleanAimTracker.Windows
             _trackingFrames.Clear();
             _isDrillActive = true;
             _rawInput.Start();
-            _gameTimer.Start();
-            _updateTimer.Start();
+            StartFrameLoop();
         }
 
         private void StopDrill(bool showResults)
@@ -894,8 +888,7 @@ namespace CleanAimTracker.Windows
 
             DismissDrillInstruction();   // dismiss card if still showing (TASK-22)
 
-            _gameTimer.Stop();
-            _updateTimer.Stop();
+            StopFrameLoop();
 
             // Capture stats before stopping
             var statsSource = _scenarioInstance;
@@ -1119,6 +1112,49 @@ namespace CleanAimTracker.Windows
         // ─────────────────────────────────────────────────────────────
         // GAME LOOP
         // ─────────────────────────────────────────────────────────────
+        private void StartFrameLoop()
+        {
+            if (_frameLoopRunning) return;
+            _frameLoopRunning = true;
+            _lastRenderTime   = TimeSpan.Zero;
+            _nextSecondAt     = System.Diagnostics.Stopwatch.GetTimestamp() + System.Diagnostics.Stopwatch.Frequency;
+            FrameClock.Reset();
+            CompositionTarget.Rendering += OnRenderFrame;
+        }
+
+        private void StopFrameLoop()
+        {
+            if (!_frameLoopRunning) return;
+            _frameLoopRunning = false;
+            CompositionTarget.Rendering -= OnRenderFrame;   // static event: must unhook or the window leaks
+            FrameClock.Reset();
+        }
+
+        private void OnRenderFrame(object? sender, EventArgs e)
+        {
+            // Rendering can fire more than once per frame; RenderingTime advances once.
+            var t = ((RenderingEventArgs)e).RenderingTime;
+            if (t == _lastRenderTime) return;
+            double frameMs = _lastRenderTime == TimeSpan.Zero
+                ? FrameClock.NominalTickMs
+                : (t - _lastRenderTime).TotalMilliseconds;
+            _lastRenderTime = t;
+
+            // The drill clock used to decrement once per 1s DispatcherTimer tick, so any
+            // dispatcher delay silently lengthened the drill. Real-time deadlines instead;
+            // seconds missed while minimized (no frames) catch up on the next frame.
+            long now = System.Diagnostics.Stopwatch.GetTimestamp();
+            while (_frameLoopRunning && now >= _nextSecondAt)
+            {
+                _nextSecondAt += System.Diagnostics.Stopwatch.Frequency;
+                GameTimer_Tick(null, EventArgs.Empty);
+            }
+            if (!_frameLoopRunning) return;   // the drill ended inside GameTimer_Tick
+
+            FrameClock.Advance(frameMs);
+            UpdateScenario_Tick(sender, e);
+        }
+
         private void GameTimer_Tick(object? sender, EventArgs e)
         {
             _secondsLeft--;
@@ -1863,32 +1899,26 @@ namespace CleanAimTracker.Windows
             timer.Start();
         }
 
-        // TASK-3E: Position crosshair elements (in the separate crosshair overlay Canvas)
-        private void PositionCrosshair()
+        // CAT_CROSSHAIR: the player's crosshair becomes the play-area cursor (see
+        // CrosshairCursor). Rebuilt on DPI change so 2px stays 2 device-crisp px.
+        private System.Windows.Input.Cursor? _crosshairCursor;
+
+        private void ApplyCrosshairCursor()
         {
-            if (!_uiReady) return;
-            double cx = TargetCanvas.ActualWidth  / 2;
-            double cy = TargetCanvas.ActualHeight / 2;
-
-            // Ring (14×14 centered)
-            Canvas.SetLeft(CrosshairRing, cx - 7);
-            Canvas.SetTop (CrosshairRing, cy - 7);
-
-            // Top arm: 1.5 wide × 6 tall, 2px gap above ring
-            Canvas.SetLeft(CrosshairTop, cx - 0.75);
-            Canvas.SetTop (CrosshairTop, cy - 7 - 2 - 6);   // cy - 15
-
-            // Bottom arm: starts 9px below center
-            Canvas.SetLeft(CrosshairBottom, cx - 0.75);
-            Canvas.SetTop (CrosshairBottom, cy + 7 + 2);     // cy + 9
-
-            // Left arm: 6 wide × 1.5 tall, 2px gap left of ring
-            Canvas.SetLeft(CrosshairLeft, cx - 7 - 2 - 6);  // cx - 15
-            Canvas.SetTop (CrosshairLeft, cy - 0.75);
-
-            // Right arm: starts 9px right of center
-            Canvas.SetLeft(CrosshairRight, cx + 7 + 2);     // cx + 9
-            Canvas.SetTop (CrosshairRight, cy - 0.75);
+            try
+            {
+                var settings = SettingsService.Load();
+                double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+                var next = CrosshairCursor.Create(settings.Crosshair ?? new(), dpi);
+                TargetCanvas.Cursor = next;
+                _crosshairCursor?.Dispose();
+                _crosshairCursor = next;
+            }
+            catch (Exception ex)
+            {
+                // Keep the XAML's system cross; a broken custom cursor must never block training.
+                LogService.Error("Custom crosshair cursor failed — using system cross", ex);
+            }
         }
 
         private void ViewHistory_Click(object sender, RoutedEventArgs e)
@@ -1896,8 +1926,7 @@ namespace CleanAimTracker.Windows
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
-            _gameTimer.Stop();
-            _updateTimer.Stop();
+            StopFrameLoop();
             Close();
         }
 
@@ -1970,10 +1999,10 @@ namespace CleanAimTracker.Windows
 
         protected override void OnClosed(EventArgs e)
         {
-            _gameTimer.Stop();
-            _updateTimer.Stop();
+            StopFrameLoop();
             _countdownTimer.Stop();
             _rawInput.Stop();
+            _crosshairCursor?.Dispose();
 
             // CAT_SESSION_REPORT: they've stopped training — this is the moment the
             // coach gets to speak, rather than between every rep.

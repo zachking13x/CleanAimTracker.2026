@@ -97,14 +97,15 @@ namespace CleanAimTracker.Trainer.Scenarios
         public void Update(Canvas canvas)
         {
             if (_target == null) return;
+            double s = FrameClock.Scale;   // CAT_FRAME_LOCK: velocities are per 25ms tick
 
             double w = canvas.ActualWidth;
             double h = canvas.ActualHeight;
 
             if (_variant == "Arc")
             {
-                _arcTime += 1;
-                _x += _vx;
+                _arcTime += s;
+                _x += _vx * s;
                 _y = _arcBaseY + Math.Sin(_arcTime * _arcFrequency) * _arcAmplitude;
 
                 // Bounce left/right only; vertical is driven by sine
@@ -115,7 +116,7 @@ namespace CleanAimTracker.Trainer.Scenarios
                 }
 
                 // Arc base slowly drifts
-                _arcBaseY += 0.2;
+                _arcBaseY += 0.2 * s;
                 if (_arcBaseY + _arcAmplitude >= h || _arcBaseY - _arcAmplitude <= 0)
                     _arcBaseY = Math.Clamp(_arcBaseY, _arcAmplitude, h - _arcAmplitude);
             }
@@ -133,8 +134,8 @@ namespace CleanAimTracker.Trainer.Scenarios
                     }
                 }
 
-                double nx = _x + _vx * (_speedMult > 1.0 ? _speedMult : 1.0);
-                double ny = _y + _vy * (_speedMult > 1.0 ? _speedMult : 1.0);
+                double nx = _x + _vx * (_speedMult > 1.0 ? _speedMult : 1.0) * s;
+                double ny = _y + _vy * (_speedMult > 1.0 ? _speedMult : 1.0) * s;
                 bool bounced = false;
 
                 if (nx <= 0 || nx + _targetSize >= w)

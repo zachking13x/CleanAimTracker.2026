@@ -978,35 +978,6 @@
                         Panel.ZIndex="15"
                         Visibility="Collapsed"/>
 
-                <!-- TASK-3E: Crosshair overlay — separate Canvas so ClearTargets never removes it -->
-                <Canvas IsHitTestVisible="False" Panel.ZIndex="5">
-                    <!-- Ring -->
-                    <Ellipse x:Name="CrosshairRing"
-                             Width="14" Height="14"
-                             Stroke="#B2FFFFFF" StrokeThickness="1"
-                             Fill="Transparent"
-                             IsHitTestVisible="False"/>
-                    <!-- Top arm -->
-                    <Rectangle x:Name="CrosshairTop"
-                               Width="1.5" Height="6"
-                               Fill="#B2FFFFFF"
-                               IsHitTestVisible="False"/>
-                    <!-- Bottom arm -->
-                    <Rectangle x:Name="CrosshairBottom"
-                               Width="1.5" Height="6"
-                               Fill="#B2FFFFFF"
-                               IsHitTestVisible="False"/>
-                    <!-- Left arm -->
-                    <Rectangle x:Name="CrosshairLeft"
-                               Width="6" Height="1.5"
-                               Fill="#B2FFFFFF"
-                               IsHitTestVisible="False"/>
-                    <!-- Right arm -->
-                    <Rectangle x:Name="CrosshairRight"
-                               Width="6" Height="1.5"
-                               Fill="#B2FFFFFF"
-                               IsHitTestVisible="False"/>
-                </Canvas>
 
                 <!-- CAT_TRAINER_HUD: trust chips — real sens + weapon archetype, bottom-left -->
                 <StackPanel Orientation="Horizontal"

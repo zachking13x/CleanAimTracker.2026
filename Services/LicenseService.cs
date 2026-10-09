@@ -65,6 +65,16 @@ namespace CleanAimTracker.Services
         /// </summary>
         public static string OneTimeStoreId => IsAppTrial ? STOREID_APP : STOREID_LIFETIME;
 
+        /// <summary>
+        /// A real Store trial always names its SKU, whether it's running or expired. When the
+        /// Store has NO licence for this copy (sideloaded build, or a Store hiccup) it still
+        /// reports IsTrial=true, with an empty SKU and an endless trial. Seen live 2026-10-09:
+        /// "IsActive=False IsTrial=True Sku= Expires=9999-12-31". Reading IsTrial alone
+        /// (1.0.103) would lock a paying customer out whenever that happened.
+        /// </summary>
+        public static bool IsTrialLicense(bool isTrial, string? skuStoreId)
+            => isTrial && !string.IsNullOrWhiteSpace(skuStoreId);
+
         /// <summary>Test seam: the trial state otherwise only comes from a live Store read.</summary>
         internal static void SetAppTrialForTests(bool isTrial, string? appPrice = null)
         {
@@ -167,7 +177,13 @@ namespace CleanAimTracker.Services
             try
             {
                 var appLicense = await _context.GetAppLicenseAsync();
-                isAppTrial = appLicense.IsTrial;
+                isAppTrial = IsTrialLicense(appLicense.IsTrial, appLicense.SkuStoreId);
+
+                // The trial flag now decides whether the coach is locked, so record exactly
+                // what the Store said. No account data, just the licence shape.
+                LogService.Info($"App licence: IsActive={appLicense.IsActive} IsTrial={appLicense.IsTrial} " +
+                                $"Sku={appLicense.SkuStoreId} Expires={appLicense.ExpirationDate:u} " +
+                                $"TrialLeft={appLicense.TrialTimeRemaining} AddOns={appLicense.AddOnLicenses.Count}");
 
                 if (isAppTrial)
                 {

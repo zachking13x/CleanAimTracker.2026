@@ -155,6 +155,133 @@
                     </Grid>
                 </Border>
 
+                <!-- CAT_CROSSHAIR: the trainer's cursor, previewed from the same pixels -->
+                <TextBlock Text="CROSSHAIR"
+                           Foreground="{DynamicResource MutedText}"
+                           FontSize="10" FontWeight="Bold"
+                           Margin="0 0 0 10"/>
+                <Border Background="{DynamicResource CardBackground}"
+                        CornerRadius="10" Padding="16" Margin="0 0 0 20">
+                    <StackPanel>
+                        <Grid Margin="0 0 0 12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="104"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Border Width="96" Height="96" CornerRadius="8" Background="#0D1117"
+                                        BorderBrush="#22FFFFFF" BorderThickness="1">
+                                    <Image x:Name="CrosshairPreview" Stretch="None"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <TextBlock Text="Actual size" Foreground="{DynamicResource MutedText}"
+                                           FontSize="10" HorizontalAlignment="Center" Margin="0 4 8 0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="8 0 0 0">
+                                <ComboBox x:Name="CrosshairStyleSelector" Height="30" FontSize="12"
+                                          Margin="0 0 0 10" SelectionChanged="Crosshair_Changed">
+                                    <ComboBoxItem Content="Cross"/>
+                                    <ComboBoxItem Content="Cross + dot"/>
+                                    <ComboBoxItem Content="Dot"/>
+                                    <ComboBoxItem Content="Circle"/>
+                                </ComboBox>
+                                <WrapPanel Margin="0 0 0 8">
+                                <Button Tag="#2FD5F2" ToolTip="Cyan" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#2FD5F2"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                <Button Tag="#00FF66" ToolTip="Green" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#00FF66"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                <Button Tag="#FFE600" ToolTip="Yellow" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#FFE600"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                <Button Tag="#FF3B3B" ToolTip="Red" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#FF3B3B"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                <Button Tag="#FF4DFF" ToolTip="Magenta" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#FF4DFF"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                <Button Tag="#FFFFFF" ToolTip="White" Click="CrosshairSwatch_Click"
+                                        Width="20" Height="20" Margin="0 0 6 0" Background="#FFFFFF"
+                                        BorderBrush="#33FFFFFF" BorderThickness="1" Cursor="Hand"/>
+                                </WrapPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Hex" Foreground="{DynamicResource MutedText}"
+                                               FontSize="11" VerticalAlignment="Center" Margin="0 0 8 0"/>
+                                    <TextBox x:Name="CrosshairColorInput" Width="84" Height="26" FontSize="12"
+                                             VerticalContentAlignment="Center" MaxLength="7"
+                                             TextChanged="Crosshair_Changed"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                            <Grid Margin="0 0 0 6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Length" Foreground="{DynamicResource MutedText}"
+                                           FontSize="11" VerticalAlignment="Center"/>
+                                <Slider x:Name="CrosshairLengthSlider" Grid.Column="1" Minimum="1" Maximum="20"
+                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                        VerticalAlignment="Center" ValueChanged="Crosshair_Changed"/>
+                                <TextBlock x:Name="CrosshairLengthValue" Grid.Column="2" Foreground="{DynamicResource PrimaryText}"
+                                           FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0 0 0 6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Thickness" Foreground="{DynamicResource MutedText}"
+                                           FontSize="11" VerticalAlignment="Center"/>
+                                <Slider x:Name="CrosshairThicknessSlider" Grid.Column="1" Minimum="1" Maximum="6"
+                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                        VerticalAlignment="Center" ValueChanged="Crosshair_Changed"/>
+                                <TextBlock x:Name="CrosshairThicknessValue" Grid.Column="2" Foreground="{DynamicResource PrimaryText}"
+                                           FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0 0 0 6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Gap" Foreground="{DynamicResource MutedText}"
+                                           FontSize="11" VerticalAlignment="Center"/>
+                                <Slider x:Name="CrosshairGapSlider" Grid.Column="1" Minimum="0" Maximum="12"
+                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                        VerticalAlignment="Center" ValueChanged="Crosshair_Changed"/>
+                                <TextBlock x:Name="CrosshairGapValue" Grid.Column="2" Foreground="{DynamicResource PrimaryText}"
+                                           FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Grid Margin="0 0 0 6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Opacity" Foreground="{DynamicResource MutedText}"
+                                           FontSize="11" VerticalAlignment="Center"/>
+                                <Slider x:Name="CrosshairOpacitySlider" Grid.Column="1" Minimum="30" Maximum="100"
+                                        IsSnapToTickEnabled="True" TickFrequency="1"
+                                        VerticalAlignment="Center" ValueChanged="Crosshair_Changed"/>
+                                <TextBlock x:Name="CrosshairOpacityValue" Grid.Column="2" Foreground="{DynamicResource PrimaryText}"
+                                           FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                            </Grid>
+                        <Grid Margin="0 6 0 0">
+                            <CheckBox x:Name="CrosshairOutlineToggle" Content="Black outline"
+                                      Foreground="{DynamicResource PrimaryText}" FontSize="12"
+                                      VerticalAlignment="Center"
+                                      Checked="Crosshair_Changed" Unchecked="Crosshair_Changed"/>
+                            <Button Content="Reset" HorizontalAlignment="Right" Padding="12 4"
+                                    FontSize="11" Click="CrosshairReset_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- CAT_SESSION_REPORT: the escape hatch back to report-after-every-drill -->
                 <TextBlock Text="COACHING"
                            Foreground="{DynamicResource MutedText}"

@@ -146,7 +146,7 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 var (dx, dy) = _velocities[i];
                 var (cx, cy) = _centers[i];
-                cx += dx; cy += dy;
+                cx += dx * FrameClock.Scale; cy += dy * FrameClock.Scale;
 
                 if (cx - half <= 0 || cx + half >= w) { dx = -dx; cx = Math.Clamp(cx, half, w - half); }
                 if (cy - half <= 0 || cy + half >= h) { dy = -dy; cy = Math.Clamp(cy, half, h - half); }
@@ -229,7 +229,7 @@ namespace CleanAimTracker.Trainer.Scenarios
             for (int i = 0; i < _targets.Count; i++)
             {
                 var (cx, cy) = _centers[i];
-                cx += _strafeDx;
+                cx += _strafeDx * FrameClock.Scale;
 
                 // Bounce at horizontal edges (also updates shared direction)
                 if (cx - half <= 0)  { cx = half;      _strafeDx =  Math.Abs(_strafeDx); }

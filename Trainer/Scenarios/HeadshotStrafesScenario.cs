@@ -91,7 +91,7 @@ namespace CleanAimTracker.Trainer.Scenarios
                     b.NextJukeAt = now + MsToTicks(350 + _rng.NextDouble() * 550);
                 }
 
-                left += b.Vx;
+                left += b.Vx * FrameClock.Scale;
                 if (left <= 0)                              { left = 0;                              b.Vx = Math.Abs(b.Vx); }
                 if (left >= w - b.Visual.TotalWidth)        { left = Math.Max(0, w - b.Visual.TotalWidth); b.Vx = -Math.Abs(b.Vx); }
                 Canvas.SetLeft(b.Visual, left);

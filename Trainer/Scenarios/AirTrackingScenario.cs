@@ -88,6 +88,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         public void Update(Canvas canvas)
         {
             if (_target == null) return;
+            double s = FrameClock.Scale;   // CAT_FRAME_LOCK: velocities are per 25ms tick
 
             double w = canvas.ActualWidth;
             double h = canvas.ActualHeight;
@@ -96,9 +97,9 @@ namespace CleanAimTracker.Trainer.Scenarios
             switch (_variant)
             {
                 case "Parabolic":
-                    _vy += Gravity;
-                    _x  += _vx;
-                    _y  += _vy;
+                    _vy += Gravity * s;
+                    _x  += _vx * s;
+                    _y  += _vy * s;
 
                     if (_x <= 0 || _x + _targetSize >= w)
                     {
@@ -122,9 +123,9 @@ namespace CleanAimTracker.Trainer.Scenarios
                         _vy             = -(_moveSpeed * 2.5 + _rng.NextDouble() * _moveSpeed);
                         _nextBurstTick  = now + BurstIntervalTicks;
                     }
-                    _vy += Gravity * 0.5;   // lighter gravity between bursts
-                    _x  += _vx;
-                    _y  += _vy;
+                    _vy += Gravity * 0.5 * s;   // lighter gravity between bursts
+                    _x  += _vx * s;
+                    _y  += _vy * s;
 
                     if (_x <= 0 || _x + _targetSize >= w) { _vx = -_vx; _x = Math.Clamp(_x, 0, w - _targetSize); }
                     if (_y <= 0 || _y + _targetSize >= h) { _vy = -_vy; _y = Math.Clamp(_y, 0, h - _targetSize); }
@@ -132,8 +133,8 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 case "Falling":
                     // Constant downward drift + horizontal oscillation
-                    _x += _vx;
-                    _y += _moveSpeed * 0.8;   // steady fall
+                    _x += _vx * s;
+                    _y += _moveSpeed * 0.8 * s;   // steady fall
 
                     if (_x <= 0 || _x + _targetSize >= w) { _vx = -_vx; _x = Math.Clamp(_x, 0, w - _targetSize); }
 
@@ -146,8 +147,8 @@ namespace CleanAimTracker.Trainer.Scenarios
                     break;
 
                 default: // Diagonal
-                    _x += _vx;
-                    _y += _vy;
+                    _x += _vx * s;
+                    _y += _vy * s;
 
                     if (_x <= 0 || _x + _targetSize >= w) { _vx = -_vx; _x = Math.Clamp(_x, 0, w - _targetSize); }
                     if (_y <= 0 || _y + _targetSize >= h) { _vy = -_vy; _y = Math.Clamp(_y, 0, h - _targetSize); }

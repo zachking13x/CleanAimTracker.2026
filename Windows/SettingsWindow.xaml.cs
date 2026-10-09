@@ -1,6 +1,10 @@
-﻿using CleanAimTracker.Services;
+﻿using CleanAimTracker.Models;
+using CleanAimTracker.Services;
 using System;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace CleanAimTracker.Windows
 {
@@ -33,6 +37,72 @@ namespace CleanAimTracker.Windows
             bool configured = !string.IsNullOrWhiteSpace(TelemetryConfig.ConnectionString);
             PrivacySection.Visibility = configured ? Visibility.Visible : Visibility.Collapsed;
             TelemetryToggle.IsChecked = s.TelemetryEnabled;
+
+            LoadCrosshair(s.Crosshair ?? new());
+        }
+
+        // ── CAT_CROSSHAIR editor ─────────────────────────────────────
+        // Controls fire change events while InitializeComponent/LoadCrosshair set them;
+        // the flag keeps those from rendering a half-populated crosshair.
+        private bool   _crosshairReady;
+        private string _crosshairColor = new CrosshairSettings().Color;
+
+        private void LoadCrosshair(CrosshairSettings x)
+        {
+            _crosshairReady = false;
+            CrosshairStyleSelector.SelectedIndex = (int)x.Style;
+            _crosshairColor                     = x.Color;
+            CrosshairColorInput.Text            = x.Color;
+            CrosshairLengthSlider.Value         = x.Length;
+            CrosshairThicknessSlider.Value      = x.Thickness;
+            CrosshairGapSlider.Value            = x.Gap;
+            CrosshairOpacitySlider.Value        = x.Opacity;
+            CrosshairOutlineToggle.IsChecked    = x.Outline;
+            _crosshairReady = true;
+            UpdateCrosshairPreview();
+        }
+
+        private CrosshairSettings ReadCrosshair() => new()
+        {
+            Style     = (CrosshairStyle)Math.Max(0, CrosshairStyleSelector.SelectedIndex),
+            Color     = _crosshairColor,
+            Length    = (int)CrosshairLengthSlider.Value,
+            Thickness = (int)CrosshairThicknessSlider.Value,
+            Gap       = (int)CrosshairGapSlider.Value,
+            Opacity   = (int)CrosshairOpacitySlider.Value,
+            Outline   = CrosshairOutlineToggle.IsChecked == true,
+        };
+
+        private void Crosshair_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!_crosshairReady) return;
+            // A half-typed hex keeps the last valid colour rather than flashing a fallback.
+            if (CrosshairRenderer.TryParseColor(CrosshairColorInput.Text, out byte r, out byte g, out byte b))
+                _crosshairColor = $"#{r:X2}{g:X2}{b:X2}";
+            UpdateCrosshairPreview();
+        }
+
+        private void CrosshairSwatch_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: string hex }) CrosshairColorInput.Text = hex;   // TextChanged re-renders
+        }
+
+        private void CrosshairReset_Click(object sender, RoutedEventArgs e) => LoadCrosshair(new());
+
+        private void UpdateCrosshairPreview()
+        {
+            var x = ReadCrosshair();
+            CrosshairLengthValue.Text    = x.Length.ToString();
+            CrosshairThicknessValue.Text = x.Thickness.ToString();
+            CrosshairGapValue.Text       = x.Gap.ToString();
+            CrosshairOpacityValue.Text   = $"{x.Opacity}%";
+
+            // Same renderer and DPI as the trainer cursor, shown 1:1 in device pixels.
+            double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            var img = CrosshairRenderer.Render(x, dpi);
+            var bmp = new WriteableBitmap(img.Size, img.Size, 96 * dpi, 96 * dpi, PixelFormats.Bgra32, null);
+            bmp.WritePixels(new Int32Rect(0, 0, img.Size, img.Size), img.Bgra, img.Size * 4, 0);
+            CrosshairPreview.Source = bmp;
         }
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
@@ -60,6 +130,7 @@ namespace CleanAimTracker.Windows
             s.ThemeMode = ThemeSelector.SelectedIndex == 1 ? "Light" : "Dark";
 
             s.SoundEnabled = SoundToggle.IsChecked == true;
+            s.Crosshair    = ReadCrosshair();
             s.ReportAfterEveryDrill = ReportEveryDrillToggle.IsChecked == true;
             SoundService.SetEnabled(s.SoundEnabled);   // apply immediately
 

@@ -53,6 +53,9 @@
         // CAT_FIRST_FUN_AND_FUNNEL: hit/miss sound effects (game feel). Default on.
         public bool SoundEnabled { get; set; } = true;
 
+        // CAT_CROSSHAIR: the trainer cursor. Older settings files just get the default.
+        public CrosshairSettings Crosshair { get; set; } = new();
+
         // ── CAT_SESSION_REPORT (2026-08-14) ──────────────────────────────────
         // The coach report used to open after EVERY drill. Telemetry showed a real
         // player run 8 drills in 7 minutes and close all 8 reports in 0-14 seconds —

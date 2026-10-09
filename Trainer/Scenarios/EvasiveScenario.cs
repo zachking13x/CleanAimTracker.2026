@@ -97,7 +97,8 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 if (dist > 0.01)
                 {
-                    double blendT = _variant == "Aggressive" ? 0.25 : 0.12;
+                    // CAT_FRAME_LOCK: per-tick blend converted so steering per SECOND is unchanged
+                    double blendT = FrameClock.PerTick(_variant == "Aggressive" ? 0.25 : 0.12);
                     double targetVx = (awayX / dist) * _moveSpeed;
                     double targetVy = (awayY / dist) * _moveSpeed;
                     _vx += (targetVx - _vx) * blendT;
@@ -130,8 +131,8 @@ namespace CleanAimTracker.Trainer.Scenarios
             }
 
             // Move and bounce
-            double nx = _x + _vx;
-            double ny = _y + _vy;
+            double nx = _x + _vx * FrameClock.Scale;
+            double ny = _y + _vy * FrameClock.Scale;
 
             if (nx <= 0 || nx + _targetSize >= w) { _vx = -_vx; nx = Math.Clamp(nx, 0, w - _targetSize); }
             if (ny <= 0 || ny + _targetSize >= h) { _vy = -_vy; ny = Math.Clamp(ny, 0, h - _targetSize); }

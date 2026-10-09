@@ -1,6 +1,11 @@
 namespace CleanAimTracker.Services
 {
     /// <summary>
+    /// ⚠️ CAT_PAID_APP (2026-10-09): CAT is now a paid app at $4.99 (the app's own Store
+    /// price), and the add-ons below are RETIRED. Nothing in the app shows these strings
+    /// any more, because <see cref="TrialService.IsFullVersion"/> is always true and every
+    /// upsell is unreachable. They're kept only so the dormant upgrade windows compile.
+    ///
     /// Single source of truth for DISPLAYED prices across the app and website.
     ///
     /// IMPORTANT: the REAL prices live in Partner Center (the Store add-ons) — these

@@ -20,9 +20,6 @@ namespace CleanAimTracker
         private void Close_Click(object sender, RoutedEventArgs e)
             => Close();
 
-        private void UpgradeBanner_Click(object sender, MouseButtonEventArgs e)
-            => UpgradeDialog.Show();
-
         private void PrivacyLink_Click(object sender, MouseButtonEventArgs e)
         {
             Process.Start(new ProcessStartInfo(

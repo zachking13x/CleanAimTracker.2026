@@ -1,4 +1,4 @@
-using CleanAimTracker.Models;
+﻿using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,9 +12,24 @@ namespace CleanAimTracker.Services
     /// physical fix, imperative) → STAKE (the metric that proves it next session).
     ///
     /// Rule of attribution: the coach may assert any MECHANICAL BEHAVIOR the data
-    /// can see (gripping, wrist-flicking, hesitating, orbiting, crashing). It may
-    /// never assert BODY STATES the data cannot see (cold, tired, tense-as-mood).
+    /// can see (clicks landing long or short, orbiting, crashing). It may never
+    /// assert BODY STATES the data cannot see (cold, tired, tense-as-mood).
     /// No number cited, no accusation allowed.
+    ///
+    /// AUDIT 2026-08-19 — the line moved, because it was drawn in the wrong place.
+    /// "Gripping", "wrist-flicking" and "chasing the trail" were listed above as
+    /// observable mechanics. They are not: smoothness cannot see grip pressure, an axis
+    /// split cannot see which joint is driving, and the lag metric measures when movement
+    /// STARTS, not where the eyes went. Three prescriptions asserted all three as fact.
+    ///
+    /// The cause beat is still mandatory. It now takes one of two forms:
+    ///   (a) OBSERVABLE  — state it plainly: "your clicks are landing short of centre"
+    ///   (b) UNOBSERVABLE — name it as the hypothesis and give the check:
+    ///       "a grip that's too tight is the usual cause … if that was it, smoothness
+    ///        climbs next session"
+    /// Form (b) is what crosshair_preplacement always did, and it was right.
+    /// PrescriptionLoopTests enforces both directions: every prescription must state a
+    /// cause, and the three unobservable ones must hedge it.
     /// </summary>
     public static class TechniquePrescriptionLibrary
     {
@@ -125,15 +140,18 @@ namespace CleanAimTracker.Services
                 },
                 Instruction = "Loosen to fingertip pressure — relaxed enough that someone could pull the mouse out of your hand.",
                 InstructionShort = "your grip pressure",
-                CauseClause = "you're still gripping too tight",
+                CauseClause = "the jaggedness is still there",
                 ComposeMessage = ctx =>
                 {
                     var sessions = ValidSmoothnessSessions(ctx);
                     double latest = sessions.Count > 0 ? sessions[0].SmoothnessScore : 0;
                     int n = Math.Max(1, Math.Min(sessions.Count, MinLowSmoothnessSessions));
                     return $"Smoothness {latest:F0}/100 across your last {n} sessions — your corrections are jagged, not flowing. " +
-                           "You're gripping too tight; the mouse is fighting you. Loosen to fingertip pressure — relaxed enough " +
-                           "that someone could pull the mouse out of your hand. If it's working, smoothness climbs next session.";
+                           // AUDIT 2026-08-19: smoothness cannot see grip pressure. Offer it
+                           // as the usual cause to TEST — the same hedge crosshair_preplacement
+                           // already uses — rather than asserting what the hand is doing.
+                           "A grip that's too tight is the usual cause, and it's the cheapest thing to test. Loosen to fingertip " +
+                           "pressure — relaxed enough that someone could pull the mouse out of your hand. If that was it, smoothness climbs next session.";
                 },
                 // Spec names "Smoothness • Standard"; the repo's smoothness drill
                 // is Tracking • Smooth (actual name recorded per protocol rule 5).
@@ -262,9 +280,11 @@ namespace CleanAimTracker.Services
                     ctx.Result.UndershootPct > ctx.Result.OvershootPct + ShootDominanceMargin,
                 Instruction = "Make one confident motion, one micro-correction, click. Trust the first move.",
                 InstructionShort = "committing to one full motion",
-                CauseClause = "you're still creeping in timid steps",
+                CauseClause = "your clicks are still landing short",
                 ComposeMessage = ctx =>
-                    $"Undershoot at {ctx.Result.UndershootPct:F0}% — you're creeping to targets in timid steps. " +
+                    // AUDIT 2026-08-19: "timid" is a confidence claim. Undershoot shows
+                    // where the click landed, not how the player felt about it.
+                    $"Undershoot at {ctx.Result.UndershootPct:F0}% — your clicks are landing short of centre more often than long. " +
                     "Make one confident motion, one micro-correction, click. Trust the first move. " +
                     "Undershoot drops when you commit.",
                 GetPracticeDrill = _ => new PracticeDrill("StaticClicking", "Standard", "Medium", "one motion, one fix, click"),
@@ -320,11 +340,18 @@ namespace CleanAimTracker.Services
                     ctx.Result.AvgDirectionChangeLagMs > DirectionLagHighMs,
                 Instruction = "Snap your eyes to where the target is going first; let the hand follow.",
                 InstructionShort = "leading with your eyes",
-                CauseClause = "you're still chasing the trail",
+                CauseClause = "your movement is still starting late",
+                // AUDIT 2026-08-19: the metric behind this is time-from-stimulus-to-
+                // MOVEMENT-ONSET (cumulative displacement crossing a threshold). It does
+                // not track the eyes, and it does not check that the movement went the
+                // RIGHT WAY — so "you're chasing the target's trail, moving your hand
+                // before your eyes have caught the turn" described two things the app
+                // cannot see. State the measured delay, offer the eye-lead as the usual
+                // fix to test, and keep the instruction (which was always fine).
                 ComposeMessage = ctx =>
-                    $"Direction-change lag at {ctx.Result.AvgDirectionChangeLagMs:F0}ms — you're chasing the target's trail, " +
-                    "moving your hand before your eyes have caught the turn. Snap your eyes to where it's going first; " +
-                    "let the hand follow. Lag drops next session if your eyes are leading.",
+                    $"Your movement starts about {ctx.Result.AvgDirectionChangeLagMs:F0}ms after the target changes direction. " +
+                    "Looking to the new direction before you move is the usual fix — snap the eyes there first, let the hand " +
+                    "follow. If that's it, the delay drops next session.",
                 GetPracticeDrill = _ => new PracticeDrill("Reactive", "Standard", "Medium", "eyes jump, hand follows"),
                 VerifyMetric = "AvgDirectionChangeLagMs",
                 ExpectedDirection = MetricDirection.Down
@@ -345,14 +372,17 @@ namespace CleanAimTracker.Services
                     && ctx.Result.HorizontalTrackingAcc - ctx.Result.VerticalTrackingAcc > AxisGapPoints,
                 Instruction = "Track vertical arcs with the arm, not the fingers.",
                 InstructionShort = "vertical tracking control",
-                CauseClause = "you're still tracking vertical from the wrist",
+                CauseClause = "your vertical split is still open",
                 ComposeMessage = ctx =>
                 {
                     double h = ctx.Result.HorizontalTrackingAcc, v = ctx.Result.VerticalTrackingAcc;
                     // Displayed arithmetic: split = h − v, both operands shown.
                     return $"Horizontal tracking {h:F0}/100, vertical {v:F0}/100 — a {h - v:F0}-point split. " +
-                           "You're aiming from the wrist, and wrists are horizontal creatures; your vertical control is underbuilt. " +
-                           "Track vertical arcs with the arm, not the fingers. Vertical accuracy climbs when the arm takes over.";
+                           // AUDIT 2026-08-19: an axis split cannot identify which joint is
+                           // driving the mouse, and "vertical accuracy climbs when the arm
+                           // takes over" promised a result rather than proposing a test.
+                           "Leading vertical arcs from the wrist is the usual cause — the wrist favours horizontal motion. " +
+                           "Try tracking those arcs with the arm instead of the fingers. If that was it, the split closes next session.";
                 },
                 GetPracticeDrill = _ => new PracticeDrill("AirTracking", "Jump Arc", "Easy", "follow the arc, not the target's body"),
                 VerifyMetric = "VerticalTrackingAcc",

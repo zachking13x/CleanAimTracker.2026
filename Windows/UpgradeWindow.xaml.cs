@@ -37,6 +37,9 @@ namespace CleanAimTracker.Windows
             try
             {
                 bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_PRO);
+                TelemetryService.TrackPurchaseCompleted(
+                    "monthly", ok ? "succeeded" : "canceled", !LicenseService.IsFree);
+
                 if (ok)
                 {
                     RefreshMainAndShowSuccess();
@@ -54,6 +57,7 @@ namespace CleanAimTracker.Windows
             }
             catch (Exception ex)
             {
+                TelemetryService.TrackPurchaseCompleted("monthly", "failed", !LicenseService.IsFree);
                 LogService.Error("Pro_Click purchase failed", ex);
                 RestoreProButton();
                 MessageBox.Show(
@@ -73,6 +77,9 @@ namespace CleanAimTracker.Windows
             try
             {
                 bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_LIFETIME);
+                TelemetryService.TrackPurchaseCompleted(
+                    "lifetime", ok ? "succeeded" : "canceled", !LicenseService.IsFree);
+
                 if (ok)
                 {
                     RefreshMainAndShowSuccess();
@@ -90,6 +97,7 @@ namespace CleanAimTracker.Windows
             }
             catch (Exception ex)
             {
+                TelemetryService.TrackPurchaseCompleted("lifetime", "failed", !LicenseService.IsFree);
                 LogService.Error("Lifetime_Click purchase failed", ex);
                 RestoreLifetimeButton();
                 MessageBox.Show(
@@ -139,20 +147,35 @@ namespace CleanAimTracker.Windows
         {
             try
             {
-                await LicenseService.RefreshEntitlementsAsync();
+                // AUDIT A6: this used to branch purely on the entitlement booleans, so a
+                // Store timeout looked identical to "you own nothing" and the user was told
+                // their purchase did not exist. Restore is exactly when someone is already
+                // anxious about a purchase, so the two cases now read differently.
+                var result = await LicenseService.RefreshEntitlementsAsync();
 
-                if (LicenseService.HasPro || LicenseService.HasLifetime)
+                switch (result)
                 {
-                    RefreshMainAndShowSuccess();
-                }
-                else
-                {
-                    MessageBox.Show(
-                        "No active subscription was found on this Microsoft account.\n\n" +
-                        "If you purchased on a different account, sign in to the Microsoft Store first, then try again.",
-                        "Nothing to Restore",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
+                    case EntitlementRefreshResult.Entitled:
+                        RefreshMainAndShowSuccess();
+                        break;
+
+                    case EntitlementRefreshResult.NotEntitled:
+                        MessageBox.Show(
+                            "No active purchase was found on this Microsoft account.\n\n" +
+                            "If you purchased on a different account, sign in to the Microsoft Store with that account first, then try again.",
+                            "Nothing to Restore",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Information);
+                        break;
+
+                    case EntitlementRefreshResult.StoreUnavailable:
+                        MessageBox.Show(
+                            "Could not reach the Microsoft Store, so your purchases could not be checked.\n\n" +
+                            "This does not mean anything is missing. Check your connection, make sure you are signed in to the Store, and try again.",
+                            "Store Unavailable",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                        break;
                 }
             }
             catch (Exception ex)

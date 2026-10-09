@@ -67,5 +67,32 @@ namespace CleanAimTracker.Services
         /// </summary>
         public static bool HasPerShotTiming(string scenario) => scenario is not
             ("HeadTrack" or "SmgAr" or "Sniper");
+
+        /// <summary>
+        /// CAT_ACQUISITION_GATE (2026-08-19): true only for scenarios where a shot marks
+        /// the END OF AN AIMED APPROACH — i.e. where the gaps between shots are real
+        /// target acquisitions rather than a fixed fire cadence.
+        ///
+        /// THE BUG THIS EXISTS TO KILL: PathEfficiency and MovementOvershoot segment the
+        /// raw movement buffer at click boundaries, and those boundaries come from
+        /// `_clickOffsets` — which HandleShot fills for EVERY hit, including the shots a
+        /// hold-to-spray scenario synthesises at a ~110ms metronome. On HeadTrack, SmgAr,
+        /// Tracking and AirTracking the "acquisitions" were therefore spray ticks, and
+        /// MovementOvershoot could report "you're flying past the target and pulling back"
+        /// from a player who never flicked at all.
+        ///
+        /// This is the same shape as the pace sentinel above: a metric that is meaningless
+        /// for a scenario, computed anyway, then read by the coach as fact. The 2026-08-12
+        /// axis-split fix proved the write-side gate alone is not enough — 236 already
+        /// stored sessions kept fabricating because the coach reads from disk — so this is
+        /// applied on BOTH sides: at capture in AimTrainerWindow.BuildResult, and on read
+        /// in AiCoachService.DrillMetricValid.
+        ///
+        /// Sniper is INCLUDED here (unlike HasPerShotTiming): its shots are slow and
+        /// deliberate, which is exactly a discrete aimed approach — it simply is not
+        /// scored on speed.
+        /// </summary>
+        public static bool HasDiscreteAcquisitions(string scenario) => scenario is not
+            ("HeadTrack" or "SmgAr" or "Tracking" or "AirTracking");
     }
 }

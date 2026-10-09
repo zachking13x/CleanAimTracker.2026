@@ -40,6 +40,15 @@
         // Cross-version comparisons are meaningless — V1 read 57-77% for
         // everyone; V2 reads near-0 for a centered clicker.
         public int    ClickMetricVersion      { get; set; } = 0;
+
+        // AUDIT 2026-08-19: which MovementConsistency formula produced this reading.
+        // 0 = legacy running-mean (inflated: first event always scored 100, and an
+        //     expanding mean shrank every deviation)
+        // 1 = fixed session mean
+        // v1 readings sit slightly LOWER than v0 for identical movement, so a trend that
+        // straddles the change would show a fake decline. Anything comparing consistency
+        // ACROSS sessions must require matching versions — same rule as ClickMetricVersion.
+        public int    MovementMetricVersion   { get; set; } = 0;
         public double AvgDirectionChangeLagMs { get; set; } = 0;
         public double FirstMotionAccuracy     { get; set; } = 0;
         public double HorizontalTrackingAcc   { get; set; } = 0;

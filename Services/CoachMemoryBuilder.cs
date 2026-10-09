@@ -19,6 +19,39 @@ namespace CleanAimTracker.Services
 
         /// <param name="current">The just-completed drill. Null when building for the tracker coach.</param>
         /// <param name="settings">Loaded UserSettings — read for prescription follow-up state.</param>
+        /// <summary>
+        /// Consistency trend: newest 3 tracker sessions minus the prior 3, or 0 when no
+        /// honest comparison is available.
+        ///
+        /// AUDIT 2026-08-19: extracted from Build so the version rule is testable — Build
+        /// loads from disk, so anything inside it can only be exercised against whatever
+        /// data happens to be on the machine.
+        ///
+        /// BOTH HALVES MUST SHARE A CONSISTENCY FORMULA. v1 (fixed session mean) reads
+        /// slightly lower than v0 (running mean) for identical movement, so a window
+        /// straddling the change shows a drop that is purely the bug fix.
+        /// TransferObservationSource converts a negative trend into "your drill results
+        /// aren't showing up in-game yet" — fabricated discouragement, which is precisely
+        /// the failure this codebase keeps having to stamp out. Returning 0 makes that
+        /// source stay silent, which is the correct behaviour when we cannot compare.
+        /// </summary>
+        public static double ConsistencyTrendFor(IReadOnlyList<SessionSummary> trackerNewestFirst)
+        {
+            if (trackerNewestFirst == null || trackerNewestFirst.Count < 6) return 0;
+
+            var recent = trackerNewestFirst.Take(3).Where(s => s.MovementConsistency > 0).ToList();
+            var prior  = trackerNewestFirst.Skip(3).Take(3).Where(s => s.MovementConsistency > 0).ToList();
+            if (recent.Count == 0 || prior.Count == 0) return 0;
+
+            bool sameFormula = recent.Concat(prior)
+                .Select(s => s.MovementMetricVersion).Distinct().Count() == 1;
+            if (!sameFormula) return 0;
+
+            double rt = recent.Average(s => s.MovementConsistency);
+            double pt = prior.Average(s => s.MovementConsistency);
+            return double.IsNaN(rt) || double.IsNaN(pt) ? 0 : rt - pt;
+        }
+
         public static CoachMemory Build(AimTrainerResult? current, UserSettings settings)
         {
             var memory = new CoachMemory();
@@ -263,19 +296,16 @@ namespace CleanAimTracker.Services
                 if (validConsistency.Count > 0)
                     memory.TrackerConsistencyBaseline = validConsistency.Average(s => s.MovementConsistency);
 
-                // Consistency trend: last 3 tracker sessions vs prior 3
-                if (allTracker.Count >= 6)
-                {
-                    var recentT = allTracker.Take(3).Where(s => s.MovementConsistency > 0).ToList();
-                    var priorT  = allTracker.Skip(3).Take(3).Where(s => s.MovementConsistency > 0).ToList();
-                    if (recentT.Count > 0 && priorT.Count > 0)
-                    {
-                        double rt = recentT.Average(s => s.MovementConsistency);
-                        double pt = priorT.Average(s => s.MovementConsistency);
-                        if (!double.IsNaN(rt) && !double.IsNaN(pt))
-                            memory.ConsistencyTrend = rt - pt;
-                    }
-                }
+                // Consistency trend: last 3 tracker sessions vs prior 3.
+                //
+                // AUDIT 2026-08-19: both halves must come from the SAME consistency
+                // formula. v1 (fixed session mean) reads slightly lower than v0 (running
+                // mean) for identical movement, so a window straddling the change would
+                // show a drop that is purely the bug fix. TransferObservationSource turns
+                // a negative trend into "your drill results aren't showing up in-game yet"
+                // — which would be a fabricated discouragement, and the exact thing this
+                // codebase keeps having to stamp out. Same rule as ClickMetricVersion.
+                memory.ConsistencyTrend = ConsistencyTrendFor(allTracker);
             }
             catch
             {

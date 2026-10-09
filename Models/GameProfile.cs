@@ -204,6 +204,27 @@ namespace CleanAimTracker.Models
             }
         }
 
+        /// <summary>
+        /// AUDIT A4: derive a custom profile's yaw from the cm/360 the user measured.
+        ///
+        /// YawPerCount is degrees turned per mouse count per sensitivity unit — the same
+        /// unit as the hardcoded defaults above (CS2 = 0.022). It is NOT "degrees per cm",
+        /// which is what the old expression 360/(cm360*2.54) produced: for 40 cm/360 that
+        /// gave 3.5433, roughly 124x too large, and RecommendationEngine's inverse
+        /// (cm/360 = 914.4 / (sens * dpi * yaw)) then reported 0.32 cm/360 instead of 40.
+        ///
+        /// This is the exact inverse of that formula, so a profile round-trips: feed the
+        /// derived yaw back with the same DPI and sensitivity and you get the original
+        /// cm/360 again. 914.4 = 360 degrees expressed in mm per inch (25.4 * 36).
+        /// </summary>
+        public static double YawFromCm360(double cm360, int dpi, double sensitivity)
+        {
+            if (cm360 <= 0 || dpi <= 0 || sensitivity <= 0)
+                return 0.022;   // CS2-like fallback; matches the previous behaviour for bad input
+
+            return 914.4 / (cm360 * dpi * sensitivity);
+        }
+
         public static List<GameProfile> GetAllProfiles(List<AimProfile>? customProfiles)
         {
             var all = GetDefaults();
@@ -217,7 +238,7 @@ namespace CleanAimTracker.Models
                         Name = p.Name,
                         Category = "Custom",
                         Description = "User-created profile",
-                        YawPerCount = p.CmPer360 > 0 ? 360.0 / (p.CmPer360 * 2.54) : 0.022,
+                        YawPerCount = YawFromCm360(p.CmPer360, p.DPI, p.Sensitivity),
                         RecommendedCm360Min = p.CmPer360,
                         RecommendedCm360Max = p.CmPer360,
                         ProAverageCm360 = p.CmPer360,

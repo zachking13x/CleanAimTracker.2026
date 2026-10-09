@@ -1,4 +1,4 @@
-using CleanAimTracker.Models;
+﻿using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -638,13 +638,20 @@ namespace CleanAimTracker.Services
             "AvgReactionMs"           => r.AvgReactionMs > 0 && r.AvgReactionMs < 2000,
             // PathEfficiency is now per-acquisition (F6). Real play reads ~0.4–0.9;
             // below 0.15 indicates a degenerate/near-empty capture, not "low".
-            "PathEfficiency"          => r.PathEfficiency >= 0.15 && r.PathEfficiency <= 1.0,
+            // AUDIT 2026-08-19: also requires discrete acquisitions — on auto-fire the
+            // segment boundaries are a fire cadence, not aimed approaches. Read-side gate
+            // because sessions captured before this fix are already on disk with values.
+            "PathEfficiency"          => ReactionMetric.HasDiscreteAcquisitions(r.Scenario)
+                                      && r.PathEfficiency >= 0.15 && r.PathEfficiency <= 1.0,
             // V2: only the directional metric counts — V1 (radial buckets) read
             // 57-77% for everyone including a centered auto-clicker. -1 = not computed.
             "OvershootPct"            => r.ClickMetricVersion >= 2 && r.OvershootPct >= 0,
             "UndershootPct"           => r.ClickMetricVersion >= 2 && r.UndershootPct >= 0,
             // A1: -1 sentinel = not computed (too few segments). Valid is >= 0.
-            "MovementOvershoot"       => r.MovementOvershoot >= 0,
+            // AUDIT 2026-08-19: plus the discrete-acquisition gate — a hold-to-spray
+            // session's synthesised shots produced in-flight "overshoot" from a metronome.
+            "MovementOvershoot"       => ReactionMetric.HasDiscreteAcquisitions(r.Scenario)
+                                      && r.MovementOvershoot >= 0,
             // T3: lag must land in the human-reaction window. The old `> 0` guard let a
             // garbage high reading (e.g. 1154ms — the metric latching onto a spawn
             // interval instead of a reaction) sail through and produce a bogus
@@ -705,7 +712,7 @@ namespace CleanAimTracker.Services
             if (r.Scenario == "Shotgun")
             {
                 if (r.AvgReactionMs > 0 && r.AvgReactionMs <= 200 && r.Accuracy >= 70)
-                    return $"{r.AvgReactionMs:F0}ms average — elite shotgun speed. You're winning most fights before they start.";
+                    return $"{r.AvgReactionMs:F0}ms average — elite shotgun speed. You're committing to the shot instead of double-checking it.";
                 if (r.Accuracy >= 75)
                     return $"Strong shotgun session. {r.Accuracy:F0}% accuracy at close range is where it needs to be.";
                 if (r.AvgReactionMs > 400)
@@ -788,11 +795,24 @@ namespace CleanAimTracker.Services
             // TASK-0.3: prose matches the measurement — "reaction" only for
             // stimulus-anchored scenarios, "time per target" everywhere else.
             string pace = ReactionMetric.Noun(r.Scenario);
-            if (c.NewAccuracyRecord && c.NewReactionRecord)
+
+            // AUDIT 2026-08-26: every branch below that prints AvgReactionMs must first ask
+            // whether pace was MEASURED. On auto-fire drills (HeadTrack, SmgAr) and Sniper
+            // the field is 0 — the "no reading" sentinel — and these lines rendered it as a
+            // real number: "48% accuracy, 0ms avg time per target."
+            //
+            // That is the exact fabrication CAT_PACE_SENTINEL was built to kill in 1.0.90.
+            // It survived here because these are FALLBACK branches: they only run when every
+            // earlier headline rule misses, so the defect sat unreachable until a real
+            // session shape reached them. The guard belongs on the render, not on the luck
+            // of which branch wins.
+            bool paceMeasured = ReactionMetric.IsPaceMeasured(r.Scenario, r.AvgReactionMs);
+
+            if (c.NewAccuracyRecord && c.NewReactionRecord && paceMeasured)
                 return $"Personal best on accuracy and {pace} — {r.Accuracy:F0}%, {r.AvgReactionMs:F0}ms avg. Your best session yet.";
             if (c.NewAccuracyRecord)
                 return $"New personal best accuracy — {r.Accuracy:F0}% in {r.Scenario}. That's a record for you.";
-            if (c.NewReactionRecord)
+            if (c.NewReactionRecord && paceMeasured)
                 return $"New personal best {pace} — {r.AvgReactionMs:F0}ms average. Fastest you've been in {r.Scenario}.";
             // TASK-0.2: percentile suffix and "top tier" population claim disabled —
             // no population data exists. Voltaic-relative wording returns in TASK-3.3.
@@ -808,7 +828,11 @@ namespace CleanAimTracker.Services
                     return $"First {r.Scenario} session — {r.Accuracy:F0}% accuracy. Your average across {c.TotalSessionsAll} sessions is {c.OverallAvgAccuracy:F0}%.";
                 return $"First {r.Scenario} session logged — {r.Accuracy:F0}% accuracy gives you a solid baseline to build from.";
             }
-            return $"{r.Accuracy:F0}% accuracy, {r.AvgReactionMs:F0}ms avg {pace}. {(c.AccuracyGrade == "good" ? "Solid session." : "Keep building.")}";
+            string close = c.AccuracyGrade == "good" ? "Solid session." : "Keep building.";
+            return paceMeasured
+                ? $"{r.Accuracy:F0}% accuracy, {r.AvgReactionMs:F0}ms avg {pace}. {close}"
+                // No pace reading exists for this scenario — report only what was measured.
+                : $"{r.Accuracy:F0}% accuracy across {r.Hits + r.Misses} shots. {close}";
         }
 
         // TASK-2.2: emits ONE keyed strength candidate (weapon rules take priority,
@@ -866,15 +890,20 @@ namespace CleanAimTracker.Services
                     strengthCandidates.Add(("accuracy_trend", PickGlobal(memory, 0,
                         $"Your accuracy has been consistently above {Bench.AccuracyGood(r.Scenario):F0}% for your last several sessions. That's becoming a reliable strength.",
                         $"Elite accuracy at {r.Accuracy:F0}% — and the trend is pointing up. That's not luck, that's the work compounding.",
-                        $"{r.Accuracy:F0}% accuracy and still improving. You're in rare territory."
+                        // AUDIT 2026-08-19: was "You're in rare territory." CAT has no
+                        // player-distribution data, so it cannot say how rare anything is.
+                        $"{r.Accuracy:F0}% accuracy and still climbing. Holding accuracy while it rises is the hard combination."
                     )));
                 }
                 else
                 {
                     // TASK-0.2: "most competitive players" / "top tier" population-claim variants removed.
+                    // AUDIT 2026-08-19: that sweep missed the "ranked lobbies" variant below,
+                    // which is a social-performance claim CAT has no match data to support.
+                    // Replaced with the authored per-scenario band, which we DO own.
                     strengthCandidates.Add(("accuracy_assessment", Pick(c.SessionCount,
                         $"Elite accuracy at {r.Accuracy:F0}%. The consistency is the impressive part — anyone can have a good session, fewer can repeat it.",
-                        $"Your {r.Accuracy:F0}% accuracy is the kind of number that shows up in ranked lobbies. Keep building on it."
+                        $"{r.Accuracy:F0}% clears the top accuracy band for {r.Scenario}. Keep building on it."
                     )));
                 }
             }
@@ -916,10 +945,14 @@ namespace CleanAimTracker.Services
             {
                 strengthCandidates.Add(("reaction_trend",
                     memory.ReactionTrend < -20
-                        ? $"Your average {ReactionMetric.Noun(r.Scenario)} has dropped {Math.Abs(memory.ReactionTrend):F0}ms over your recent sessions. " +
-                          "That kind of improvement at this accuracy level almost never happens — it means your technique " +
-                          "is genuinely getting better, not just your familiarity."
-                        : $"{r.AvgReactionMs:F0}ms average, and trending lower. Speed and control improving together is rare."
+                        // AUDIT 2026-08-19: "almost never happens" and "is rare" are both
+                        // frequency claims about a player population CAT has no data on.
+                        // The genuinely informative part — speed falling while accuracy
+                        // HOLDS — is observable in this user's own sessions, so say that.
+                        ? $"Your average {ReactionMetric.Noun(r.Scenario)} has dropped {Math.Abs(memory.ReactionTrend):F0}ms over your recent sessions " +
+                          "while your accuracy held. Getting faster without giving up hits means the technique is changing, " +
+                          "not just your familiarity with the drill."
+                        : $"{r.AvgReactionMs:F0}ms average, and trending lower — with control holding. That pairing is the one worth protecting."
                 ));
             }
 
@@ -1006,9 +1039,11 @@ namespace CleanAimTracker.Services
                     else if (r.AvgDirectionChangeLagMs > 0 && lagDelta > 15)
                         strengthCandidates.Add(("improvement_ack", Pick(c.SessionCount,
                             $"Direction change response improved {lagDelta:F0}ms since last session — you're reading the patterns better.",
-                            $"{lagDelta:F0}ms faster on direction changes. Your anticipation is kicking in.",
+                            // AUDIT 2026-08-19: "anticipation" is a cognitive state the app
+                            // cannot observe. The measured thing is how fast movement STARTS.
+                            $"{lagDelta:F0}ms faster to start moving after a direction change.",
                             $"Direction lag dropped {lagDelta:F0}ms. You're starting to lead the movement instead of chasing it.",
-                            $"{lagDelta:F0}ms improvement on direction changes. That's anticipation developing — keep it going."
+                            $"{lagDelta:F0}ms improvement in how quickly you start moving after a direction change — keep it going."
                         )));
                 }
             }
@@ -1063,7 +1098,11 @@ namespace CleanAimTracker.Services
                     ? "This session was below your usual level. The data below shows where to focus next."
                     : r.Hits > r.Misses
                         ? $"You hit more than you missed — {r.Hits} hits vs {r.Misses} misses. That's the foundation to build on."
-                        : $"You completed a full {r.DurationSeconds}-second drill. Every session builds muscle memory, even the tough ones."));
+                        // AUDIT 2026-08-19: was "Every session builds muscle memory, even
+                        // the tough ones." CAT cannot observe motor learning — it sees
+                        // mouse movement. Stick to what the session actually gives us,
+                        // which is another comparable data point.
+                        : $"You completed a full {r.DurationSeconds}-second drill. That's another clean reading to measure the next one against."));
             }
 
             // TASK-2.2: persistence moved to GenerateReport — only keys that
@@ -1904,7 +1943,7 @@ namespace CleanAimTracker.Services
                 return $"Try Switching on {r.Difficulty} — it specifically trains target-to-target transitions which directly improves your streak consistency.";
             if (!c.IsFirstSession && c.AccuracyDelta > 5)
                 return $"Repeat {r.Scenario} at {r.Difficulty} to reinforce today's improvement — back-to-back sessions on the same scenario lock in gains faster.";
-            return $"Run {r.Scenario} again at {r.Difficulty} — consistency in the same scenario builds the muscle memory that transfers directly to your game.";
+            return $"Run {r.Scenario} again at {r.Difficulty} — repeating the same scenario under the same conditions is what makes the next reading comparable.";
         }
 
         // ── TASK-26: Telemetry-based observations ─────────────────────
@@ -2105,8 +2144,8 @@ namespace CleanAimTracker.Services
             if (c.SessionCount >= 10)
                 return v switch {
                     0 => $"{c.SessionCount} sessions tracked. The players who log 10+ sessions are the ones who actually improve — you're one of them.",
-                    1 => $"10+ sessions in this scenario. Muscle memory is building whether you notice it yet or not.",
-                    2 => "Consistency over 10 sessions is rarer than people think. You're in the group that improves.",
+                    1 => $"10+ sessions in this scenario — enough history for the coach to tell a real change from a good day.",
+                    2 => "Ten sessions in one scenario is the point where a trend stops being noise.",
                     _ => $"{c.SessionCount} sessions and still showing up. That's the whole game."
                 };
 

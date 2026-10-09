@@ -268,16 +268,8 @@ namespace CleanAimTracker.Windows
         // TRIAL BANNER
         public void UpdateTrialBanner()
         {
-            if (LicenseService.InitFailed)
-            {
-                TrialBannerText.Text       = "⚠  License check failed — check your connection and restart the app.";
-                TrialBannerText.Foreground = new System.Windows.Media.SolidColorBrush(
-                    System.Windows.Media.Color.FromRgb(0xFF, 0x6B, 0x35));  // AccentOrange
-                TrialBannerText.Visibility    = Visibility.Visible;
-                TrialBannerContainer.Visibility = Visibility.Visible;
-                return;
-            }
-
+            // CAT_PAID_APP: no "License check failed" warning any more. Nothing is gated on
+            // the add-on refresh now, so warning offline buyers about it would just scare them.
             TrialBannerText.ClearValue(System.Windows.Controls.TextBlock.ForegroundProperty);
             string banner = TrialService.GetBannerText();
             TrialBannerText.Text = banner;
@@ -1531,6 +1523,7 @@ namespace CleanAimTracker.Windows
                 SmoothnessScore = savedSmoothness,
                 CorrectionSharpness = _correctionSharpness,
                 MovementConsistency = savedConsistency,
+                MovementMetricVersion = MovementConsistencyCalculator.FormulaVersion,
                 VelocityStability   = mq.VelocityStability,   // GATE 2 (-1 if too few active samples)
                 OverallQualityScore = _overallQualityScore,
                 SessionSeconds  = _sessionSeconds,
@@ -1585,6 +1578,29 @@ namespace CleanAimTracker.Windows
 
         private static string GetWhatsNewText(string version) => version switch
         {
+            "1.0.102" => "Everything is unlocked · Clean Aim Tracker is now a one-time purchase, with no add-ons and no subscription · " +
+                        "The full coach, every report, history, trends, export and the overlay are all included · " +
+                        "If you installed before the switch, all of it is yours free, for good. Thanks for being here early",
+
+            "1.0.101" => "Fixed the coach reporting a time on drills that have no per-shot timing · " +
+                        "On hold-to-spray drills like Track the Head it could read \"0ms avg time per target\", " +
+                        "which was the app's way of saying \"no reading\" leaking out as if it were a real number · " +
+                        "Those drills now report only what was actually measured",
+
+            "1.0.100" => "An honesty pass on everything the coach says · " +
+                        "Where it can't actually see a cause, it now says what it measured and what to test, instead of telling you what your hand was doing · " +
+                        "Removed claims the app has no data for — nothing about how rare your numbers are or what other players do · " +
+                        "The Pro preview is clearly labelled as an example, so sample figures can't be mistaken for your own results · " +
+                        "Hold-to-spray drills no longer report in-flight overshoot, which was being measured off the fire rate rather than your aim · " +
+                        "Fixed the consistency score — it was giving a free perfect mark to the first movement of every session, so yours may read slightly lower and more honestly now",
+
+            "1.0.99" => "Your coach now tells you what a finding looks like in the game you actually play — the same habit reads differently in CS2 than it does in Apex · " +
+                        "Custom game profiles now save properly, and the sensitivity maths behind them was wrong — if you made one before, remake it · " +
+                        "Fixed a locked report claiming you had free sessions left when your coaching had already finished · " +
+                        "Skipping the intro now actually sticks · " +
+                        "\"Restore purchases\" no longer says you own nothing when it simply could not reach the Store · " +
+                        "Dynamic Clicking (Bounce) now speeds up off every wall, not just the sides",
+
             "1.0.93" => "The coach report no longer interrupts you after every single drill · " +
                         "Between drills you now get one line — what the coach saw — and the next drill starts whenever you're ready · " +
                         "When you finish training you get one report covering the whole session, and if you close the app first it's waiting next time you open it · " +

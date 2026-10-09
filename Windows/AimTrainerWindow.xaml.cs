@@ -298,6 +298,18 @@ namespace CleanAimTracker.Windows
             RoutineReasonText.Text      = step.Reason;
             RoutinePanel.Visibility     = Visibility.Visible;
 
+            // AUDIT 2026-08-26: the verification step IS the prescribed drill — RoutineService
+            // appends it from settings.ActiveTechniquePrescription. Reaching it closes the
+            // coach's loop exactly as pressing "Start This Drill" on the report does, but it
+            // used to report nothing, so the measured prescription-start rate could only ever
+            // undercount. Tagged as routine_step so the two paths stay separable.
+            if (step.Kind == RoutineService.StepKind.Verify)
+            {
+                TelemetryService.TrackPrescriptionStarted(
+                    step.Scenario, step.Difficulty,
+                    TelemetryService.PrescriptionSource.RoutineStep);
+            }
+
             StartDrill();
         }
 
@@ -956,7 +968,24 @@ namespace CleanAimTracker.Windows
                     // PathEfficiency — per-acquisition segmentation: the raw movement
                     // buffer is split at click boundaries so each segment is one
                     // target acquisition. Needs ≥2 hits to form one bounded segment.
-                    if (_rawInputBuffer.Count >= 20 && _clickOffsets.Count >= 2)
+                    // AUDIT 2026-08-19 (P0): this block used to run on ANY scenario with
+                    // enough samples. The 2026-07-06 auto-fire gate below was applied to
+                    // OvershootPct/UndershootPct but NOT here — yet both draw their segment
+                    // boundaries from the same _clickOffsets list, and HandleShot records a
+                    // sample for every hit INCLUDING the shots a hold-to-spray scenario
+                    // synthesizes at a fixed ~110ms cadence.
+                    //
+                    // So on HeadTrack/SmgAr/Tracking the "acquisitions" being measured were
+                    // spray ticks, not aimed approaches, and MovementOvershoot could report
+                    // "you're flying past the target and pulling back" off a metronome.
+                    // Exactly the fabrication class the 2026-08-12 honesty audit removed
+                    // from the pace metrics — it just survived in a different field.
+                    //
+                    // Same gate, same reason. Both metrics stay at their -1 invalid
+                    // sentinel on auto-fire rather than rendering a confident wrong number.
+                    bool hasDiscreteAcquisitions = statsSource != null && !statsSource.IsAutoFire;
+
+                    if (hasDiscreteAcquisitions && _rawInputBuffer.Count >= 20 && _clickOffsets.Count >= 2)
                     {
                         var clickTimes = _clickOffsets.Select(c => c.Timestamp).ToList();
                         result.PathEfficiency = TelemetryCalculator.CalculatePathEfficiency(
@@ -979,6 +1008,10 @@ namespace CleanAimTracker.Windows
                         result.MovementSmoothness  = mq.Smoothness;
                         result.MovementConsistency = mq.Consistency;
                         result.VelocityStability   = mq.VelocityStability;
+                        // AUDIT 2026-08-19: stamp the consistency formula version so a trend
+                        // can never straddle the running-mean → session-mean change and read
+                        // the correction as the player getting worse.
+                        result.MovementMetricVersion = MovementConsistencyCalculator.FormulaVersion;
                         // GATE 2 / T2.2: log the raw CV so the jerky-vs-clean capture
                         // pair can calibrate VelocityCvCeiling from real data.
                         LogService.Info(

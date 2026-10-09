@@ -8,11 +8,6 @@ namespace CleanAimTracker.Services
         // TASK-13: 30 free sessions instead of 7-day timer
         private const int FreeSessions = 30;
 
-        // Developer bypass — grants full Pro access on the developer's own machine.
-        // Environment.UserName is evaluated once at startup; no effect on any other user.
-        private static readonly bool IsDeveloper =
-            Environment.UserName.Equals("Zachk", StringComparison.OrdinalIgnoreCase);
-
         public static void Initialize()
         {
             var settings = SettingsService.Load();
@@ -42,28 +37,33 @@ namespace CleanAimTracker.Services
             catch { return 0; }
         }
 
-        public static int SessionsRemaining()
-        {
-            int remaining = FreeSessions - SessionsCompleted();
-            return Math.Max(0, remaining);
-        }
+        // AUDIT A7: SessionsRemaining() was removed. Its only caller rendered
+        // "N sessions left in your free trial" on the LOCKED coach report, which
+        // contradicted the coach's real gate (5 real drills, FreeCoachSessionService).
+        //
+        // ⚠️ THERE ARE STILL TWO GATES IN THIS APP, and that is a product decision, not
+        // a bug, so it has been left alone:
+        //   • the COACH unlocks/locks on 5 real drills   (FreeCoachSessionService)
+        //   • Overlay, Session History, Export and Trends run on the 30-session trial
+        //     below, via IsTrialActive() → CanAccessProFeature()
+        // A free user therefore loses the coach at drill 5 but keeps Export until
+        // session 30. Collapsing those onto one rule would change what free users get,
+        // so it needs an explicit call rather than a silent refactor.
 
-        public static bool IsFullVersion()
-        {
-            // Dev bypass — but honor the "preview as free user" dev toggle so Zach can
-            // actually SEE the paywall. PreviewingAsFree() is only evaluated when
-            // IsDeveloper is true, so real users never pay the settings-read cost.
-            if (IsDeveloper && !PreviewingAsFree()) return true;
-            return LicenseService.HasPro
-                || LicenseService.HasTrainer
-                || LicenseService.HasLifetime;
-        }
-
-        private static bool PreviewingAsFree()
-        {
-            try { return SettingsService.Load().PreviewAsFreeUser; }
-            catch { return false; }
-        }
+        // CAT_PAID_APP (2026-10-09): CAT is a PAID app now, with no add-ons. Owning the app
+        // IS the licence. Windows won't launch a paid Store app without a valid entitlement,
+        // so a running copy is already a licensed one, and checking again in here would
+        // only add ways to lock out someone who paid (offline, Store hiccup).
+        //
+        // GRANDFATHERING comes from the same rule. Anyone who got CAT while it was free
+        // keeps that Store entitlement after the price change, so they land here exactly
+        // like a buyer and get everything, free, for good. Earlier Lifetime/Monthly add-on
+        // buyers are covered too. Every free-tier gate and upsell below is dead now; they
+        // stay only so the call sites keep compiling.
+        //
+        // ⚠️ If a Store FREE TRIAL is ever turned on in Partner Center, this must start
+        // reading StoreAppLicense.IsTrial. Until then, unconditional true is correct.
+        public static bool IsFullVersion() => true;
 
         public static bool CanAccessProFeature()
             => IsFullVersion() || IsTrialActive();

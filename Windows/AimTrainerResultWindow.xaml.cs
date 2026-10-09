@@ -1105,6 +1105,8 @@ namespace CleanAimTracker.Windows
                     NextDrillFocusCueText.Text = $"Focus cue: {report.Prescription.FocusCue}";
                     StartPrescribedDrillBtn.Visibility = Visibility.Visible;
                     StartPrescribedDrillBtn.Tag = report.Prescription;
+
+                    ShowGameTransferLine();
                 }
                 else
                 {
@@ -1125,13 +1127,17 @@ namespace CleanAimTracker.Windows
                 if (CoachingLockedHint != null)
                     CoachingLockedHint.Text = body;
 
-                // Late-trial gentle urgency (loss-aversion, honest — no dark patterns).
+                // AUDIT A7: this used to show "N sessions left in your free trial" from the
+                // legacy 30-session counter. The coach is gated on FIVE real drills, so the
+                // countdown only appeared around drill 24-30 — nineteen-odd sessions AFTER
+                // the coach had already locked. A user was told they had trial left while
+                // staring at a lock. Two contradictory rules made the paywall look arbitrary.
+                // There is one rule now, and this line states it.
                 if (CoachingTrialProgress != null)
                 {
-                    int remaining = TrialService.SessionsRemaining();
-                    bool show = !TrialService.IsFullVersion() && remaining > 0 && remaining <= 6;
+                    bool show = !TrialService.IsFullVersion();
                     CoachingTrialProgress.Text = show
-                        ? $"{remaining} session{(remaining == 1 ? "" : "s")} left in your free trial."
+                        ? "Your free coaching reports are complete."
                         : "";
                     CoachingTrialProgress.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
                 }
@@ -1171,10 +1177,58 @@ namespace CleanAimTracker.Windows
             }
         }
 
+        /// <summary>
+        /// CAT_GAME_TRANSFER: render "what this looks like in your game" under the
+        /// prescription, keyed off the ACTIVE technique prescription rather than the drill
+        /// suggestion — the technique is the mechanical habit, and the habit is the thing
+        /// that has an in-game shape. Silent whenever there is no active technique, no
+        /// phrasing for it, or anything throws: a coach that says nothing is fine, a coach
+        /// that says something generic is not.
+        /// </summary>
+        private void ShowGameTransferLine()
+        {
+            if (GameTransferBox == null) return;
+
+            try
+            {
+                var settings = SettingsService.Load();
+                string? key  = settings.ActiveTechniquePrescription?.PrescriptionKey;
+                string? line = GameTransferPhrasing.For(key, settings.SelectedProfile);
+
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    GameTransferBox.Visibility = Visibility.Collapsed;
+                    return;
+                }
+
+                // Name the game when it is one we actually have specific copy for, so the
+                // header cannot imply per-game insight the generic line does not have.
+                bool named = GameTransferPhrasing.FamilyFor(settings.SelectedProfile) != "generic"
+                             && !string.IsNullOrWhiteSpace(settings.SelectedProfile);
+
+                GameTransferHeader.Text    = named
+                    ? $"IN {settings.SelectedProfile.ToUpperInvariant()}"
+                    : "IN GAME";
+                GameTransferText.Text      = line;
+                GameTransferBox.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                LogService.Error("ShowGameTransferLine failed", ex);
+                GameTransferBox.Visibility = Visibility.Collapsed;
+            }
+        }
+
         private void StartPrescribedDrill_Click(object sender, RoutedEventArgs e)
         {
             if (StartPrescribedDrillBtn.Tag is Models.DrillPrescription prescription)
             {
+                // The user is acting on the coach's advice. Everything upstream of this
+                // measures the app talking; this is the first event that measures listening.
+                TelemetryService.TrackPrescriptionStarted(
+                    prescription.Scenario, prescription.Difficulty,
+                    TelemetryService.PrescriptionSource.ReportButton);
+
                 Close();
                 if (Application.Current.MainWindow is MainWindow main)
                 {

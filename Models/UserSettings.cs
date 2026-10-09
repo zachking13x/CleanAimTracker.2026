@@ -91,11 +91,6 @@
         // (see ToastService.ReportNudgeAttribution). Cleared after each read.
         public Dictionary<string, DateTime> ScheduledNudgeTimes { get; set; } = new();
 
-        // DEV ONLY: when true, the developer's Pro bypass (TrialService.IsDeveloper) is
-        // ignored so the dev can see the app exactly as a FREE user does — locked coach,
-        // paywall cards, real banner. Toggled via the Settings 5-tap dev menu. Has zero
-        // effect for real users (IsDeveloper is false on their machines).
-        public bool PreviewAsFreeUser { get; set; } = false;
 
         // CAT_CALIBRATION_AS_GAME: the headline "aim score" from calibration — the number to beat.
         public int BestSkillScore { get; set; } = 0;

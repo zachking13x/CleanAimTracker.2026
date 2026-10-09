@@ -1,4 +1,4 @@
-using CleanAimTracker.Models;
+﻿using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -33,7 +33,7 @@ namespace CleanAimTracker.Services
         public static readonly string[] CleanMechConsistency =
         {
             "Start with what's working: your movement is controlled — shot-to-shot consistency around {0}/100, with no shaky-hand or wild-flick problem.",
-            "The good news first — your mechanics are clean. Consistency sits near {0}/100 and your motion arrives without the over-flick most players fight.",
+            "The good news first — your mechanics are clean. Consistency sits near {0}/100 and your motion arrives without the over-flick that usually shows up alongside it.",
             "Your foundation is solid: movement consistency around {0}/100 means your hand repeats itself every rep — that's the hard part, and you have it.",
             "Let's name the strength — you're not shaky. Consistency near {0}/100 and controlled travel say your mechanics aren't the problem.",
             "First, the rule-out: your aim path is steady. Consistency around {0}/100 — no jitter, no wild corrections to clean up here.",
@@ -41,7 +41,7 @@ namespace CleanAimTracker.Services
         public static readonly string[] CleanMechGeneric =
         {
             "Start with the rule-out: your movement is controlled and repeatable — no shaky-hand or wild-flick problem to fix.",
-            "The good news first — your mechanics are clean. The motion arrives without the over-flick most players fight.",
+            "The good news first — your mechanics are clean. The motion arrives without an over-flick pattern.",
             "Your foundation is solid: the hand does the same thing every rep, and the path stays controlled.",
             "Let's name the strength — you're not shaky, and you're not crashing through targets. The mechanics are sound.",
             "First, what's NOT wrong: your travel is smooth and controlled — that's not where your points are leaking.",

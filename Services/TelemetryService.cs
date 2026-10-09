@@ -44,6 +44,8 @@ namespace CleanAimTracker.Services
         public const string EvtFreeTrialExhausted   = "free_trial_exhausted";
         public const string EvtPaywallShown         = "paywall_shown";
         public const string EvtPurchaseStarted      = "purchase_started";
+        public const string EvtPurchaseCompleted    = "purchase_completed";
+        public const string EvtPrescriptionStarted  = "prescription_started";
         public const string EvtAimRadarSeen         = "aim_radar_seen";
         public const string EvtLaunchAfterNudge     = "launch_after_nudge";
         public const string EvtTelemetryOptOut      = "telemetry_opt_out";
@@ -225,6 +227,61 @@ namespace CleanAimTracker.Services
                 ["sku"]     = Safe(sku),
                 ["trigger"] = Safe(trigger),
             });
+
+        /// <summary>
+        /// The purchase flow FINISHED, and how it ended.
+        ///
+        /// WHY THIS EXISTS: purchase_started alone cannot tell a checkout that was
+        /// cancelled at the Store dialog apart from one that succeeded — they produced
+        /// identical telemetry. With zero sales so far that distinction is the whole
+        /// question: nobody reaching checkout and everybody abandoning at checkout look
+        /// the same from the dashboard, and they call for opposite fixes.
+        ///
+        /// <paramref name="entitled"/> is read AFTER LicenseService has re-checked the
+        /// Store, so it is the closest the client can get to "the licence actually
+        /// landed" — a succeeded purchase that leaves the user unentitled is an
+        /// entitlement bug, and this is the only place it would show up.
+        /// Partner Center still owns revenue truth; this measures the in-app path to it.
+        /// </summary>
+        public static void TrackPurchaseCompleted(string sku, string outcome, bool entitled)
+            => Track(EvtPurchaseCompleted, new Dictionary<string, string>
+            {
+                ["sku"]      = Safe(sku),          // monthly | lifetime
+                ["outcome"]  = Safe(outcome),      // succeeded | canceled | failed
+                ["entitled"] = entitled ? "yes" : "no",
+            });
+
+        /// <summary>
+        /// The user started the drill the coach prescribed.
+        ///
+        /// This is the product's real activation signal. app_launch, drill_completed and
+        /// coach_report_opened all measure the app talking; this is the first event that
+        /// measures the user ACTING on what it said. If reports are opened but this never
+        /// fires, the coaching is being read and ignored — which no other event can show.
+        ///
+        /// AUDIT 2026-08-26: it originally fired ONLY from the "Start This Drill" button on
+        /// the report window, so the routine path — where the open prescription is appended
+        /// as the verification step — was invisible. That made the measured rate a floor of
+        /// unknown tightness, and it was read (by me) as a product finding rather than an
+        /// instrument gap. Both paths now report, and <paramref name="source"/> keeps them
+        /// separable: they answer different questions.
+        ///   report_button = read a diagnosis and acted on it immediately
+        ///   routine_step  = came back later and worked through the plan containing it
+        /// </summary>
+        public static void TrackPrescriptionStarted(string scenario, string difficulty, string source)
+            => Track(EvtPrescriptionStarted, new Dictionary<string, string>
+            {
+                ["scenario"]   = Safe(scenario),
+                ["difficulty"] = Safe(difficulty),
+                ["source"]     = Safe(source),   // report_button | routine_step
+            });
+
+        /// <summary>Where a prescribed drill was started from. Values are stable — dashboards key on them.</summary>
+        public static class PrescriptionSource
+        {
+            public const string ReportButton = "report_button";
+            public const string RoutineStep  = "routine_step";
+        }
 
         /// <summary>The aim radar rendered. Does the identity artifact bring people back?</summary>
         public static void TrackAimRadarSeen(int axesWithData)

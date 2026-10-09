@@ -68,12 +68,30 @@
                     <TextBlock Text="WHAT THE COACH DOES FOR YOU"
                                Foreground="{DynamicResource MutedText}"
                                FontSize="10" FontWeight="Bold"
-                               Margin="0 0 0 12"/>
+                               Margin="0 0 0 8"/>
 
                     <!-- CAT_PRO_EXAMPLES: SHOW the feature, don't list it. A checklist of
                          capabilities asks the reader to imagine the value; a real example
                          of the output IS the value. Every sample below is the actual
-                         shape of what CAT produces, in CAT's own voice. -->
+                         shape of what CAT produces, in CAT's own voice.
+
+                         AUDIT 2026-08-19 (P0): the sample cards below used second person
+                         and present tense — "42% of YOUR clicks land past centre" — inside
+                         styled boxes that look exactly like a real coach report, with no
+                         user-visible label saying they were samples. A reader could
+                         reasonably take invented numbers for their own results, ON THE
+                         SCREEN THAT ASKS THEM FOR MONEY. For an app whose whole promise is
+                         that it does not make numbers up, that was the worst possible
+                         place to imply data we do not have. The banner below is not
+                         decoration — do not remove it, and do not reintroduce "your" into
+                         any sample figure. -->
+                    <Border Background="#14FFB020" BorderBrush="#40FFB020" BorderThickness="1"
+                            CornerRadius="5" Padding="9,6" Margin="0 0 0 12">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FFC964">
+                            <Run Text="EXAMPLE REPORT" FontWeight="Bold"/>
+                            <Run Text="— sample numbers, not your results. Your own report is built from your sessions."/>
+                        </TextBlock>
+                    </Border>
 
                     <TextBlock Text="1 · It names the habit"
                                Foreground="{DynamicResource PrimaryText}"
@@ -81,7 +99,8 @@
                     <Border Background="#0A0E14" BorderBrush="#22FFFFFF" BorderThickness="1"
                             CornerRadius="8" Padding="12,10" Margin="0 0 0 14">
                         <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#CFD8E3">
-                            <Run Text="42% of your clicks land past centre — about 9px long. Your aim arrives clean, but the click commits a hair after the cursor drifts past. That's a timing habit, not a movement one."/>
+                            <Run Text="Example: " FontStyle="Italic" Foreground="#8A97A6"/>
+                            <Run Text="42% of scored approaches landed past centre — about 9px long. The aim arrives clean, but the click commits a hair after the cursor drifts past. That reads as a timing habit, not a movement one."/>
                         </TextBlock>
                     </Border>
 
@@ -91,7 +110,7 @@
                     <Border Background="#0A0E14" BorderBrush="#2200D4FF" BorderThickness="1"
                             CornerRadius="8" Padding="12,10" Margin="0 0 0 6">
                         <StackPanel>
-                            <TextBlock Text="YOUR ACTIVE FIX · SESSION 2 OF 3"
+                            <TextBlock Text="EXAMPLE · ACTIVE FIX · SESSION 2 OF 3"
                                        Foreground="#00D4FF" FontSize="9" FontWeight="Bold" Margin="0 0 0 4"/>
                             <TextBlock Text="Click on arrival, not after"
                                        Foreground="{DynamicResource PrimaryText}"
@@ -100,7 +119,13 @@
                                        Foreground="#00E5A0" FontSize="11" Margin="0 3 0 0"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="No other aim trainer comes back and tells you whether the fix worked."
+                    <!-- AUDIT 2026-08-19 (P0): was "No other aim trainer comes back and tells
+                         you whether the fix worked." We cannot verify what every competitor
+                         does, and Aimlabs already ships an AI coach that identifies
+                         weaknesses — so the claim was both unverifiable and probably false.
+                         Describe our own loop instead; it is strong enough without the
+                         comparison. -->
+                    <TextBlock Text="Your coach names one metric, then checks it in a later session and tells you whether it moved."
                                Foreground="{DynamicResource MutedText}"
                                FontSize="11" TextWrapping="Wrap" Margin="0 0 0 14"/>
 
@@ -110,11 +135,17 @@
                     <Border Background="#0A0E14" BorderBrush="#22FFFFFF" BorderThickness="1"
                             CornerRadius="8" Padding="12,10" Margin="0 0 0 14">
                         <StackPanel>
-                            <TextBlock Text="INTERMEDIATE"
+                            <TextBlock Text="EXAMPLE · INTERMEDIATE"
                                        Foreground="#00E5A0" FontSize="12" FontWeight="Black"/>
-                            <TextBlock Text="Accuracy 74% — next rung is high-intermediate at 78%. You need 4% more."
+                            <TextBlock Text="Accuracy 74% on this scenario — the next rung, high-intermediate, starts at 78%."
                                        Foreground="#CFD8E3" FontSize="12"
                                        TextWrapping="Wrap" Margin="0 3 0 0"/>
+                            <!-- Rungs are authored STANDARDS, not population percentiles —
+                                 CAT has no player-distribution data. Naming the scenario
+                                 keeps it from reading as a universal rank. -->
+                            <TextBlock Text="Rungs are fixed standards per scenario, not a ranking against other players."
+                                       Foreground="{DynamicResource MutedText}" FontSize="10"
+                                       TextWrapping="Wrap" Margin="0 4 0 0"/>
                         </StackPanel>
                     </Border>
 

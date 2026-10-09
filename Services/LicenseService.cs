@@ -4,6 +4,30 @@ using Windows.Services.Store;
 
 namespace CleanAimTracker.Services
 {
+    /// <summary>
+    /// Outcome of an entitlement refresh.
+    ///
+    /// AUDIT A6: callers used to read only the HasPro/HasLifetime booleans after a
+    /// refresh, which cannot tell "the Store says this account owns nothing" apart from
+    /// "we never reached the Store". Restore therefore told users with a valid purchase
+    /// that nothing existed to restore whenever the network was down — the worst possible
+    /// moment to be wrong, since that is exactly when someone is reinstalling.
+    /// </summary>
+    public enum EntitlementRefreshResult
+    {
+        /// <summary>Store reached; this account owns at least one entitlement.</summary>
+        Entitled,
+
+        /// <summary>Store reached and answered; this account genuinely owns nothing.</summary>
+        NotEntitled,
+
+        /// <summary>
+        /// Store could not be reached or did not answer. Entitlement state is UNKNOWN.
+        /// Never present this to the user as "you have not purchased".
+        /// </summary>
+        StoreUnavailable,
+    }
+
     public static class LicenseService
     {
         private static StoreContext? _context;
@@ -62,25 +86,60 @@ namespace CleanAimTracker.Services
         {
             try
             {
-                _context = StoreContext.GetDefault();
-                await RefreshEntitlementsAsync();
-                _initialized = true;
-                LogService.Info("LicenseService initialized");
+                // RefreshEntitlementsAsync builds the StoreContext itself now, and reports
+                // failure by return value rather than by throwing.
+                var result = await RefreshEntitlementsAsync();
+
+                if (result == EntitlementRefreshResult.StoreUnavailable)
+                {
+                    _initFailed = true;
+                    // AUDIT A5: drop the cached task so the NEXT InitializeAsync() actually
+                    // retries. `_initTask ??=` used to pin the first (failed) task forever,
+                    // which is half of why a transient Store outage was unrecoverable
+                    // without restarting the app.
+                    _initTask = null;
+                    LogService.Error("LicenseService init: Store unavailable, will retry on next attempt", null);
+                    return;
+                }
+
+                LogService.Info($"LicenseService initialized ({result})");
             }
             catch (Exception ex)
             {
                 _initFailed = true;
+                _initTask   = null;
                 LogService.Error("LicenseService init failed", ex);
             }
         }
 
-        public static async Task RefreshEntitlementsAsync()
+        public static async Task<EntitlementRefreshResult> RefreshEntitlementsAsync()
         {
-            if (_context == null) return;
+            // AUDIT A5: _context was created once, in InitializeCoreAsync. If that throw'd
+            // (no network, Store service down, signed-out account) _context stayed null and
+            // _initFailed stayed true for the whole process — every later refresh returned
+            // on the line below, so a paid user stayed in a broken licence state until they
+            // restarted the app, even after connectivity came back. Rebuild on demand so a
+            // later refresh or purchase attempt can actually recover.
+            if (_context == null)
+            {
+                try
+                {
+                    _context = StoreContext.GetDefault();
+                }
+                catch (Exception ex)
+                {
+                    LogService.Error("LicenseService: StoreContext unavailable", ex);
+                    return EntitlementRefreshResult.StoreUnavailable;
+                }
+            }
 
-            HasPro      = false;
-            HasTrainer  = false;
-            HasLifetime = false;
+            if (_context == null) return EntitlementRefreshResult.StoreUnavailable;
+
+            // AUDIT A5: these three used to be zeroed HERE, before the Store call. If the
+            // call then threw, a paying customer was silently downgraded to free for the
+            // rest of the session. Resolve into locals and commit only after a clean read,
+            // so a failed refresh leaves the last known-good entitlements untouched.
+            bool hasPro = false, hasTrainer = false, hasLifetime = false;
 
             try
             {
@@ -90,7 +149,7 @@ namespace CleanAimTracker.Services
                 if (appLicense.AddOnLicenses.TryGetValue(STOREID_LIFETIME, out var lifetimeLic)
                     && lifetimeLic.IsActive)
                 {
-                    HasLifetime = true;
+                    hasLifetime = true;
                 }
 
                 // ── Developer-managed consumable (promo reviewer key) ─────────
@@ -98,7 +157,7 @@ namespace CleanAimTracker.Services
                 // When promo_pro_access is redeemed via promotional code, treat
                 // it identically to lifetime_unlock — grants permanent Pro access
                 // on this device for this account.
-                if (!HasLifetime)
+                if (!hasLifetime)
                 {
                     try
                     {
@@ -119,7 +178,7 @@ namespace CleanAimTracker.Services
 
                                     if (isOwned)
                                     {
-                                        HasLifetime = true;
+                                        hasLifetime = true;
                                         break;
                                     }
                                 }
@@ -170,15 +229,30 @@ namespace CleanAimTracker.Services
 
                         if (!isActive) continue;
 
-                        if (token == TOKEN_PRO)         HasPro = true;
-                        if (token == TOKEN_PRO_TRAINER) { HasPro = true; HasTrainer = true; }
+                        if (token == TOKEN_PRO)         hasPro = true;
+                        if (token == TOKEN_PRO_TRAINER) { hasPro = true; hasTrainer = true; }
                     }
                 }
             }
             catch (Exception ex)
             {
+                // A partial read is not a licence answer. Keep whatever we last knew to be
+                // true and report that the Store could not be reached.
                 LogService.Error("License refresh failed", ex);
+                return EntitlementRefreshResult.StoreUnavailable;
             }
+
+            // Clean read — commit, and clear the sticky failure flag so the UI stops
+            // warning once the Store is reachable again.
+            HasPro       = hasPro;
+            HasTrainer   = hasTrainer;
+            HasLifetime  = hasLifetime;
+            _initFailed  = false;
+            _initialized = true;
+
+            return IsFree
+                ? EntitlementRefreshResult.NotEntitled
+                : EntitlementRefreshResult.Entitled;
         }
 
         /// <summary>Purchase an add-on by its Store ID (not InAppOfferToken).</summary>

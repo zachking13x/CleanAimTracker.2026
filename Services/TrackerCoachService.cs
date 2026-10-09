@@ -1,4 +1,4 @@
-using CleanAimTracker.Models;
+﻿using CleanAimTracker.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -263,7 +263,7 @@ namespace CleanAimTracker.Services
                         Severity = 75,
                         RequiresBehaviorChange = true,
                         Message = $"Smoothness hasn't moved in {rxState.SessionsSince} sessions " +
-                                  $"({oldV:F0} → {newV:F0}) — odds are you're still gripping too tight. " +
+                                  $"({oldV:F0} → {newV:F0}) — the jaggedness is still there. A lighter grip is the usual first thing to test. " +
                                   "Let's change the approach: shorter reps, full attention on the grip. " +
                                   $"{rxState.PracticeScenario} · {rxState.PracticeVariant} at {rxState.PracticeDifficulty}, 60 seconds at a time."
                     };

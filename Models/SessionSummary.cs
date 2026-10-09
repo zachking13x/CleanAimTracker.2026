@@ -29,6 +29,13 @@
         public double SmoothnessScore { get; set; }
         public double CorrectionSharpness { get; set; }
         public double MovementConsistency { get; set; }
+
+        // AUDIT 2026-08-19: which MovementConsistency formula produced this reading.
+        // 0 = legacy running-mean (inflated), 1 = fixed session mean. The tracker
+        // ConsistencyTrend built from these is what TransferObservationSource uses to say
+        // "the training is transferring" — so a trend straddling the formula change would
+        // manufacture a decline and tell the player their drilling ISN'T working.
+        public int MovementMetricVersion { get; set; } = 0;
         // GATE 2: active-movement speed consistency (CV-based). -1 = not computed
         // (legacy sessions); the engine falls back to its old estimate for those.
         public double VelocityStability { get; set; } = -1;

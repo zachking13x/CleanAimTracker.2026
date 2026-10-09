@@ -27,6 +27,15 @@ namespace CleanAimTracker
             var s = SettingsService.Load();
             s.FirstLaunchComplete = true;
             s.OnboardingAutoStart = false;
+
+            // AUDIT A8: Skip used to set only the two flags above, but App.OnStartup gates
+            // the calibration flow on (!CalibrationComplete && !OnboardingSkipped && no
+            // stored drills). None of those changed here, so a user who explicitly chose
+            // Skip and then closed the app without training was routed straight back into
+            // onboarding on the next launch. Setting the flag the gate actually reads makes
+            // the choice stick.
+            s.OnboardingSkipped = true;
+
             SettingsService.Save(s);
             Close();
         }

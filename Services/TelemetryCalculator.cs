@@ -269,8 +269,25 @@ namespace CleanAimTracker.Services
         // ------------------------------------------------------------------ //
 
         /// <summary>
-        /// Average milliseconds between the moment a target changes direction and
-        /// the moment the player's cursor matches that direction change.
+        /// Average milliseconds between a target direction change and the moment the
+        /// player's movement STARTS — measured as cumulative raw displacement crossing a
+        /// threshold, NOT as the cursor's direction matching the target's.
+        ///
+        /// AUDIT 2026-08-19: this doc-comment used to say "the moment the player's cursor
+        /// matches that direction change", which the implementation has never done. It
+        /// integrates the ABSOLUTE magnitude of movement, so motion in the wrong direction
+        /// satisfies the threshold just as well as motion in the right one. That wording
+        /// is how coaching text drifted into "you're chasing the trail" and "your eyes
+        /// haven't caught the turn" — claims the maths cannot support.
+        ///
+        /// Read it as RESPONSE-ONSET timing: how quickly the hand starts, not how well it
+        /// aims. The user-facing label is "Your movement-onset delay" for that reason. A
+        /// true direction-match version would need target-velocity direction, cursor
+        /// direction over a short window, and a sustained positive dot product — a
+        /// worthwhile upgrade, but a different metric, and it should get a different key.
+        ///
+        /// The stored key stays AvgDirectionChangeLagMs: it is persisted in
+        /// PrescriptionState.VerifyMetric, so renaming it strands active prescriptions.
         /// Each pair is (targetChangeTimestamp, playerChangeTimestamp) in Stopwatch ticks.
         /// </summary>
         /// <param name="directionChangePairs">

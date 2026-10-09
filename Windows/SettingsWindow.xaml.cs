@@ -94,28 +94,12 @@ namespace CleanAimTracker.Windows
         {
             if (++_devTapCount < 5) return;
             _devTapCount = 0;
+            // The preview-as-free toggle went with the free tier (CAT_PAID_APP), since
+            // there is no paywall left to preview.
             try
             {
-                var s = SettingsService.Load();
-                string state = s.PreviewAsFreeUser ? "ON" : "OFF";
-                var choice = MessageBox.Show(
-                    OnboardingFunnelService.FormatReport() +
-                    $"\n\n──  DEV TOOLS  ──\n" +
-                    $"Preview as FREE user is currently {state}.\n" +
-                    $"Toggle it to see the paywall / locked coach exactly as a customer does?\n\n" +
-                    $"(Yes = flip it, then restart the app.)",
-                    "Dev tools (local only)", MessageBoxButton.YesNo, MessageBoxImage.Information);
-
-                if (choice == MessageBoxResult.Yes)
-                {
-                    s.PreviewAsFreeUser = !s.PreviewAsFreeUser;
-                    SettingsService.Save(s);
-                    MessageBox.Show(
-                        s.PreviewAsFreeUser
-                            ? "Preview-as-free is now ON. Restart the app — you'll see the app as a free user (locked coach, paywall cards, real banner)."
-                            : "Preview-as-free is now OFF. Restart — your dev Pro access is back.",
-                        "Dev tools", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
+                MessageBox.Show(OnboardingFunnelService.FormatReport(),
+                    "Dev tools (local only)", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch { /* dev view only — never disrupt settings */ }
         }

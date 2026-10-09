@@ -41,6 +41,7 @@ namespace CleanAimTracker.Trainer.Scenarios
         private long   _lastSpeedUpTick;
         private static readonly long SpeedUpIntervalTicks = 5L * Stopwatch.Frequency;
         private const double SpeedUpFactor      = 1.2;
+        private const double BounceSpeedUp      = 1.03;  // per wall impact, Bounce variant
 
         private readonly Stopwatch _reactionTimer = new();
         private double _totalReactionMs;
@@ -138,13 +139,8 @@ namespace CleanAimTracker.Trainer.Scenarios
 
                 if (nx <= 0 || nx + _targetSize >= w)
                 {
-                    _vx = -_vx;
-                    nx  = Math.Clamp(nx, 0, w - _targetSize);
-                    if (_variant == "Bounce")
-                    {
-                        _vx *= 1.03;  // slight speed increase on each bounce
-                        _vy *= 1.03;
-                    }
+                    _vx     = -_vx;
+                    nx      = Math.Clamp(nx, 0, w - _targetSize);
                     bounced = true;
                 }
 
@@ -153,11 +149,17 @@ namespace CleanAimTracker.Trainer.Scenarios
                     _vy     = -_vy;
                     ny      = Math.Clamp(ny, 0, h - _targetSize);
                     bounced = true;
-                    if (_variant == "Bounce" && !bounced)
-                    {
-                        _vx *= 1.03;
-                        _vy *= 1.03;
-                    }
+                }
+
+                // AUDIT A3: the speed-up used to live inside each collision branch, and the
+                // vertical copy was guarded by `!bounced` AFTER bounced was set true — so it
+                // never ran. Top/bottom impacts did not accelerate and the variant was
+                // asymmetric. Applying it once here covers both axes, and a corner hit
+                // (both branches in one frame) still scales exactly once.
+                if (bounced && _variant == "Bounce")
+                {
+                    _vx *= BounceSpeedUp;
+                    _vy *= BounceSpeedUp;
                 }
 
                 _x = nx;

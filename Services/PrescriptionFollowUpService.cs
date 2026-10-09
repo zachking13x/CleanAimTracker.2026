@@ -176,7 +176,13 @@ namespace CleanAimTracker.Services
             "OvershootPct"            => "Overshoot",
             "UndershootPct"           => "Undershoot",
             "AvgReactionMs"           => "Your average pace",
-            "AvgDirectionChangeLagMs" => "Direction-change lag",
+            // AUDIT 2026-08-19: the stored key stays "AvgDirectionChangeLagMs" — it is
+            // persisted in UserSettings.ActiveTechniquePrescription.VerifyMetric, so
+            // renaming it would strand every in-flight prescription on upgrade. The LABEL
+            // is what users read, and it now names what is actually measured: how long
+            // after the direction change the player's movement STARTS. Nothing in the
+            // calculator checks that the movement went the right way.
+            "AvgDirectionChangeLagMs" => "Your movement-onset delay",
             "VerticalTrackingAcc"     => "Vertical tracking accuracy",
             "PeekEarlyClickPct"       => "Early-click rate",
             "PeekLateClickPct"        => "Late-click rate",

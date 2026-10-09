@@ -875,7 +875,7 @@ namespace CleanAimTracker.Windows
                 // TASK-0.3: the flag is consumed AFTER the full report renders
                 // with content — never before (a blank report must not burn the
                 // one-time preview).
-                bool freeSessionPending = FreeCoachSessionService.ShouldTriggerFreeSession(settings, memory);
+                bool freeSessionPending = FreeCoachSessionService.IsInFreeTrialWindow(settings, memory);
                 if (freeSessionPending)
                 {
                     _isFullSession = true;

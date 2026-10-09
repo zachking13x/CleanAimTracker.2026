@@ -19,6 +19,7 @@ namespace CleanAimTracker.Windows
             LifetimePrice.Text = Pricing.Lifetime;
             LifetimeBadge.Text = Pricing.LifetimeLabel.ToUpperInvariant();
             MonthlyPrice.Text  = Pricing.Monthly;
+            if (LicenseService.IsAppTrial) MonthlyCard.Visibility = Visibility.Collapsed;
 
             if (!string.IsNullOrEmpty(featureName))
             {

@@ -58,12 +58,14 @@ namespace CleanAimTracker.Services
         // GRANDFATHERING comes from the same rule. Anyone who got CAT while it was free
         // keeps that Store entitlement after the price change, so they land here exactly
         // like a buyer and get everything, free, for good. Earlier Lifetime/Monthly add-on
-        // buyers are covered too. Every free-tier gate and upsell below is dead now; they
-        // stay only so the call sites keep compiling.
+        // buyers are covered too. Every free-tier gate and upsell below is dormant for
+        // owners; only a trial copy (next paragraph) still reaches them.
         //
-        // ⚠️ If a Store FREE TRIAL is ever turned on in Partner Center, this must start
-        // reading StoreAppLicense.IsTrial. Until then, unconditional true is correct.
-        public static bool IsFullVersion() => true;
+        // The one exception is a Store FREE TRIAL. Windows doesn't stop an expired trial from
+        // launching, so treating trial copies as full gave the app away. On 2026-10-09 a trial
+        // was live alongside 1.0.102 and did exactly that. A trial copy falls back to the old
+        // free tier, and its buy button purchases the app itself (LicenseService.OneTimeStoreId).
+        public static bool IsFullVersion() => !LicenseService.IsAppTrial;
 
         public static bool CanAccessProFeature()
             => IsFullVersion() || IsTrialActive();

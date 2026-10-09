@@ -2,9 +2,9 @@ namespace CleanAimTracker.Services
 {
     /// <summary>
     /// ⚠️ CAT_PAID_APP (2026-10-09): CAT is now a paid app at $4.99 (the app's own Store
-    /// price), and the add-ons below are RETIRED. Nothing in the app shows these strings
-    /// any more, because <see cref="TrialService.IsFullVersion"/> is always true and every
-    /// upsell is unreachable. They're kept only so the dormant upgrade windows compile.
+    /// price), and the add-ons below are RETIRED. Owners never see these strings. Only a
+    /// Store free-trial copy reaches the upgrade screens, and there <see cref="Lifetime"/>
+    /// shows the APP's price (see LicenseService.OneTimeStoreId).
     ///
     /// Single source of truth for DISPLAYED prices across the app and website.
     ///
@@ -36,13 +36,16 @@ namespace CleanAimTracker.Services
         // that, and these constants are the FALLBACK for when the Store is
         // unreachable (offline, sign-in issues, init failure).
         public const string LifetimeFallback = "$9.99";
+        public const string AppFallback      = "$4.99";
         public const string MonthlyFallback  = "$3.99";
 
         public const string LifetimeLabel   = "Founder's Price";
         public const string LifetimeCaption = "One-time · yours forever · never billed again";
 
         /// <summary>Localised lifetime price, or the US fallback if the Store is unreachable.</summary>
-        public static string Lifetime => LicenseService.LifetimePrice ?? LifetimeFallback;
+        public static string Lifetime => LicenseService.IsAppTrial
+            ? LicenseService.AppPrice ?? AppFallback
+            : LicenseService.LifetimePrice ?? LifetimeFallback;
 
         /// <summary>Localised monthly price, or the US fallback if the Store is unreachable.</summary>
         public static string Monthly => LicenseService.MonthlyPrice ?? MonthlyFallback;

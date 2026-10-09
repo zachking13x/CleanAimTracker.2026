@@ -77,7 +77,8 @@
             </Border>
 
             <!-- Monthly card — secondary low-commitment on-ramp -->
-            <Border Background="#1A1A1A"
+            <Border x:Name="MonthlyCard"
+                    Background="#1A1A1A"
                     CornerRadius="10"
                     Padding="16,14"
                     Margin="0,0,0,20"

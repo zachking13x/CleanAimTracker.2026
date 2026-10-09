@@ -1578,6 +1578,9 @@ namespace CleanAimTracker.Windows
 
         private static string GetWhatsNewText(string version) => version switch
         {
+            "1.0.103" => "Fixed a message that told people who own the app to \"Unlock Pro\" on their first few drills · " +
+                        "Clean Aim Tracker is a one-time purchase with everything included, and nothing in the app will ask you to pay again",
+
             "1.0.102" => "Everything is unlocked · Clean Aim Tracker is now a one-time purchase, with no add-ons and no subscription · " +
                         "The full coach, every report, history, trends, export and the overlay are all included · " +
                         "If you installed before the switch, all of it is yours free, for good. Thanks for being here early",

@@ -48,6 +48,29 @@ namespace CleanAimTracker.Services
         public const string STOREID_PRO         = "9NKB13MNDKF1";   // pro_monthly — LIVE
         public const string STOREID_PRO_TRAINER = "9N1J6FR6BX1N";   // pro_trainer_monthly — LIVE
         public const string STOREID_PROMO       = "9P6Z5PSG984Z";   // promo_pro_access — LIVE
+        public const string STOREID_APP         = "9MVBDZBQ01DM";   // the paid app itself
+
+        /// <summary>
+        /// CAT_PAID_APP: true when the Store says this copy is running on a FREE TRIAL of the
+        /// paid app. False until the Store answers, so an offline buyer is never locked out.
+        /// </summary>
+        public static bool IsAppTrial { get; private set; }
+
+        /// <summary>The app's own localised price, for the trial's buy button. Null until fetched.</summary>
+        public static string? AppPrice { get; private set; }
+
+        /// <summary>
+        /// What the one-time buy button purchases: the app itself for a trial user (add-ons are
+        /// retired), otherwise the legacy Lifetime add-on.
+        /// </summary>
+        public static string OneTimeStoreId => IsAppTrial ? STOREID_APP : STOREID_LIFETIME;
+
+        /// <summary>Test seam: the trial state otherwise only comes from a live Store read.</summary>
+        internal static void SetAppTrialForTests(bool isTrial, string? appPrice = null)
+        {
+            IsAppTrial = isTrial;
+            AppPrice   = appPrice;
+        }
 
         // ── InAppOfferTokens (developer-defined — used for license checks) ──
         /// <summary>
@@ -139,11 +162,22 @@ namespace CleanAimTracker.Services
             // call then threw, a paying customer was silently downgraded to free for the
             // rest of the session. Resolve into locals and commit only after a clean read,
             // so a failed refresh leaves the last known-good entitlements untouched.
-            bool hasPro = false, hasTrainer = false, hasLifetime = false;
+            bool hasPro = false, hasTrainer = false, hasLifetime = false, isAppTrial = false;
 
             try
             {
                 var appLicense = await _context.GetAppLicenseAsync();
+                isAppTrial = appLicense.IsTrial;
+
+                if (isAppTrial)
+                {
+                    try
+                    {
+                        var app = await _context.GetStoreProductForCurrentAppAsync();
+                        AppPrice = NullIfBlank(app?.Product?.Price?.FormattedPrice);
+                    }
+                    catch (Exception ex) { LogService.Error("App price lookup failed", ex); }
+                }
 
                 // ── Durable (lifetime) — check directly by Store ID ──────────
                 if (appLicense.AddOnLicenses.TryGetValue(STOREID_LIFETIME, out var lifetimeLic)
@@ -247,10 +281,13 @@ namespace CleanAimTracker.Services
             HasPro       = hasPro;
             HasTrainer   = hasTrainer;
             HasLifetime  = hasLifetime;
+            IsAppTrial   = isAppTrial;
             _initFailed  = false;
             _initialized = true;
 
-            return IsFree
+            // Owning the paid app (any non-trial licence) is an entitlement on its own now;
+            // only a trial copy with no add-on genuinely owns nothing.
+            return IsFree && IsAppTrial
                 ? EntitlementRefreshResult.NotEntitled
                 : EntitlementRefreshResult.Entitled;
         }

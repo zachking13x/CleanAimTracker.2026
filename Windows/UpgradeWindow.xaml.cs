@@ -24,6 +24,13 @@ namespace CleanAimTracker.Windows
             LifetimeCaptionText.Text = Pricing.LifetimeCaption;
             MonthlyPriceText.Text    = Pricing.MonthlyPer;
 
+            // A trial user buys the app, not an add-on. The monthly add-on is retired.
+            if (LicenseService.IsAppTrial)
+            {
+                LifetimeCaptionText.Text = "One-time · the full app · no subscription";
+                ProBtn.Visibility        = Visibility.Collapsed;
+            }
+
             TelemetryService.TrackPaywallShown(_trigger);
         }
 
@@ -76,9 +83,9 @@ namespace CleanAimTracker.Windows
             LifetimeBtn.Content   = "Processing...";
             try
             {
-                bool ok = await LicenseService.PurchaseAsync(LicenseService.STOREID_LIFETIME);
+                bool ok = await LicenseService.PurchaseAsync(LicenseService.OneTimeStoreId);
                 TelemetryService.TrackPurchaseCompleted(
-                    "lifetime", ok ? "succeeded" : "canceled", !LicenseService.IsFree);
+                    "lifetime", ok ? "succeeded" : "canceled", TrialService.IsFullVersion());
 
                 if (ok)
                 {

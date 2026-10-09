@@ -136,9 +136,6 @@ namespace CleanAimTracker
         {
             MessageBox.Show(
                 "Something went wrong and CleanAimTracker ran into an unexpected error.\n\n" +
-                "If this happened during a purchase, you were not charged — the transaction " +
-                "was not completed. You can try again or use \"Already purchased? Restore\" " +
-                "in the upgrade screen to recover access.\n\n" +
                 "The error has been logged and will help us fix this in a future update.\n\n" +
                 $"Error: {ex.GetType().Name}",
                 "Unexpected Error",

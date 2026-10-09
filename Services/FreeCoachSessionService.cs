@@ -54,6 +54,14 @@ namespace CleanAimTracker.Services
             return memory.RealDrillCount <= FreeCoachedDrills;
         }
 
+        /// <summary>
+        /// True only for a free-tier player inside the reverse-trial window. CAT_PAID_APP: every
+        /// copy is full now, so this is false for everyone. The result window used to read
+        /// ShouldTriggerFreeSession alone, which told new $4.99 buyers on drill 5 to "Unlock Pro".
+        /// </summary>
+        public static bool IsInFreeTrialWindow(UserSettings settings, CoachMemory memory)
+            => !TrialService.IsFullVersion() && ShouldTriggerFreeSession(settings, memory);
+
         /// <summary>How many fully-coached drills remain in the opening window (0 = spent).</summary>
         public static int FreeCoachedDrillsRemaining(CoachMemory memory)
             => System.Math.Max(0, FreeCoachedDrills - memory.RealDrillCount);
